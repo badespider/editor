@@ -15,6 +15,7 @@ Each feature command has its own file (linked below). The JSX code syntax consum
 | `project` | `p` | Create, list, open, and delete projects. |
 | `asset` | `a` | Manage and inspect assets in the open project. |
 | `folder` | `fld` | Organize the asset library into folders. |
+| `playbook` | | Local editing skills, plan checks, cut previews and reference candidates. |
 
 How the surface is divided:
 
@@ -82,6 +83,7 @@ How the surface is divided:
 - [`dapi media filmstrip`](./media/filmstrip.md): grid of video frames as a PNG
 - [`dapi media waveform`](./media/waveform.md): audio waveform PNG with silence highlighting
 - [`dapi media listen`](./media/listen.md): AI description of an audio track
+- [`dapi media understand`](./media/understand.md): local agent-operated evidence (default), inspection, transcript import and observations; optional Gemini analysis, status and claim verification
 
 ### Folders
 
@@ -123,4 +125,9 @@ Time inputs take the `Time` format unless noted otherwise. Times in **outputs** 
 - **Unix-style names are canonical:** list/read is `ls`, delete is `rm`, duplicate is `cp`, move/reparent is `mv`, search is `grep`. The longer English forms (`list`, `remove`, `duplicate`, `move`) are aliases of the Unix forms, not the other way around. `get` is a universal alias for `ls`. Commands without a natural Unix equivalent (`tree`, `rename`, `patch`, `add`, `create`, `active`, `context`, `whoami`, `open`, `focus`, `set`) keep their descriptive names.
 - **Stderr:** human-readable error messages.
 - **Exit codes:** `0` on success, `1` on any error (missing file, app not running, invalid input, IPC error).
-- **App must be running:** every command except `open`, `fonts`, and `fetch` talks to the open Diffusion Studio instance. If the app isn't running, the CLI prints an instruction to launch it and exits `1`. `report` is the one command that reads from the app but tolerates its absence, recording it in the issue instead of failing.
+- **App must be running:** canvas/project operations talk to the open Diffusion Studio instance. `fonts`, `fetch`, `playbook`, agent-operated media evidence, and `media understand --local` (including local status/evidence reads) can run without it. `report` tolerates the app's absence, recording it in the issue instead of failing. The default `--provider agent` makes no model calls; Gemini requires explicit provider selection and upload consent.
+
+## Editing skills and local plans
+
+See [the default agent workflow](./agent-workflow.md) and [playbook](./playbook.md) for the seven-skill relationship map, plan validation,
+provider-free cut previews and candidate reference workflow.

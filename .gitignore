@@ -40,3 +40,16 @@ out/
 skills-lock.json
 .agents
 .claude
+
+# Share this project's editing skills; leave other local agent state ignored.
+!/.agents/
+/.agents/*
+!/.agents/skills/
+/.agents/skills/*
+!/.agents/skills/editor-story-plan/
+!/.agents/skills/editor-pacing/
+!/.agents/skills/editor-visual-focus/
+!/.agents/skills/editor-audio-continuity/
+!/.agents/skills/editor-reference-learning/
+!/.agents/skills/editor-review/
+!/.agents/skills/editor-video-evidence/

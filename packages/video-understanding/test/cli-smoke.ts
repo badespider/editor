@@ -1,0 +1,34 @@
+// Run after building the CLI. No running editor or provider credentials needed.
+import assert from 'node:assert/strict';
+import {mkdtemp,writeFile,readFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {run} from '../src/media.ts';
+const dir=await mkdtemp(join(tmpdir(),'dapi-default-cli-'));
+const path=join(dir,'synthetic.mp4');
+const cli=fileURLToPath(new URL('../../../apps/cli/dist/index.js',import.meta.url));
+for(const key of ['GEMINI_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY_FILE','OPENAI_API_KEY']) delete process.env[key];
+await run('ffmpeg',['-v','error','-f','lavfi','-i','testsrc2=size=160x120:rate=10:duration=2',
+ '-f','lavfi','-i','sine=duration=2','-c:v','libx264','-c:a','aac','-n',path]);
+const call=async(...args:string[])=>JSON.parse(await run(process.execPath,[cli,...args]));
+const cache=['--cache-dir',join(dir,'evidence')];
+const workflow=await call('media','workflow');
+assert.equal(workflow.defaultProvider,'agent');assert(workflow.schemas.observe.properties.evidenceIds===undefined);
+assert(workflow.schemas.observe.properties.observations.items.properties.evidenceIds);
+const opened=await call('media','understand',path,...cache,'--overview-count','2','-o',join(dir,'session.json'));
+assert.equal(opened.provider,'agent');assert.equal(opened.externalModelCalls,0);
+const inspected=await call('media','inspect',opened.sessionId,...cache,'--start','.1','--end','1.5','--count','3','--audio','--clip');
+const transcriptPath=join(dir,'transcript.json');
+await writeFile(transcriptPath,JSON.stringify({sourceSha256:opened.source.sha256,origin:'Synthetic protocol test, not a real speech claim',verification:'unverified_transcript',segments:[{start:.2,end:1,text:'test phrase'}]}));
+const transcript=await call('media','transcript-import',opened.sessionId,transcriptPath,...cache);
+const reportPath=join(dir,'report.json');
+await writeFile(reportPath,JSON.stringify({sourceSha256:opened.source.sha256,author:'CLI smoke fixture',observations:[{id:'fixture-note',start:.1,end:1.5,observation:'Synthetic protocol placeholder, not a visual review',modalities:['visual','transcript'],evidenceIds:[inspected.artifacts[0].id,transcript.id]}]}));
+await call('media','observe',opened.sessionId,reportPath,...cache);
+const resumed=await call('media','dossier',opened.sessionId,...cache,'--query','placeholder');
+assert.equal(resumed.observations.length,1);assert.equal(resumed.observations[0].status,'agent_reported');
+assert.equal((await call('media','inspect',opened.sessionId,...cache,'--start','.1','--end','1.5','--count','3','--audio','--clip')).cached,true);
+await assert.rejects(call('media','understand',path,...cache,'--upload'),/explicitly select/);
+await assert.rejects(call('media','understand',path,'--provider','gemini','--local'),/upload/);
+assert.equal(JSON.parse(await readFile(join(dir,'session.json'),'utf8')).kind,'agent-video-evidence');
+console.log(JSON.stringify({passed:true,fixture:path,sessionId:opened.sessionId,externalModelCalls:0,checks:['default provider','schema discovery','inspect','transcript import','observe','cross-process resume','cache reuse','cloud opt-in rejection']}));

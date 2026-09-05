@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "url": "https://www.youtube.com/watch?v=ng4v6MHxNFU",
+  "title": "what I've learned creating better vlogs & how I edit for youtube — Dani Lee",
+  "technique": "Build the narrative from key scenes before adding connective footage",
+  "moments": [
+    { "start": 162.4, "end": 185.44, "observation": "Automatic captions describe editing the main talking scenes first to keep the vlog aligned with its theme.", "inspected": "transcript_only" },
+    { "start": 232.959, "end": 280.96, "observation": "Automatic captions describe B-roll between key scenes and showing experiences rather than only describing them.", "inspected": "transcript_only" }
+  ],
+  "takeaway": "Choose the scenes carrying the message, then add relevant connective footage where it clarifies the experience.",
+  "useWhen": ["A vlog has several substantive scenes and relevant supporting footage."],
+  "avoidWhen": ["Supporting footage is absent or would imply something untrue.", "A procedural demonstration needs uninterrupted steps."],
+  "localTests": []
+}

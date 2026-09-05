@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "url": "https://www.youtube.com/watch?v=cXie4DHP8aY",
+  "title": "The Complete Guide to Editing like Iman Gadzhi in 2024! (Masterclass) — Joseph | Video Editing",
+  "technique": "Define a consistent visual vocabulary and use graphics to explain selected points",
+  "moments": [
+    { "start": 85.28, "end": 110.0, "observation": "Automatic captions discuss a limited palette and contrast between the background and foreground graphic.", "inspected": "transcript_only" },
+    { "start": 133.28, "end": 158.68, "observation": "Automatic captions discuss contrasting type styles and restrained text entrances.", "inspected": "transcript_only" },
+    { "start": 192.959, "end": 211.319, "observation": "Automatic captions describe inserting explanatory animations among talking-head passages.", "inspected": "transcript_only" }
+  ],
+  "takeaway": "Use a coherent palette and typography, adding graphics when they explain the spoken point.",
+  "useWhen": ["A presentation-led video benefits from explanatory graphics."],
+  "avoidWhen": ["Decoration obscures screen details or changes the requested tone.", "Do not universalize the example's animation percentage or reuse creator assets."],
+  "localTests": []
+}

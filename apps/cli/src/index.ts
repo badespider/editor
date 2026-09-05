@@ -18,6 +18,8 @@ import { buildIssueBody, createIssue } from "./report";
 import { openFolder } from "./open-folder";
 import { fetchVideo } from "./ytdlp";
 import { MAX_FRAMES_PER_SHEET } from "./protocol";
+import { registerUnderstandingCommands } from "./understanding";
+import { registerPlaybookCommands } from "./playbook";
 import type { AssetRef, EncoderConfigInput, FrameQuality, LogEntry, LogLevel, NodePatch, TimecodedImage } from "./protocol";
 
 // Long-running commands (renders, AI generation) override the default 60s.
@@ -1204,13 +1206,14 @@ async function fetch(url: string, opts: FetchCliOptions, raw: string[]): Promise
 }
 
 const program = new Command();
+registerPlaybookCommands(program);
 
 program
   .name("dapi")
   .description(
     `The Diffusion Studio CLI: understand, generate, and edit footage.
 Analyze video/audio/images, generate them with AI, and compose assets.
-Use for any media analysis, media generation, or video editing task. No ffmpeg needed.`,
+For footage edits, start with media workflow and media understand: the calling agent inspects persistent local evidence. Agent evidence requires FFmpeg/FFprobe; no additional model or key is needed.`,
   )
   .version(version);
 
@@ -1301,8 +1304,10 @@ const media = program
   .command("media")
   .alias("m")
   .description(
-    "Inspect a media file by asset id or local path, without adding it to the project: probe metadata, transcribe speech, grab frames, render visual previews, and analyze with multimodal models.",
+    "Start footage understanding with media workflow and media understand (agent-operated evidence by default). Inspect local files or desktop asset IDs, refine timestamped frames/audio, save observations, and optionally use explicit provider-backed tools.",
   );
+
+registerUnderstandingCommands(media);
 
 media
   .command("probe")
@@ -1315,7 +1320,7 @@ media
 media
   .command("transcribe")
   .description(
-    `Transcribe the speech in a video or audio file and print the timed transcript, with word-level start/end times in seconds. Commonly useful for footage with speakers (talking head, interview), where the word times let you cut on a line. A transcript marks only speech; the gaps are not necessarily silent (music, score, applause).`,
+    `Provider-backed speech transcription; not the default no-API evidence workflow. Prints word-level start/end times. To reuse local ASR without another provider, use media transcript-import on an agent evidence session. Transcript gaps are not necessarily silent and word alignment is approximate.`,
   )
   .argument("<id|path>", "video or audio asset id, or a local file")
   .action((ref: string) => mediaTranscribe(ref));

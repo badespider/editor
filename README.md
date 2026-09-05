@@ -24,6 +24,20 @@ npx skills add diffusionstudio/skills -g
 
 `/editor` is the main skill you'll use. Ask for what you want in plain language.
 
+### Local editing playbook
+
+This checkout also contains seven repo-scoped skills for agent-operated video
+evidence, story planning, pacing, visual focus, audio continuity, references and reviewing
+edits. The local `dapi playbook` commands list/recommend skills, check an
+evidence-backed edit plan and render short hard-cut previews without AI API calls.
+Reference lessons stay candidates until tested and approved; no video is fetched
+by these commands. Start with [the default agent workflow](reference/agent-workflow.md)
+or `dapi media workflow`; it is usable by any agent with the required inspection
+tools, not only Codex. See also [the playbook guide](reference/playbook.md).
+These defaults belong to this checkout/build. An unrelated globally installed CLI
+or upstream skill is not replaced automatically; agents should open this repository
+and use its built CLI and `AGENTS.md` instructions.
+
 ## Prompt examples
 
 **Motion graphics**
@@ -66,6 +80,28 @@ npx skills add diffusionstudio/skills -g
 ```text
 /watch Name three recurring locations and give one visual cue that distinguishes each. https://youtu.be/dQw4w9WgXcQ
 ```
+
+## Evidence-first video understanding
+
+`dapi media understand` and the desktop `media.understand` API default to **agent-operated evidence**: timestamped
+frames, audio measurements, optional short clips, transcript import and attributed
+observations. The calling agent uses its own capabilities to reason; no additional
+model or API key is required. Optional Gemini analysis uses explicit
+`--provider gemini --upload` and also supports desktop background jobs. API
+credentials stay in the Node process, never in the browser bundle.
+
+```sh
+dapi media understand ./clip.mp4 --provider agent
+dapi media understand <video-asset-id> --desktop
+dapi media inspect <session-id> --start 5 --end 12 --count 12 --audio
+dapi media dossier <session-id> --query "recording"
+dapi media understand ./clip.mp4 --provider gemini --local --upload --max-events 2 --max-duration 60
+dapi media evidence <job-id> --local --query "recording" --supported-only
+```
+
+See [setup, costs, evidence semantics, and limitations](reference/media/understand.md).
+Model review is not ground truth or frame-accurate cut timing. This feature does
+not automatically apply edits.
 
 ## Compositions as code
 
@@ -118,11 +154,13 @@ Cutting footage requires understanding it. The CLI ships the inspection tools an
 
 ```sh
 dapi media probe clip.mp4                                # container + codec metadata, like ffprobe
-dapi media grab clip.mp4 -t 0 12 45                      # decode frames to PNGs
+dapi media workflow                                      # default evidence/edit/review loop
+dapi media understand clip.mp4                           # no additional model or API key
+dapi media inspect <session-id> --times 0 12 45           # refine persistent evidence
 dapi media filmstrip clip.mp4                            # grid of video frames
 dapi media waveform track.mp3                            # audio waveform, silence flagged
 dapi media transcribe interview.wav                      # timed, word-level transcript
-dapi media listen interview.mp4 -p "what is said in the intro?"   # ask a multimodal model
+dapi media listen interview.mp4 -p "what is said in the intro?"   # optional provider-backed analysis; not a default fallback
 dapi node capture                                        # see the canvas itself
 ```
 

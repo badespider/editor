@@ -1,0 +1,11 @@
+{
+  "name": "@diffusionstudio/video-understanding",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MPL-2.0",
+  "exports": { "./types": "./src/types.ts", "./node": "./src/service.ts", "./agent": "./src/agent.ts", "./system": "./src/system.ts", "./workflow": "./src/workflow.ts" },
+  "scripts": { "check": "tsc --noEmit", "test": "node --test test/*.test.ts", "test:cli": "node test/cli-smoke.ts" },
+  "dependencies": { "zod": "^4.2.0" },
+  "devDependencies": { "@types/node": "^24.10.1", "typescript": "~5.9.3" }
+}

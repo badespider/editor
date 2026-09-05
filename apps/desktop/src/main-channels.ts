@@ -10,6 +10,9 @@
 // CLI traffic uses a separate wire pair (CLI_WIRE in @diffusionstudio/cli/protocol);
 // main forwards it opaquely without inspecting channel names.
 import type { LogEntry, ScreenshotResult } from "@diffusionstudio/cli/protocol";
+import type { AnalysisRecord, Job } from "@diffusionstudio/video-understanding/types";
+import type { EditorUnderstandingService, UnderstandingRequest } from "@diffusionstudio/video-understanding/system";
+import type { AgentSession, AgentInspectRequest, AgentTranscriptRequest, AgentObservationRequest } from "@diffusionstudio/video-understanding/agent";
 
 export const MAIN_WIRE = {
   REQUEST: "main:request",
@@ -38,6 +41,14 @@ export const MAIN_CHANNELS = {
   FILE_WRITE_ABORT: "file:write-abort",
   HEADLESS_GET_MODE: "headless:get-mode",
   LOGS_GET: "logs:get",
+  UNDERSTANDING_START: "understanding:start",
+  UNDERSTANDING_STATUS: "understanding:status",
+  UNDERSTANDING_CANCEL: "understanding:cancel",
+  UNDERSTANDING_EVIDENCE: "understanding:evidence",
+  UNDERSTANDING_INSPECT: "understanding:inspect",
+  UNDERSTANDING_DOSSIER: "understanding:dossier",
+  UNDERSTANDING_TRANSCRIPT_IMPORT: "understanding:transcript-import",
+  UNDERSTANDING_OBSERVE: "understanding:observe",
 
   // Main→Renderer events
   AUTH_CALLBACK: "auth:callback",
@@ -55,6 +66,14 @@ export type DeepLinkChannel =
   | typeof MAIN_CHANNELS.CHECKOUT_CALLBACK;
 
 export type MainRequestMap = {
+  [MAIN_CHANNELS.UNDERSTANDING_START]: { request: UnderstandingRequest; response: AgentSession | Job };
+  [MAIN_CHANNELS.UNDERSTANDING_INSPECT]: { request: { id: string; request: AgentInspectRequest }; response: Awaited<ReturnType<EditorUnderstandingService['inspect']>> };
+  [MAIN_CHANNELS.UNDERSTANDING_DOSSIER]: { request: { id: string; query?: string }; response: Awaited<ReturnType<EditorUnderstandingService['dossier']>> };
+  [MAIN_CHANNELS.UNDERSTANDING_TRANSCRIPT_IMPORT]: { request: { id: string; transcript: AgentTranscriptRequest }; response: Awaited<ReturnType<EditorUnderstandingService['importTranscript']>> };
+  [MAIN_CHANNELS.UNDERSTANDING_OBSERVE]: { request: { id: string; report: AgentObservationRequest }; response: Awaited<ReturnType<EditorUnderstandingService['observe']>> };
+  [MAIN_CHANNELS.UNDERSTANDING_STATUS]: { request: { id: string }; response: Job };
+  [MAIN_CHANNELS.UNDERSTANDING_CANCEL]: { request: { id: string }; response: Job };
+  [MAIN_CHANNELS.UNDERSTANDING_EVIDENCE]: { request: { id: string; query?: string; supportedOnly?: boolean }; response: AnalysisRecord };
   [MAIN_CHANNELS.APP_OPEN_EXTERNAL]: { request: { url: string }; response: void };
   [MAIN_CHANNELS.AUTH_GET_PENDING_CALLBACK]: { request: void; response: string | null };
   [MAIN_CHANNELS.CHECKOUT_GET_PENDING_CALLBACK]: { request: void; response: string | null };

@@ -33,6 +33,7 @@
     "typescript": "~5.9.3"
   },
   "dependencies": {
+    "@diffusionstudio/video-understanding": "*",
     "@diffusionstudio/cli": "*",
     "update-electron-app": "^3.0.0"
   }

@@ -18,6 +18,7 @@ import { handleMount, handleNodeInsert } from "./mount";
 import { handleProjectActive, handleProjectList, handleProjectCreate, handleProjectDelete, handleProjectOpen } from "./project";
 import { handleLogs } from "./logs";
 import { handleModels } from "./models";
+import { handleMediaUnderstand, handleUnderstandingStatus, handleUnderstandingCancel, handleUnderstandingEvidence, handleAgentWorkflow, handleAgentInspect, handleAgentDossier, handleAgentTranscript, handleAgentObserve } from "./understanding";
 import { handleVoices } from "./voices";
 import { cliBridge, mainBridge } from '@/lib/ipc';
 import { createRouterCaller } from '@/lib/cli-rpc';
@@ -116,6 +117,15 @@ function createAppRouter({ getEngine, getUser, requireAuth, setParams }: AppRout
       export: m(handleAssetsExport(getEngine)),
     }),
     media: t.router({
+      understand: m(handleMediaUnderstand(getEngine)),
+      workflow: q0(handleAgentWorkflow),
+      inspect: m(handleAgentInspect),
+      dossier: q(handleAgentDossier),
+      transcriptImport: m(handleAgentTranscript),
+      observe: m(handleAgentObserve),
+      understandingStatus: q(handleUnderstandingStatus),
+      understandingCancel: m(handleUnderstandingCancel),
+      evidence: q(handleUnderstandingEvidence),
       probe: q(handleMediaProbe(getEngine)),
       frame: q(handleMediaFrame(getEngine)),
       transcribe: q(handleMediaTranscribe(getEngine)),

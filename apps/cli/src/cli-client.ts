@@ -35,7 +35,9 @@ function requestConnection(handshake: CliHandshake, timeoutMs: number): Promise<
     sock.setTimeout(timeoutMs, () =>
       settle(() => reject(new Error("Timed out waiting for the app to accept the connection"))),
     );
-    sock.on("connect", () => sock.end(JSON.stringify(handshake)));
+    // Windows named pipes do not reliably support the EOF half-close framing
+    // used by Unix sockets. Keep the duplex pipe open until the server replies.
+    sock.on("connect", () => sock.write(JSON.stringify(handshake) + "\n"));
     sock.on("data", (chunk) => {
       buf += chunk;
     });

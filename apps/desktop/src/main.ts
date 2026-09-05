@@ -15,6 +15,7 @@ import { mainBridge } from "./main-manager";
 import { MAIN_CHANNELS } from "./main-channels";
 import type { DeepLinkChannel } from "./main-channels";
 import type { LogEntry } from "@diffusionstudio/cli/protocol";
+import { EditorUnderstandingService } from "@diffusionstudio/video-understanding/system";
 
 const DEV_URL = "http://localhost:5173";
 const AUTH_PROTOCOL = "diffusion";
@@ -22,6 +23,7 @@ const MACOS_CORNER_RADIUS = 16;
 const MACOS_BACKDROP = { blur: 80, red: 0.07, green: 0.07, blue: 0.07, alpha: 0.9 };
 
 app.setName("Diffusion Studio");
+const understanding = new EditorUnderstandingService();
 app.commandLine.appendSwitch("enable-blink-features", "CanvasDrawElement");
 app.commandLine.appendSwitch("enable-features", "SharedArrayBuffer");
 app.commandLine.appendSwitch("disable-background-timer-throttling");
@@ -246,6 +248,14 @@ if (app.requestSingleInstanceLock()) {
   });
   mainBridge.handle(MAIN_CHANNELS.HEADLESS_GET_MODE, () => isHeadless());
   mainBridge.handle(MAIN_CHANNELS.LOGS_GET, () => logBuffer);
+  mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_START, data => understanding.understand(data));
+  mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_INSPECT, ({ id, request }) => understanding.inspect(id, request));
+  mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_DOSSIER, ({ id, query }) => understanding.dossier(id, query));
+  mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_TRANSCRIPT_IMPORT, ({ id, transcript }) => understanding.importTranscript(id, transcript));
+  mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_OBSERVE, ({ id, report }) => understanding.observe(id, report));
+  mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_STATUS, ({ id }) => understanding.status(id));
+  mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_CANCEL, ({ id }) => understanding.cancel(id));
+  mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_EVIDENCE, ({ id, query, supportedOnly }) => understanding.evidence(id, query, supportedOnly));
   mainBridge.handle(MAIN_CHANNELS.FILE_TRANSFER, ({ selector, absolutePath }) =>
     setFileInputFiles(selector, absolutePath),
   );
@@ -302,6 +312,7 @@ if (app.requestSingleInstanceLock()) {
   });
 
   app.on("before-quit", () => {
+    understanding.stop();
     stopCliServer();
   });
 

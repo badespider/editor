@@ -107,12 +107,12 @@ export function startCliServer() {
   cliServer = createServer({ allowHalfOpen: true }, (sock: Socket) => {
     enableHeadless();
     let buf = "";
+    let handled = false;
     sock.setEncoding("utf8");
     sock.setTimeout(60000, () => sock.destroy());
-    sock.on("data", (chunk) => {
-      buf += chunk;
-    });
-    sock.on("end", async () => {
+    const receive = async () => {
+      if (handled) return;
+      handled = true;
       sock.setTimeout(0);
       let handshake: CliHandshake;
       try {
@@ -125,7 +125,14 @@ export function startCliServer() {
         return;
       }
       await deliverHandshake(handshake, sock);
+    };
+    sock.on("data", (chunk) => {
+      buf += chunk;
+      if (buf.length > 65536) { sock.destroy(); return; }
+      if (buf.includes("\n")) void receive();
     });
+    // Accept older Unix clients that still terminate the request with EOF.
+    sock.on("end", () => { void receive(); });
     sock.on("error", () => {
       // Client hung up; nothing to do.
     });
