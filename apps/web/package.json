@@ -10,6 +10,7 @@
     "build:desktop": "tsc -b && vite build --mode desktop --base=./ --outDir=../desktop/web",
     "preview": "vite preview",
     "check": "tsc -p tsconfig.app.json --noEmit",
+    "test:cache": "node --test test/identity-cache.test.ts",
     "lint": "eslint ."
   },
   "dependencies": {

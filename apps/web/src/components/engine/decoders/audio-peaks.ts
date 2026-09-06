@@ -7,14 +7,14 @@ import { getAudioTrack } from './audio';
 
 import type { AudioAsset, VideoAsset } from '../db';
 
-const peakCache = new Map<string, Uint8ClampedArray>();
-const inflight = new Map<string, Promise<Uint8ClampedArray | null>>();
+let peakCache = new WeakMap<AudioAsset | VideoAsset, Uint8ClampedArray>();
+let inflight = new WeakMap<AudioAsset | VideoAsset, Promise<Uint8ClampedArray | null>>();
 
 const TARGET_BARS = 128;
 
 export function clearAudioPeaksCache() {
-	peakCache.clear();
-	inflight.clear();
+	peakCache = new WeakMap<AudioAsset | VideoAsset, Uint8ClampedArray>();
+	inflight = new WeakMap<AudioAsset | VideoAsset, Promise<Uint8ClampedArray | null>>();
 }
 
 /**
@@ -24,7 +24,7 @@ export function clearAudioPeaksCache() {
 export function getAudioPeaks(
 	asset: AudioAsset | VideoAsset,
 ): Uint8ClampedArray | null {
-	const key = asset.id;
+	const key = asset;
 
 	const cached = peakCache.get(key);
 	if (cached) return cached;
@@ -43,7 +43,7 @@ export function getAudioPeaks(
 export async function getAudioPeaksAsync(
 	asset: AudioAsset | VideoAsset,
 ): Promise<Uint8ClampedArray | null> {
-	const key = asset.id;
+	const key = asset;
 
 	const cached = peakCache.get(key);
 	if (cached) return cached;
@@ -58,9 +58,12 @@ export async function getAudioPeaksAsync(
 }
 
 async function buildPeaks(
-	key: string,
+	key: AudioAsset | VideoAsset,
 	asset: AudioAsset | VideoAsset,
 ): Promise<Uint8ClampedArray | null> {
+	// An invalidation must not be undone by an older asynchronous peak build.
+	const cache = peakCache;
+	const pending = inflight;
 	try {
 		const track = await getAudioTrack(asset);
 		if (!track) return null;
@@ -117,12 +120,12 @@ async function buildPeaks(
 			peaks[i] = max;
 		}
 
-		peakCache.set(key, peaks);
+		cache.set(key, peaks);
 		return peaks;
 	} catch (e) {
 		console.error('Failed to build audio peaks', e);
 		return null;
 	} finally {
-		inflight.delete(key);
+		pending.delete(key);
 	}
 }

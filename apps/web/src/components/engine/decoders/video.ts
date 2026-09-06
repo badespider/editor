@@ -119,7 +119,7 @@ export class VideoBuffer {
 
 			assert(videoTrack, 'Video track not found');
 
-			this.keyframes = getKeyframeIndex(this.asset.id, videoTrack);
+			this.keyframes = getKeyframeIndex(videoTrack);
 
 			await this.queue.init(videoTrack);
 
@@ -676,14 +676,14 @@ export class VideoExporter {
 
 export type VideoDecoderInstance = VideoBuffer | VideoExporter;
 
-const videoTrackCache = new Map<string, Promise<InputVideoTrack | null>>();
+let videoTrackCache = new WeakMap<VideoAsset, Promise<InputVideoTrack | null>>();
 
 export function clearVideoTrackCache() {
-	videoTrackCache.clear();
+	videoTrackCache = new WeakMap<VideoAsset, Promise<InputVideoTrack | null>>();
 }
 
 export function getVideoTrack(source: VideoAsset) {
-	let promise = videoTrackCache.get(source.id);
+	let promise = videoTrackCache.get(source);
 	if (promise) {
 		return promise;
 	}
@@ -697,12 +697,12 @@ export function getVideoTrack(source: VideoAsset) {
 			});
 			return await input.getPrimaryVideoTrack();
 		} catch {
-			videoTrackCache.delete(source.id);
+			if (videoTrackCache.get(source) === promise) videoTrackCache.delete(source);
 			return null;
 		}
 	})();
 
-	videoTrackCache.set(source.id, promise);
+	videoTrackCache.set(source, promise);
 	return promise;
 }
 

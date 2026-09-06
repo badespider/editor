@@ -14,22 +14,22 @@ import type { InputVideoTrack } from 'mediabunny';
  */
 const YIELD_INTERVAL = 512;
 
-const indexCache = new Map<string, KeyframeIndex>();
+let indexCache = new WeakMap<InputVideoTrack, KeyframeIndex>();
 
 export function clearKeyframeIndexCache() {
-	indexCache.clear();
+	indexCache = new WeakMap<InputVideoTrack, KeyframeIndex>();
 }
 
 /**
  * Returns the shared keyframe index for an asset, starting the walk on first
  * access. Cheap to call repeatedly — one index is built per asset, not per decoder.
  */
-export function getKeyframeIndex(assetId: string, track: InputVideoTrack): KeyframeIndex {
-	let index = indexCache.get(assetId);
+export function getKeyframeIndex(track: InputVideoTrack): KeyframeIndex {
+	let index = indexCache.get(track);
 
 	if (!index) {
 		index = new KeyframeIndex(track);
-		indexCache.set(assetId, index);
+		indexCache.set(track, index);
 	}
 
 	return index;

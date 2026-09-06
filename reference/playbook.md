@@ -6,7 +6,7 @@ Use a Codex task opened in this editor repository to discover `.agents/skills`. 
 
 ## Commands
 
-Run from the repo after `npm run build --workspace=@diffusionstudio/cli`. Use `node apps/cli/dist/index.js` instead of `dapi` if it is not on PATH. These playbook commands require no open editor, no Gemini key, no OpenAI API key and make no network/model calls.
+Run from the repo after `npm run build --workspace=@diffusionstudio/cli`. Use `node apps/cli/dist/index.js` instead of `dapi` if it is not on PATH. The commands below require no open editor, no Gemini key, no OpenAI API key and make no network/model calls. The additional [prepared delivery commands](delivery.md) follow the same no-model policy; only `deliver` requires the running desktop editor and creates a new project.
 
 ```sh
 dapi playbook skills
@@ -20,6 +20,17 @@ dapi playbook reference check candidate.json
 Formats: `tutorial`, `interview`, `story`, `montage`. `recommend` uses explicit format and simple keywords, not semantic AI or embeddings. Read returned skill paths before using them. Inspect the `requires`, `verify_with` and conditional `tension` edges when relevant. No external graph database is needed.
 
 ## Edit plan contract
+
+For source-linked short candidates, use [the clipping commands](clips.md):
+`playbook clips workflow`, `propose`, `check`, `review` and `plan`. They preserve
+the agent evidence default, require exact-selection review before exporting a
+clip plan, and feed the delivery workflow below without another AI provider.
+
+For mobile clips, continue with [the portrait stage](portrait.md):
+`clips portrait init/check/review/prepare`, normal `playbook deliver`, then
+`clips portrait inspect/review-render`. The caller's source-grounded crop/pan
+decisions become a reusable recipe; native output evidence and exact-byte
+editorial review records close the loop. No tracking model is installed.
 
 The authoritative strict runtime schema is `packages/editing-playbook/src/schema.ts`. Unknown fields fail. All times are numeric seconds relative to the **first original video presentation timestamp**, not frame indexes or MM.SS. Keep original video/audio aligned to that same origin. File paths are resolved relative to the plan file. Observations are authored by the reviewing agent/user; this checker does not create or authenticate them.
 

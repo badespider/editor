@@ -8,23 +8,25 @@ import { assert } from '@/utils';
 import { TimeStretcher } from './time-stretcher';
 import { addComponent } from '../api/events';
 import { getAssetFile } from '../api/assets';
+import { IdentityCache } from './identity-cache';
 
 import type { EngineWorld } from '../api/world';
 import type { AudioAsset, VideoAsset } from '../db';
 import type { AudioBus } from '../services/audio-bus';
 
-const audioTrackCache = new Map<string, Promise<InputAudioTrack | null>>();
+const audioTrackCache = new IdentityCache<AudioAsset | VideoAsset, Promise<InputAudioTrack | null>>();
 
 export function clearAudioTrackCache() {
 	audioTrackCache.clear();
 }
 
 /**
- * Keyed by asset ID so multiple decoders for the same source
+ * Keyed by asset object so project-local ids cannot reuse another project's sound.
+ * Multiple decoders for the same source
  * audio reuse a single Input + InputAudioTrack.
  */
 export function getAudioTrack(source: AudioAsset | VideoAsset) {
-	let promise = audioTrackCache.get(source.id);
+	let promise = audioTrackCache.get(source);
 	if (promise) return promise;
 
 	promise = (async () => {
@@ -36,12 +38,12 @@ export function getAudioTrack(source: AudioAsset | VideoAsset) {
 			});
 			return await input.getPrimaryAudioTrack();
 		} catch {
-			audioTrackCache.delete(source.id);
+			if (audioTrackCache.get(source) === promise) audioTrackCache.delete(source);
 			return null;
 		}
 	})();
 
-	audioTrackCache.set(source.id, promise);
+	audioTrackCache.set(source, promise);
 	return promise;
 }
 

@@ -82,7 +82,24 @@ to its first video PTS for both picture and sound, and map them explicitly into
 the composition's trims, speeds and timeline positions. `playbook check` validates
 declarations; `safeToAutoEdit: false` is deliberately preserved.
 
-Apply the authorized plan using existing editor commands/TSX. Keep the originals
+For cut-only edits, prefer the reusable [prepared delivery workflow](delivery.md):
+`playbook prepare` creates source-bound selected media and a timeline;
+`playbook deliver` renders a new editor project and checks the actual output.
+Chapter names remain separate metadata, with no visible titles added. A technical
+pass still requires the agent's audiovisual/editorial review. The commands do not
+introduce another AI provider. For long-form-to-short selection, use
+[the clipping layer](clips.md): `playbook clips propose` offers boundary hints;
+the agent fills the narrative, checks context and records a source review before
+`clips plan` exports a normal delivery plan. It is not an automatic virality model.
+
+For requested mobile/vertical clips, use the [portrait stage](portrait.md) after
+source review: `clips portrait init`, `check`, `review`, `prepare`, then normal
+`playbook deliver`. The caller supplies inspected shot boundaries and crop/pan
+coordinates; the renderer does not discover subjects. Finish with `clips portrait
+inspect` on the actual export and `review-render` after opening the evidence.
+This replaces one-off portrait compositions for the supported crop/contain case.
+
+For other authorized edits, use existing editor commands/TSX. Keep the originals
 and a comparison baseline. After mounting, read `dapi context` for current scene
 IDs. Render the actual composition for graphics/crops/audio changes; a cut-only
 preview does not test them. Inspect both sides of joins, action follow-through,

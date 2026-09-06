@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "license": "MPL-2.0",
-  "exports": { ".": "./src/index.ts", "./node": "./src/preview.ts" },
+  "exports": { ".": "./src/index.ts", "./node": "./src/preview.ts", "./delivery": "./src/delivery.ts", "./review": "./src/render-review.ts", "./clips": "./src/clips.ts", "./portrait": "./src/portrait.ts" },
   "scripts": { "check": "tsc --noEmit", "test": "node --test test/*.test.ts" },
   "dependencies": { "zod": "^4.2.0" },
   "devDependencies": { "@types/node": "^24.10.1", "typescript": "~5.9.3" }

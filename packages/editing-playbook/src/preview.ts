@@ -25,12 +25,12 @@ export async function fingerprint(path: string, signal?: AbortSignal) {
 
 export async function probe(path: string, signal?: AbortSignal) {
   const data = JSON.parse(await run(process.env.FFPROBE_PATH || "ffprobe", ["-v", "error", "-show_entries",
-    "format=duration:stream=codec_type,width,height,start_time,duration", "-of", "json", "-protocol_whitelist", "file,pipe", path], signal));
+    "format=duration,start_time:stream=codec_type,width,height,start_time,duration", "-of", "json", "-protocol_whitelist", "file,pipe", path], signal));
   const video = data.streams?.find((stream: { codec_type: string }) => stream.codec_type === "video");
   const duration = Number(video?.duration ?? data.format?.duration);
   const startTime = Number(video?.start_time ?? 0);
   if (!video?.width || !video?.height || !Number.isFinite(duration) || duration <= 0 || !Number.isFinite(startTime)) throw new Error("Expected a finite-duration local video.");
-  return { duration, startTime, width: Number(video.width), height: Number(video.height),
+  return { duration, startTime, containerStartTime: Number(data.format?.start_time ?? 0), width: Number(video.width), height: Number(video.height),
     hasAudio: data.streams.some((stream: { codec_type: string }) => stream.codec_type === "audio") };
 }
 

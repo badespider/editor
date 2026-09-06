@@ -13,6 +13,8 @@ export const agentWorkflow = {
     { id: 'record', cli: 'media observe <session-id> <observations.json>', api: 'media.observe', purpose: 'Save what you inspected, separately from inference and uncertainty, citing returned evidence IDs.' },
     { id: 'retrieve', cli: 'media dossier <session-id> --query <terms>', api: 'media.dossier', purpose: 'Reuse saved evidence and attributed observations across agents and process restarts.' },
     { id: 'plan', cli: 'playbook recommend --format <format> --goal <goal>', purpose: 'Choose relevant editing skills; build an evidence-backed plan. Run playbook check before applying edits.' },
+    { id: 'short-clips', cli: 'playbook clips workflow', purpose: 'For long-form clips: propose evidence-linked boundary hints, inspect context, author setup/action/payoff, record exact-selection source review, then export a plan. No additional AI or automatic publishing.' },
+    { id: 'mobile-clips', cli: 'playbook clips portrait workflow', purpose: 'Default for mobile clips after source review: author inspected shot-aware crop/pan or contain decisions, record framing review, prepare, deliver one scene in a new project, inspect the actual render and record exact-byte editorial review. No extra AI or automatic tracking.' },
     { id: 'edit', cli: 'mount <composition.tsx>', purpose: 'Only when editing is authorized. Preserve original sources and the baseline. Read context after mounting to obtain current scene IDs.' },
     { id: 'review', cli: 'node render <scene-id> -o <new-output.mp4>', purpose: 'Review the actual render, cut boundaries, text, audio and sync. State the real inspection coverage; never substitute an encoder success for review.' },
   ],
