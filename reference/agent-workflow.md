@@ -73,7 +73,8 @@ representative clip for testing. No recursive refinement loop is automatic.
 ## Plan, edit and review when authorized
 
 Use `playbook recommend --format story --goal "the actual brief"` (choose the
-appropriate format), and read the recommended skill files. The video-evidence
+appropriate format), and read the recommended skill files or use their returned
+`readArgs` with `dapi playbook skill <id>`. The video-evidence
 skill is included by default. Follow [the plan contract](playbook.md) to map
 inspected artifacts into evidence, beats, selected segments and protected ranges.
 Use short, local evidence intervals that really fit inside each retained segment;
@@ -81,6 +82,23 @@ do not simply label an entire source video "observed". Keep source times relativ
 to its first video PTS for both picture and sound, and map them explicitly into
 the composition's trims, speeds and timeline positions. `playbook check` validates
 declarations; `safeToAutoEdit: false` is deliberately preserved.
+
+For this checkout's vlog/journal **edit** tasks, recommendation also reads the
+explicit [style profile configuration](style-profiles.md). Read the returned
+`styleProfile.instructions`: your own environment and daily details can be worth
+remembering even without explaining narration. Preserve personality, place/time,
+breathing room and natural sound. No supplied track means no music. This is
+scoped to vlog/journal edits, not all projects or copy-only tasks. Use
+`--profile none` to disable, `--profile <id>` for explicit selection, and `--repo`
+for another checkout. Pure catalog calls do not infer personal defaults.
+
+For silent B-roll over uninterrupted voice, use the [layered workflow](layered.md):
+`playbook layered workflow/check/prepare/deliver/verify/inspect/review`. The base
+plan keeps the original sound timeline, cutaways change only picture, and
+protected moments stay visible. Record chronology and source-linked inspection
+evidence for each cutaway. The separate verifier checks picture and sound
+independently. V1 adds no music or ducking; standalone natural-sound beats remain
+ordinary base segments. Finish with actual-export evidence and a truthful review.
 
 For cut-only edits, prefer the reusable [prepared delivery workflow](delivery.md):
 `playbook prepare` creates source-bound selected media and a timeline;
@@ -108,6 +126,14 @@ frames plus automated sound checks are not continuous audiovisual viewing.
 Save the source/session references, decisions and review beside the edit so a
 different agent can resume. Do not copy personal vlog style choices as universal
 defaults, and do not promote reference lessons without user approval.
+
+For creative specialization, `vlog`, `B-roll`, `Shorts`, `YouTube SEO`, and
+`sound polish` goal keywords route to the five [creative skills](playbook.md#creative-skills-and-cross-agent-access).
+The recommender includes instruction prerequisites, not automatic tool execution.
+For packaging only, use `playbook recommend --task package --goal "the actual copy request"`;
+reuse existing evidence and final timing without a new footage edit. Agents with
+no native skill loader can read the exact same Markdown through `playbook skill`.
+The built CLI requires this checkout or an explicit `--repo` path for those files.
 
 ## API consumers and provider choice
 

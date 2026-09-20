@@ -3,7 +3,7 @@ import { dirname, resolve } from 'node:path';
 import { z } from 'zod';
 import type { Command } from 'commander';
 import { AgentEvidenceService } from '@diffusionstudio/video-understanding/agent';
-import { clipBriefSchema, clipCandidateSchema, clipCollectionSchema, clipReviewSchema } from '@diffusionstudio/editing-playbook';
+import { clipBriefSchema, clipCandidateSchema, clipCollectionSchema, clipReviewSchema, recommend } from '@diffusionstudio/editing-playbook';
 import type { ClipCollection } from '@diffusionstudio/editing-playbook';
 import { checkClips, clipToPlan, contextRange, jsonHash, mapOriginalRanges, proposeClips, recordClipReview } from '@diffusionstudio/editing-playbook/clips';
 import { readDeliveryBundle } from '@diffusionstudio/editing-playbook/delivery';
@@ -54,6 +54,7 @@ export function registerClipCommands(playbook:Command) {
   registerPortraitCommands(clips);
   clips.command('workflow').description('Discover the clipping workflow and strict JSON schemas')
     .action(()=>print({version:1,provider:'agent',instructions:'reference/clips.md',
+      skillReadArgs:recommend('story','short-form clips').skills.map(skill=>skill.readArgs),
       commands:['media understand <video>','media inspect <session> ...','media observe <session> observations.json',
         'playbook clips propose <session> --goal <goal> -o candidates.json',
         'playbook clips check candidates.json', 'playbook clips review candidates.json review.json -o reviewed.json',

@@ -110,11 +110,11 @@ test("a failed inspected preview requests changes, not a nonexistent first inspe
   assert.ok(report.warnings.some(warning => warning.code === "changes_required"));
   assert.ok(!report.warnings.some(warning => warning.code === "preview_review"));
 });
-test("all seven real skill files and their linked resources exist", async () => {
-  assert.equal(skills.length, 7);
+test("all twelve real skill files and their linked resources exist", async () => {
+  assert.equal(skills.length, 12);
   for (const skill of skills) {
     const url = new URL(`../../../${skill.path}`, import.meta.url);
-    const body = await readFile(url, "utf8");
+    const body = (await readFile(url, "utf8")).replace(/\r\n/g, "\n");
     assert.ok(body.startsWith(`---\nname: ${skill.id}\n`));
     for (const match of body.matchAll(/\]\(([^)#]+)(?:#[^)]*)?\)/g)) {
       if (!match[1].startsWith("http")) await access(fileURLToPath(new URL(match[1], url)));

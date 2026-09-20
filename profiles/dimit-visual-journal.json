@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "kind": "editor-style-profile",
+  "id": "dimit-visual-journal",
+  "label": "Dimit's visual journal",
+  "scope": "vlog-journal-edits",
+  "sourceNote": "User-approved repository preference: vlogs are a life journal; retain the creator's own environment, nature, daily details, place/time, personality, natural sound and breathing room. No music track is currently supplied: proceed with voice/B-roll/natural ambience. Gentle lo-fi remains optional only with a supplied, authorized track, lower under speech.",
+  "preferences": [
+    "own-environment-and-daily-details",
+    "preserve-place-and-time",
+    "preserve-personality-and-breathing-room",
+    "preserve-natural-sound",
+    "optional-gentle-lo-fi"
+  ]
+}

@@ -7,7 +7,7 @@ import { readDeliveryBundle, runMedia } from './delivery.ts';
 import { portraitDocumentSchema, portraitSampleFrames } from './portrait-schema.ts';
 
 /** Full decode, streaming low-resolution frames so long edits do not fill RAM. */
-async function decodeScan(path: string, signal?: AbortSignal) {
+export async function decodeScan(path: string, signal?: AbortSignal) {
   return new Promise<{ frames: number; uniformFrames: number; uniformExamples: number[] }>((resolveOutput, reject) => {
     const child = spawn(process.env.FFMPEG_PATH || 'ffmpeg', ['-v', 'error', '-xerror', '-nostdin', '-threads', '2',
       '-protocol_whitelist', 'file,pipe', '-i', path, '-map', '0:v:0', '-vf', 'scale=32:18,format=gray', '-an', '-c:v', 'rawvideo', '-f', 'rawvideo', 'pipe:1',
@@ -36,11 +36,11 @@ async function decodeScan(path: string, signal?: AbortSignal) {
   });
 }
 
-async function frame(path: string, seconds: number, signal?: AbortSignal) {
+export async function frame(path: string, seconds: number, signal?: AbortSignal) {
   return runMedia(['-v', 'error', '-nostdin', '-threads', '2', '-ss', seconds.toFixed(8), '-protocol_whitelist', 'file,pipe', '-i', path,
     '-map', '0:v:0', '-frames:v', '1', '-vf', 'scale=64:36,format=rgb24', '-f', 'rawvideo', '-'], { signal });
 }
-async function pcm(path: string, seconds: number, duration: number, signal?: AbortSignal) {
+export async function pcm(path: string, seconds: number, duration: number, signal?: AbortSignal) {
   const bytes = await runMedia(['-v', 'error', '-nostdin', '-ss', seconds.toFixed(8), '-protocol_whitelist', 'file,pipe', '-i', path,
     '-t', String(duration), '-vn', '-ar', '16000', '-ac', '1', '-f', 'f32le', '-'], { signal });
   return Float32Array.from({ length: bytes.length / 4 }, (_, i) => bytes.readFloatLE(i * 4));

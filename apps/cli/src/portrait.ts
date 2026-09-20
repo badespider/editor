@@ -113,7 +113,9 @@ export function registerPortraitCommands(clips:Command) {
           artifacts.push(...result.artifacts);
           if(result.contactSheet) contactSheets.push({path:result.contactSheet,sha256:await fingerprint(result.contactSheet,controller.signal),frameIds:result.contactSheetOrder ?? []});
         }
-        const sound=await service.inspect(session.id,{start:0,end:bundle.duration,count:1,audio:true},controller.signal);
+        // FFprobe serializes duration to microseconds; a frame-derived duration
+        // such as 1237/30 can exceed it by a fraction of a microsecond.
+        const sound=await service.inspect(session.id,{start:0,end:Math.min(bundle.duration,session.source.duration),count:1,audio:true},controller.signal);
         artifacts.push(...sound.artifacts);
         const packet=packetSchema.parse({schemaVersion:1,kind:'portrait-render-evidence',bundleDirectory:root,videoPath:report.path,
           videoSha256:report.sha256,recipeSha256:portraitHash(doc),sessionId:session.id,manifestSha256:jsonHash(bundle),technicalPass:true,

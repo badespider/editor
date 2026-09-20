@@ -13,6 +13,15 @@ export function createRenderEventDetail(progress: number, total: number, startTi
   return { remaining, progress, total };
 }
 
+/** Preserve frame-aligned ranges without flooring a seconds-roundtrip error. */
+export function getRenderFrameCount(workareaFrames: number, sourceRate: number, outputRate: number) {
+  const frames = workareaFrames * (outputRate / sourceRate);
+  const nearest = Math.round(frames);
+  const tolerance = Number.EPSILON * Math.max(1, Math.abs(frames)) * 8;
+  // Only snap floating-point noise; genuinely partial output frames still floor.
+  return Math.abs(frames - nearest) <= tolerance ? nearest : Math.floor(frames);
+}
+
 /**
  * Helper for making sure a number is greater than 1
  */

@@ -15,7 +15,7 @@ Each feature command has its own file (linked below). The JSX code syntax consum
 | `project` | `p` | Create, list, open, and delete projects. |
 | `asset` | `a` | Manage and inspect assets in the open project. |
 | `folder` | `fld` | Organize the asset library into folders. |
-| `playbook` | | Local editing skills, plan checks, cut previews and reference candidates. |
+| `playbook` | | Local editing skills, [scoped profiles](style-profiles.md), plan checks, [layered journal cutaways](layered.md), cut previews, reference candidates and [engagement experiments](engagement.md). |
 
 How the surface is divided:
 
@@ -129,5 +129,7 @@ Time inputs take the `Time` format unless noted otherwise. Times in **outputs** 
 
 ## Editing skills and local plans
 
-See [the default agent workflow](./agent-workflow.md) and [playbook](./playbook.md) for the seven-skill relationship map, plan validation,
-provider-free cut previews and candidate reference workflow.
+See [the default agent workflow](./agent-workflow.md) and [playbook](./playbook.md) for the twelve-skill relationship map, plan validation,
+provider-free cut previews and candidate reference workflow. Use `playbook skills`
+to list, `playbook skill <id>` to read instructions, and `playbook recommend` for
+task-specific guidance. Copy-only requests use `recommend --task package`.

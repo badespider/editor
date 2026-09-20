@@ -22,7 +22,8 @@ const artifact=inspected.artifacts.find((a:{kind:string})=>a.kind==='clip');
 await invoke('media','observe',opened.sessionId,await write('observations.json',{sourceSha256:opened.source.sha256,author:'Synthetic contract fixture',observations:[{id:'event',start:3,end:4,
   observation:'Generated colored test columns, not user footage',modalities:['visual'],evidenceIds:[artifact.id]}]}),...cache);
 const proposed=await invoke('playbook','clips','propose',opened.sessionId,...cache,'--goal','colored columns','--count','1','--min-duration','2','--max-duration','6','--context-seconds','1','-o',join(dir,'candidates.json'));
-const collection=proposed.collection,c=collection.candidates[0];c.range={start:2,end:6};c.title='Portrait contract fixture';c.narrative.whyStandalone='Synthetic test, no editorial claims';
+// 121 frames exercises FFprobe rounding 4.033333333... down to 4.033333.
+const collection=proposed.collection,c=collection.candidates[0];c.range={start:2,end:6+1/30};c.title='Portrait contract fixture';c.narrative.whyStandalone='Synthetic test, no editorial claims';
 for(const role of ['promise','setup','action','payoff'])c.narrative[role]={statement:'Generated fixture declaration',observationIds:['event']};
 const authored=await write('authored.json',collection),reviewed=join(dir,'reviewed.json');
 await invoke('playbook','clips','review',authored,await write('source-review.json',{candidateId:c.id,candidateSha256:candidateHash(collection,c),reviewer:'Synthetic contract',decision:'accept',evidenceIds:[artifact.id],
@@ -33,24 +34,29 @@ const doc=JSON.parse(await readFile(draftPath,'utf8'));doc.recipe.width=360;doc.
 const base={reason:'Known fixture centers for pan/cut/contain regression',evidenceIds:[artifact.id]};
 doc.recipe.shots=[{...base,startFrame:0,endFrame:30,mode:'cover',keyframes:[{frame:0,x:.18,y:.5},{frame:29,x:.82,y:.5}]},
   {...base,startFrame:30,endFrame:60,mode:'cover',keyframes:[{frame:30,x:.18,y:.5}]},
-  {...base,startFrame:60,endFrame:120,mode:'contain',keyframes:[]}];
+  {...base,startFrame:60,endFrame:121,mode:'contain',keyframes:[]}];
 const directed=await write('directed.json',doc),accepted=join(dir,'accepted.json');
 await invoke('playbook','clips','portrait','review',directed,await write('framing-review.json',{recipeSha256:portraitHash(doc),reviewer:'Synthetic contract',decision:'accept',
   checks:['subject','context','motion'].map(dimension=>({dimension,outcome:'pass',note:'Known generated fixture; not a real agent viewing claim'}))}),...cache,'-o',accepted);
 assert((await invoke('playbook','clips','portrait','check',accepted,...cache)).canPrepare);
 const bundle=join(dir,'bundle');await invoke('playbook','clips','portrait','prepare',accepted,...cache,'-o',bundle);
 await assert.rejects(invoke('playbook','clips','portrait','prepare',accepted,...cache,'-o',bundle),/exist/);
-const loaded=await readDeliveryBundle(bundle);assert.equal(loaded.bundle.width,360);assert.equal(loaded.bundle.height,640);assert.equal(loaded.bundle.frames,120);
+const loaded=await readDeliveryBundle(bundle);assert.equal(loaded.bundle.width,360);assert.equal(loaded.bundle.height,640);assert.equal(loaded.bundle.frames,121);
 const prepared=join(bundle,loaded.bundle.clips[0].path);
 const pixel=async(f:number,x:number,y:number)=>[...(await runMedia(['-v','error','-ss',String(Math.max(0,f/30-1e-7)),'-i',prepared,'-frames:v','1','-vf',`format=rgb24,crop=1:1:${x}:${y}:exact=1`,'-f','rawvideo','-']))];
 const red=await pixel(0,180,320),blue=await pixel(29,180,320),jump=await pixel(30,180,320),bar=await pixel(60,180,10);
 assert(red[0]>180&&red[2]<40);assert(blue[2]>180&&blue[0]<40);assert(jump[0]>180&&jump[2]<40);assert(bar.every(v=>v<40));
 // Trim away unused decoder tail, producing a stand-in for CLI receipt tests. Actual-editor test is separate.
 const standin=join(dir,'verification-fixture.mp4');
-await runMedia(['-v','error','-n','-i',prepared,'-t','4','-c:v','libx264','-c:a','aac',standin]);
+await runMedia(['-v','error','-n','-i',prepared,'-t',String(121/30),'-frames:v','121','-c:v','libx264','-c:a','aac',standin]);
 const packetPath=join(dir,'render-evidence.json');
 const packetResult=await invoke('playbook','clips','portrait','inspect',bundle,standin,...cache,'-o',packetPath);
 const packet=JSON.parse(await readFile(packetPath,'utf8'));assert.equal(packetResult.status,'technical_pass_needs_agent_review');
+const outputDossier=await invoke('media','dossier',packet.sessionId,...cache);
+const fullAudio=packet.artifacts.find((a:{kind:string})=>a.kind==='audio');
+assert(loaded.bundle.duration>outputDossier.source.duration);
+assert.equal(fullAudio.end,outputDossier.source.duration);
+assert(Math.abs(fullAudio.end-loaded.bundle.duration)<1e-6);
 const renderReview={packetSha256:jsonHash(packet),reviewer:'Synthetic receipt test',decision:'accept',coverage:'Generated colored columns and chirp only; no human viewing claim',
   evidenceIds:packet.artifacts.map((a:{id:string})=>a.id),checks:['story','speech','framing','continuity'].map(dimension=>({dimension,outcome:'pass',note:'Synthetic declaration tests receipt binding only'}))};
 const reviewPath=await write('render-review.json',renderReview);
@@ -64,6 +70,6 @@ await writeFile(standin,Buffer.concat([await readFile(standin),Buffer.from('muta
 await assert.rejects(invoke('playbook','clips','portrait','review-render',packetPath,reviewPath,...cache,'-o',join(dir,'stale-render.json')),/changed/);
 const report={passed:true,externalModelCalls:0,bundle,checks:['source review → portrait draft → framing review → prepared media',
   'nonzero source trim','moving crop pixels','hard boundary reset','contain fallback','1080x1920 default, 360x640 test preset',
-  'pending blocks preparation','no overwrite','actual-byte evidence extraction','render review requires evidence/audio','changed recipe and render rejection'],
+  'pending blocks preparation','no overwrite','actual-byte evidence extraction','fractional-frame duration rounds down without rejecting full-audio inspection','render review requires evidence/audio','changed recipe and render rejection'],
   limitation:'Synthetic stand-in tests media/CLI contracts; actual-editor export and agent visual review are separate.'};
 await write('smoke-report.json',report);console.log(JSON.stringify(report));

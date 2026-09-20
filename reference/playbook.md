@@ -1,8 +1,8 @@
 # Local editing playbook
 
-Seven repo-scoped skills add video evidence, story planning, pacing, visual focus, audio continuity, reference learning and review. The catalog's relationship graph is a small application routing aid, not a native Codex graph loader. All skills begin as **starter guidance**. A successful schema test does not establish improved storytelling. Start footage tasks with [the default agent workflow](agent-workflow.md); `editor-video-evidence` is always recommended for footage plans.
+Twelve repo-scoped skills cover seven foundations (video evidence, story planning, pacing, visual focus, audio continuity, reference learning and review) and five creative specializations listed below. The catalog's relationship graph is a small application routing aid, not a native agent dependency loader. All skills begin as **starter guidance**. A successful schema test does not establish improved storytelling. Start footage tasks with [the default agent workflow](agent-workflow.md); `editor-video-evidence` is always recommended for footage plans.
 
-Use a Codex task opened in this editor repository to discover `.agents/skills`. This projectless conversation can read those files explicitly, but repo-local discovery does not make them globally installed. See [official skill discovery](https://learn.chatgpt.com/docs/build-skills). Do not copy credentials into skills.
+Codex tasks opened in this repository can discover `.agents/skills`; other agents can read the same Markdown through files or `playbook skill`. Repo-local discovery does not make them globally installed. See [official skill discovery](https://learn.chatgpt.com/docs/build-skills). Do not copy credentials into skills.
 
 ## Commands
 
@@ -10,16 +10,82 @@ Run from the repo after `npm run build --workspace=@diffusionstudio/cli`. Use `n
 
 ```sh
 dapi playbook skills
+dapi playbook skill editor-vlog-story
 dapi playbook recommend --format tutorial --goal "Explain the action clearly" --reference
+dapi playbook recommend --format story --goal "Edit a multi-day vlog with B-roll and mobile Shorts"
+dapi playbook recommend --task package --goal "SEO for the original English video"
+dapi playbook recommend --task evaluate --goal "Compare vlog and Shorts engagement"
+dapi playbook experiment workflow
 dapi playbook check plan.json
 dapi playbook preview plan.json -o new-preview.mp4
 dapi playbook reference new "https://www.youtube.com/watch?v=ng4v6MHxNFU" -o candidate.json
 dapi playbook reference check candidate.json
 ```
 
-Formats: `tutorial`, `interview`, `story`, `montage`. `recommend` uses explicit format and simple keywords, not semantic AI or embeddings. Read returned skill paths before using them. Inspect the `requires`, `verify_with` and conditional `tension` edges when relevant. No external graph database is needed.
+Formats: `tutorial`, `interview`, `story`, `montage`; use `story` for a vlog. `recommend` uses explicit format and simple English keywords, not semantic AI or embeddings. Its default `--task edit` preserves the footage workflow; `--task package` selects copy-only guidance and `--task evaluate` selects review/experiment guidance without requiring a new plan/render. An explicit `--reference` also selects reference learning and its comparison review. Recommendations are advisory: keyword guards handle some explicit exclusions, not every negation, synonym or language. Read returned instructions and choose additional skills when the actual task needs them.
+
+For vlog/journal edits, the CLI reads this checkout's explicit
+[scoped style profile](style-profiles.md) and returns its instructions inline.
+Brief views of the creator's own environment can matter without illustrating
+narration. The default is not applied to unrelated story edits, tutorials or
+copy-only tasks. Use `--profile none` to disable, `--profile <id>` to select,
+and `--repo <directory>` to choose the checkout. No song is supplied: proceed
+with voice and natural sound.
+
+`requires` edges are expanded transitively in recommendations. They are instruction prerequisites, not authorization to run tools. `verify_with` and `tension` edges describe checks/tradeoffs; they do not execute themselves. No external graph database or second model is needed.
+
+## Creative skills and cross-agent access
+
+| Skill | Use it for | Reuses |
+| --- | --- | --- |
+| `editor-vlog-story` | A truthful thread through everyday/multi-day footage, personality and missing recording coverage | Story planning and pacing |
+| `editor-scene-building` | Purposeful B-roll, complete actions, visual coverage and explicit audio choices | Story, framing and audio continuity |
+| `editor-short-form` | Standalone context, complete moments and endings in the existing clipping/portrait workflow | Story, pacing and framing |
+| `editor-youtube-packaging` | Exact-version/language titles, full descriptions, chapters and thumbnail concepts | Existing source-backed records; targeted inspection if needed |
+| `editor-sound-polish` | Conservative dialogue/noise/level assessment and treatment, with honest listening limits | Audio continuity |
+
+`skills` and `recommend` include each skill's repository-relative `path` and a
+`readArgs` array such as `["playbook", "skill", "editor-vlog-story"]`. Pass these
+as arguments to this CLI. `playbook skill <id>` returns the complete `instructions`,
+`absolutePath`, `repositoryRoot`, maturity and related graph edges as JSON. Read
+relevant Markdown links relative to `absolutePath`. Only catalog IDs are accepted;
+this is not a general file-reading endpoint. The command runs without the desktop
+app or a model. It never applies an edit, installs skills, or records a review.
+
+The default root is the checkout containing this built CLI, not the shell's
+current directory. A relocated CLI can use
+`dapi playbook skill editor-vlog-story --repo /path/to/editor`; keep that `--repo`
+override when reading other skills. The checkout and its linked references must
+be present. An unrelated upstream/global CLI is not upgraded by these files.
+Node integrations can use `readSkill(id, repositoryRoot)` from
+`@diffusionstudio/editing-playbook/skills`; browser-safe catalog/recommendation
+exports remain at the package root. No new desktop UI panel or IPC API is implied.
+
+These skills describe editing decisions, not newly implemented rendering features.
+The cut-only workflow still cannot overlap B-roll with different dialogue, denoise,
+mix replacement sound, or burn in captions. For silent B-roll over continuous
+original voice, use the separate [layered workflow](layered.md), discovered with
+`playbook layered workflow`. It renders the actual editor and verifies picture
+and sound independently. Other composition work uses the documented TSX/node
+route and actual-render review. Source selection,
+portrait framing, technical checks and editorial review remain distinct gates.
+Agents still need appropriate image/audio capabilities and must disclose missing
+modalities; loading a skill cannot give a text-only agent vision.
+
+For a new lesson, compare one choice against the same-footage baseline and record
+the actual outcome before asking to promote it. Keep style preferences scoped and
+user-approved. The regression suite tests discovery, task/keyword routing, graph
+closure, file retrieval, and existing plan validation. Synthetic agent exercises
+can test instruction following, but neither establishes audiovisual quality or
+improved audience retention.
 
 ## Edit plan contract
+
+For opening-promise, standalone-Short checks and measured comparisons, use the
+[engagement experiment contract](engagement.md). `playbook experiment new/check`
+stores candidate comparisons separately from strict edit plans. Missing analytics
+remain unmeasured; declared reviews and conclusions are not authenticated results
+or automatic skill promotion. `--task evaluate` also returns `experimentWorkflowArgs`.
 
 For source-linked short candidates, use [the clipping commands](clips.md):
 `playbook clips workflow`, `propose`, `check`, `review` and `plan`. They preserve
@@ -84,6 +150,9 @@ Run a before/after comparison on authorized local footage, record its actual res
 npm run test:playbook
 npm run check --workspace=@diffusionstudio/editing-playbook
 npm run check --workspace=@diffusionstudio/cli
+npm run build --workspace=@diffusionstudio/cli
+node packages/editing-playbook/test/skills-cli-smoke.ts
+node packages/editing-playbook/test/experiments-cli-smoke.ts
 node packages/editing-playbook/test/preview-smoke.ts "path/to/original-OBS.mkv" "new-smoke-output-folder"
 node packages/editing-playbook/test/synthetic-preview.ts "new-synthetic-output-folder"
 ```

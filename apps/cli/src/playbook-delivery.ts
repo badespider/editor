@@ -15,6 +15,13 @@ async function requireAbsent(path: string) {
 /** Explicit user/agent command: creates a NEW project, never modifies an existing edit. */
 export async function deliverPreparedEdit(directory: string, destination: string, onProgress?: (message: string) => void) {
   const { root, bundle } = await readDeliveryBundle(directory);
+  return renderPreparedComposition(root, bundle, destination, verifyDelivery, onProgress);
+}
+
+/** Shared actual-editor export mechanics; each bundle kind retains its own validator/verifier. */
+export async function renderPreparedComposition<R extends { technicalPass: boolean; sha256: string }>(root: string,
+  bundle: { name: string; height: number; fps: 30; chapters: { seconds: number; title: string }[] }, destination: string,
+  verify: (directory: string, path: string, options: { onProgress?: (message: string) => void }) => Promise<R>, onProgress?: (message: string) => void) {
   const output = resolve(destination), reportPath = output + '.review.json', chapterPath = output + '.chapters.txt';
   if (extname(output).toLowerCase() !== '.mp4') throw new Error('Delivery output must end in .mp4');
   await Promise.all([output, reportPath, chapterPath].map(requireAbsent));
@@ -45,7 +52,7 @@ export async function deliverPreparedEdit(directory: string, destination: string
       audio: { enabled: true, codec: 'aac', bitrate: 192000, sampleRate: 48000, numberOfChannels: 2 },
     } }, { context: { timeoutMs: 3_600_000 } });
     await recordState('verifying');
-    const review = await verifyDelivery(root, workingOutput, { onProgress });
+    const review = await verify(root, workingOutput, { onProgress });
     await writeFile(join(run, 'review.json'), JSON.stringify(review, null, 2), { flag: 'wx' });
     if (!review.technicalPass) {
       await recordState('technical_review_failed');

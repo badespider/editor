@@ -26,17 +26,38 @@ npx skills add diffusionstudio/skills -g
 
 ### Local editing playbook
 
-This checkout also contains seven repo-scoped skills for agent-operated video
-evidence, story planning, pacing, visual focus, audio continuity, references and reviewing
-edits. The local `dapi playbook` commands list/recommend skills, check an
+This checkout contains twelve repo-scoped skills: seven foundations for agent-operated video
+evidence, story planning, pacing, visual focus, audio continuity, references and review,
+plus vlog direction, scene building/B-roll, short-form storytelling, YouTube packaging
+and sound polish. The local `dapi playbook` commands list/read/recommend skills, check an
 evidence-backed edit plan and render short hard-cut previews without AI API calls.
 Reference lessons stay candidates until tested and approved; no video is fetched
 by these commands. Start with [the default agent workflow](reference/agent-workflow.md)
 or `dapi media workflow`; it is usable by any agent with the required inspection
 tools, not only Codex. See also [the playbook guide](reference/playbook.md).
+
+Vlog/journal edits in this checkout can now use the scoped
+[visual-journal profile](reference/style-profiles.md): brief glimpses of the
+creator's own environment, natural sound, personality and breathing room. The
+reusable [layered workflow](reference/layered.md) puts silent B-roll over
+continuous original voice and checks the actual editor export. Music is deferred;
+no song, paid model, stock footage or upload is added. `--profile none` opts out.
 These defaults belong to this checkout/build. An unrelated globally installed CLI
 or upstream skill is not replaced automatically; agents should open this repository
 and use its built CLI and `AGENTS.md` instructions.
+
+```sh
+dapi playbook recommend --format story --goal "Edit a vlog with B-roll and mobile Shorts"
+dapi playbook skill editor-vlog-story
+dapi playbook recommend --task package --goal "English video title and full description"
+dapi playbook recommend --task evaluate --goal "Compare engagement without making a new edit"
+dapi playbook experiment workflow
+```
+
+Any agent with checkout/CLI access can read the skill instructions; native skill
+discovery is optional. Recommendations include their instruction prerequisites.
+Skills do not add missing vision/audio tools, automatically learn from YouTube,
+implement new rendering effects, or authorize publication.
 
 ## Prompt examples
 

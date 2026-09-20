@@ -12,7 +12,7 @@ import {
 import { TargetBuffer } from './buffer';
 import { createOutputFormat } from './format';
 import { assert } from '@/utils';
-import { createRenderEventDetail } from './utils';
+import { createRenderEventDetail, getRenderFrameCount } from './utils';
 import { version } from '../../../../package.json';
 import { hasComponent, Hierarchy, Not, Or, query } from 'bitecs';
 
@@ -238,7 +238,7 @@ export async function createEncoder(sourceWorld: EngineWorld, config: EncoderCon
 			await output.start();
 			const start = performance.now();
 			const startTime = start;
-			const totalFrames = Math.floor(duration * frameRate);
+			const totalFrames = getRenderFrameCount(workareaFrames, sourceWorld.frameRate, frameRate);
 
 			let audioRenderingDone = false;
 			let audioRenderingCompleted: Promise<AudioBuffer> | null = null;

@@ -16,6 +16,11 @@ inspect its frames/audio and save attributed observations. Import a suitable
 source-aligned transcript if available. Run in the repository after building the
 CLI; `dapi` below can be replaced by `node apps/cli/dist/index.js`.
 
+`playbook clips workflow` includes `skillReadArgs` for the dedicated
+`editor-short-form` skill and its supporting guidance. Read them through
+`playbook skill <id>` or the repository files before selecting moments; this
+works for agents without native skill discovery and does not execute an edit.
+
 ```sh
 dapi media understand long-form.mp4 --goal "Find complete moments that stand alone"
 dapi media inspect SESSION --start 40 --end 100 --count 12 --clip --audio

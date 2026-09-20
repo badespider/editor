@@ -1,0 +1,12 @@
+{
+  "schemaVersion": 1,
+  "kind": "editor-workflow-config",
+  "profileDefaults": [
+    {
+      "task": "edit",
+      "intent": "vlog-journal",
+      "formats": ["story", "montage"],
+      "profileId": "dimit-visual-journal"
+    }
+  ]
+}

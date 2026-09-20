@@ -1,13 +1,17 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import type { Command } from "commander";
-import { formats, recommend, relationships, skills, validatePlan, validateReference, youtubeUrlSchema } from "@diffusionstudio/editing-playbook";
-import type { Format } from "@diffusionstudio/editing-playbook";
+import { formats, recommendationTasks, relationships, skills, validatePlan, validateReference, youtubeUrlSchema } from "@diffusionstudio/editing-playbook";
+import type { Format, RecommendationTask } from "@diffusionstudio/editing-playbook";
+import { readSkill } from "@diffusionstudio/editing-playbook/skills";
+import { recommendWithProfile } from "@diffusionstudio/editing-playbook/profiles";
 import { renderPreview } from "@diffusionstudio/editing-playbook/node";
 import { prepareDelivery } from "@diffusionstudio/editing-playbook/delivery";
 import { verifyDelivery } from "@diffusionstudio/editing-playbook/review";
 import { deliverPreparedEdit } from './playbook-delivery';
 import { registerClipCommands } from './clips';
+import { registerExperimentCommands } from './experiments';
+import { registerLayeredCommands } from './layered';
 
 const readJson = async (path: string): Promise<unknown> => JSON.parse(await readFile(resolve(path), "utf8"));
 const print = (value: unknown) => console.log(JSON.stringify(value, null, 2));
@@ -18,14 +22,28 @@ const safe = <Args extends unknown[]>(action: (...args: Args) => Promise<void>) 
 export function registerPlaybookCommands(program: Command) {
   const playbook = program.command("playbook").description("Local evidence-backed plans, prepared edits, actual-editor delivery and review. No AI API calls.");
   registerClipCommands(playbook);
+  registerExperimentCommands(playbook);
+  registerLayeredCommands(playbook);
   playbook.command("skills").description("List editing skills and their relationship graph, including the default agent evidence workflow")
-    .action(() => print({ schemaVersion: 1, skills, relationships, note: "Paths are relative to the editor repository. Skills remain starter guidance, not learned results." }));
+    .action(() => print({ schemaVersion: 1, skills, relationships, note: "Paths are relative to the editor repository. Use readArgs to retrieve instructions with playbook skill. Skills remain starter guidance, not learned results." }));
+  playbook.command("skill").argument("<id>").option("--repo <directory>", "editor checkout containing .agents/skills; defaults to this CLI build's checkout")
+    .description("Read a catalog skill's complete instructions without native agent skill discovery or a running app")
+    .action(safe(async (id: string, options: { repo?: string }) => {
+      // Source and bundled CJS entrypoints both live three levels below the checkout.
+      print(await readSkill(id, options.repo ? resolve(options.repo) : resolve(__dirname, "../../..")));
+    }));
   playbook.command("recommend").requiredOption("--goal <text>").option("--format <format>", formats.join(" | "), "tutorial")
+    .option("--task <task>", "edit | package (copy only) | evaluate (existing evidence/comparisons)", "edit")
     .option("--reference", "include the reference-learning workflow")
-    .action(safe(async (options: { goal: string; format: string; reference?: boolean }) => {
+    .option("--profile <id|none>", "explicit repo-local style profile or disable the default")
+    .option("--repo <directory>", "editor checkout containing profiles; defaults to this CLI build's checkout")
+    .action(safe(async (options: { goal: string; format: string; task: string; reference?: boolean; profile?: string; repo?: string }) => {
       if (!formats.includes(options.format as Format)) throw new Error(`Choose format: ${formats.join(", ")}`);
+      if (!recommendationTasks.includes(options.task as RecommendationTask)) throw new Error(`Choose task: ${recommendationTasks.join(", ")}`);
       if (!options.goal.trim()) throw new Error("A goal is required.");
-      print(recommend(options.format as Format, options.goal, options.reference));
+      print(await recommendWithProfile({ repositoryRoot: options.repo ? resolve(options.repo) : resolve(__dirname, "../../.."),
+        format: options.format as Format, goal: options.goal, task: options.task as RecommendationTask,
+        hasReference: options.reference, profile: options.profile }));
     }));
   playbook.command("check").argument("<plan.json>").description("Validate bounds, cited evidence, protected moments and speech boundaries")
     .action(safe(async (path: string) => {
