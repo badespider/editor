@@ -42,14 +42,42 @@ context on each side. Override with `--count`, `--min-duration`, `--max-duration
 These are product budgets, not platform duration rules. If multiple transcript
 versions exist, choose one explicitly with `--transcript-id`; they are not merged.
 
-The proposal algorithm ranks stored observation/transcript anchors by literal
-query-term matches, preferring observations on ties. It tries up to 512 anchors,
-expands around complete known transcript units, respects the duration budget, and
-suppresses windows overlapping by at least half the shorter interval. It does
-**not** implement BERT, semantic highlight detection, learned retention prediction,
-automatic speech recognition or scene detection. A source with no usable anchors
-returns no invented highlights and suggests inspection ranges instead. Returning
-fewer than the requested count is valid.
+The default `--strategy balanced` uses Unicode word segmentation and normalized
+whole-token goal matches, rather than substring matches. Short terms such as
+`AI` and languages without spaces are supported. Common English request words
+are ignored; this is a lexical heuristic, not multilingual semantic retrieval.
+When there are matches, proposals focus on matching anchors; otherwise the
+result explicitly labels the candidates as exploration, not proof that the
+requested moment is absent. The audience remains context for the calling agent,
+not an automatically inferred editorial preference.
+
+The selector reserves part of its 512-anchor budget for coverage across the
+source, explores up to 72 valid windows per anchor at several durations, and
+ranks at most 1024 pooled windows. Alternative boundaries retain the seed and
+never bisect a known transcript unit, including nested/chained overlapping units.
+The 30 fps output-duration budget is checked before selection. Goal coverage,
+transcript boundary hints, padding and duration inform ranking; temporal spread
+and a soft wording-similarity penalty diversify the final choices. Overlap of
+at least half the shorter interval is still suppressed. Similar wording is not
+proof that two visual events are identical, and a transcript gap is not silence.
+
+Proposal stdout includes `strategy`, `status` and `diagnostics`: query status
+(`matched`, `generic_goal`, `no_lexical_match`, or `no_evidence`), work-budget
+counts, separate heuristic signals, reasons and up to three alternative ranges
+per selected candidate. These are explanations, not confidence probabilities or
+approval. They are deliberately outside the unchanged strict `candidates.json`
+collection. Changing to an alternative range still requires inspection and a
+fresh exact-candidate review. `needs_inspection` means there are no anchors;
+`no_valid_ranges` means the available evidence could not fit the constraints.
+
+Use `--strategy legacy` for a reproducible comparison with the original
+substring-ranking and conservative boundary-expansion policy. For direct API
+calls, use `proposeClips(context, brief, transcriptId, {strategy: 'legacy'})`.
+Neither strategy implements BERT, semantic highlight detection, learned retention
+prediction, automatic speech recognition or scene detection. There are no new
+model dependencies or external calls. Missing evidence produces no invented
+highlights and suggests inspection ranges instead. Returning fewer candidates
+than requested is valid.
 
 ## Let the agent complete the candidate
 

@@ -1,7 +1,7 @@
 import { mkdir, readFile, realpath, stat, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { z } from 'zod';
-import type { Command } from 'commander';
+import { Option, type Command } from 'commander';
 import { AgentEvidenceService } from '@diffusionstudio/video-understanding/agent';
 import { clipBriefSchema, clipCandidateSchema, clipCollectionSchema, clipReviewSchema, recommend } from '@diffusionstudio/editing-playbook';
 import type { ClipCollection } from '@diffusionstudio/editing-playbook';
@@ -11,7 +11,8 @@ import { fingerprint } from '@diffusionstudio/editing-playbook/node';
 import { registerPortraitCommands } from './portrait';
 
 type Options = { cacheDir?: string; output: string; goal?: string; audience?: string; count?: string;
-  minDuration?: string; maxDuration?: string; contextSeconds?: string; transcriptId?: string; deliveryBundle?: string; deliveryReview?: string };
+  minDuration?: string; maxDuration?: string; contextSeconds?: string; transcriptId?: string; deliveryBundle?: string; deliveryReview?: string;
+  strategy?: 'balanced' | 'legacy' };
 const print = (value: unknown) => console.log(JSON.stringify(value,null,2));
 export async function readJson(path:string) {
   const info=await stat(path); if(!info.isFile() || info.size>8_000_000)throw new Error('JSON input must be a local file at most 8 MB');
@@ -62,6 +63,8 @@ export function registerClipCommands(playbook:Command) {
         'playbook prepare plan.json -o bundle', 'playbook deliver bundle -o short.mp4',
         'playbook clips portrait workflow'],
       schemas:{brief:z.toJSONSchema(clipBriefSchema),candidate:z.toJSONSchema(clipCandidateSchema),collection:z.toJSONSchema(clipCollectionSchema),review:z.toJSONSchema(clipReviewSchema)},
+      proposalStrategies:{default:'balanced',available:['balanced','legacy'],
+        diagnostics:'Proposal stdout includes query status, work budgets, heuristic signals and alternative boundaries. These are not approval and are not fields of candidates.json.'},
       constraints:['Proposals are boundary hints, not verified complete moments. The calling agent must inspect and author the narrative.',
         'Original-moment selection preserves sound. For mobile clips use clips portrait: reviewed shot-aware crops/pans, not automatic subject detection. No ASR/caption/model install.',
         'All clip times are relative to the inspected long-form export, not its original recordings.',
@@ -69,6 +72,7 @@ export function registerClipCommands(playbook:Command) {
   clips.command('propose').argument('<session-id>').requiredOption('--goal <text>')
     .requiredOption('-o, --output <candidates.json>','new candidate file')
     .option('--cache-dir <directory>').option('--audience <text>').option('--count <number>','candidate target, not a guarantee','3')
+    .addOption(new Option('--strategy <name>','proposal policy; legacy preserves the original baseline').choices(['balanced','legacy']).default('balanced'))
     .option('--min-duration <seconds>','minimum selected duration','30').option('--max-duration <seconds>','maximum selected duration, <=120','90')
     .option('--context-seconds <seconds>','surrounding context on each side','8').option('--transcript-id <id>','choose one transcript version; no implicit merging')
     .option('--delivery-bundle <directory>','optional existing prepared long-form bundle')
@@ -77,7 +81,7 @@ export function registerClipCommands(playbook:Command) {
       if(!!options.deliveryBundle!==!!options.deliveryReview)throw new Error('Supply --delivery-bundle and --delivery-review together');
       const context=await loadSource(id,options.cacheDir);
       const result=proposeClips(context,{goal:options.goal,audience:options.audience,count:Number(options.count),
-        minDuration:Number(options.minDuration),maxDuration:Number(options.maxDuration),contextSeconds:Number(options.contextSeconds)},options.transcriptId);
+        minDuration:Number(options.minDuration),maxDuration:Number(options.maxDuration),contextSeconds:Number(options.contextSeconds)},options.transcriptId,{strategy:options.strategy});
       if(options.deliveryBundle) {
         result.collection.delivery={bundleDirectory:await realpath(options.deliveryBundle),receiptPath:await realpath(options.deliveryReview!),receiptSha256:await fingerprint(options.deliveryReview!)};
         const bundle=await deliveryFor(result.collection);

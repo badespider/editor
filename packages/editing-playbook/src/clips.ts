@@ -4,6 +4,7 @@ import type { ClipBrief, ClipCandidate, ClipCollection } from './clip-schema.ts'
 import type { DeliveryBundle } from './delivery-schema.ts';
 import type { Plan } from './schema.ts';
 import { validatePlan } from './validate.ts';
+import { balancedClipRanges } from './clip-proposals.ts';
 
 // Structural subset of the evidence service's session; no model/service import.
 export type ClipContext = {
@@ -34,11 +35,10 @@ export function overlapFraction(a: {start: number; end: number}, b: {start: numb
   return Math.max(0, Math.min(a.end, b.end) - Math.max(a.start, b.start)) / Math.min(a.end-a.start, b.end-b.start);
 }
 
-/** Boundary hints only. It does not infer a hook, payoff, or verified speech. */
-export function proposeClips(context: ClipContext, input: unknown, transcriptId?: string) {
-  const brief = clipBriefSchema.parse(input);
-  if (!transcriptId && context.transcripts.length > 1) throw new Error('Multiple transcript versions: select one with --transcript-id');
-  const transcript = transcriptFor(context, transcriptId ?? context.transcripts[0]?.id ?? null);
+export type ClipProposalOptions = { strategy?: 'balanced' | 'legacy' };
+
+// Retained for deterministic comparisons; no changes to the original selection policy.
+function legacyCandidates(context: ClipContext, brief: ClipBrief, transcript: ClipContext['transcripts'][number] | undefined) {
   const terms = [...new Set(brief.goal.toLowerCase().match(/[\p{L}\p{N}]{3,}/gu) ?? [])];
   const anchors = [
     ...context.observations.map(o => ({ type: 'observation' as const, id: o.id, start: o.start, end: o.end, text: o.observation })),
@@ -69,12 +69,33 @@ export function proposeClips(context: ClipContext, input: unknown, transcriptId?
       seed: {type: anchor.type, id: anchor.id}, narrative: {promise: empty(), setup: empty(), action: empty(), payoff: empty(), whyStandalone: ''},
       protectedRanges: [], review: null });
   }
+  return candidates;
+}
+
+/** Boundary hints only. It does not infer a hook, payoff, or verified speech. */
+export function proposeClips(context: ClipContext, input: unknown, transcriptId?: string, options: ClipProposalOptions = {}) {
+  const brief = clipBriefSchema.parse(input);
+  const strategy = options.strategy ?? 'balanced';
+  if (strategy !== 'balanced' && strategy !== 'legacy') throw new Error('Unknown clip proposal strategy; use balanced or legacy');
+  if (!transcriptId && context.transcripts.length > 1) throw new Error('Multiple transcript versions: select one with --transcript-id');
+  const transcript = transcriptFor(context, transcriptId ?? context.transcripts[0]?.id ?? null);
+  const balanced = strategy === 'balanced' ? balancedClipRanges(context, brief, transcript) : null;
+  const candidates: ClipCandidate[] = balanced ? balanced.ranges.map((hint, i) => {
+    const empty = () => ({ statement: '', observationIds: [] });
+    return { id: `clip-${i + 1}`, title: '', mode: 'original_moment', ...hint,
+      narrative: { promise: empty(), setup: empty(), action: empty(), payoff: empty(), whyStandalone: '' },
+      protectedRanges: [], review: null };
+  }) : legacyCandidates(context, brief, transcript);
   const collection = clipCollectionSchema.parse({ schemaVersion: 1, kind: 'agent-clip-candidates',
     source: { sessionId: context.id, sha256: context.source.sha256, path: context.source.path, transcriptId: transcript?.id ?? null },
     brief, candidates, delivery: null });
-  return { collection, algorithm: 'observation/transcript anchors, lexical query matches, conservative boundary expansion and overlap suppression',
+  return { collection, strategy, diagnostics: balanced?.diagnostics ?? null,
+    status: candidates.length ? 'proposed' : context.observations.length || transcript?.segments.length ? 'no_valid_ranges' : 'needs_inspection',
+    algorithm: strategy === 'balanced'
+      ? 'Unicode word matching, source-wide anchor coverage, multi-window boundary search and lexical/temporal diversification'
+      : 'observation/transcript anchors, lexical query matches, conservative boundary expansion and overlap suppression',
     requested: brief.count, proposed: candidates.length, externalModelCalls: 0,
-    note: 'Hints are not semantic highlight detection or a virality score. Fewer candidates are valid when evidence is sparse. Inspect context, then author narrative and review.',
+    note: 'Hints are not semantic highlight detection or a virality score. Diagnostics are heuristic explanations, not approval; do not add them to the strict collection. Fewer candidates are valid. Inspect context, then author narrative and review.',
     nextInspectionRanges: candidates.length ? candidates.map(c => ({ candidateId: c.id, ...contextRange(c, brief, context.source.duration) })) :
       Array.from({length: Math.min(brief.count, 3)}, (_, i) => ({ candidateId: null, start: i*context.source.duration/Math.min(brief.count,3),
         end: Math.min(context.source.duration, i*context.source.duration/Math.min(brief.count,3) + 60) })),

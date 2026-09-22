@@ -17,9 +17,10 @@ const video=join(dir,'synthetic.mp4');
 await runMedia(['-v','error','-n','-f','lavfi','-i','testsrc2=s=320x180:r=30:d=10','-f','lavfi','-i',
   'aevalsrc=0.1*sin(2*PI*(300*t+17*t*t)):s=48000:d=10','-c:v','libx264','-c:a','aac',video]);
 const workflow=await invoke('playbook','clips','workflow');assert.equal(workflow.externalModelCalls,0);assert(workflow.schemas.review.properties.candidateSha256);
+assert.equal(workflow.proposalStrategies.default,'balanced');
 const session=await invoke('media','understand',video,...cache,'--overview-count','3');
 const noEvidence=await invoke('playbook','clips','propose',session.sessionId,...cache,'--goal','Find fixture events','--min-duration','2','--max-duration','3','-o',join(dir,'empty.json'));
-assert.equal(noEvidence.proposed,0);
+assert.equal(noEvidence.proposed,0);assert.equal(noEvidence.status,'needs_inspection');assert.equal(noEvidence.diagnostics.query.status,'no_evidence');
 const inspected=await invoke('media','inspect',session.sessionId,...cache,'--start','0','--end','10','--count','5','--audio','--clip');
 const artifact=inspected.artifacts.find((a:{kind:string})=>a.kind==='clip');
 const observation=await write('observations.json',{sourceSha256:session.source.sha256,author:'Synthetic contract fixture',observations:[1,4,7].map((start,i)=>({id:`event-${i}`,start,end:start+1,
@@ -27,12 +28,18 @@ const observation=await write('observations.json',{sourceSha256:session.source.s
 await invoke('media','observe',session.sessionId,observation,...cache);
 const proposalPath=join(dir,'candidates.json');
 const proposals=await invoke('playbook','clips','propose',session.sessionId,...cache,'--goal','generated test pattern','--min-duration','2','--max-duration','3','--context-seconds','1','-o',proposalPath);
-assert.equal(proposals.proposed,3);
+assert.equal(proposals.proposed,3);assert.equal(proposals.strategy,'balanced');assert.equal(proposals.diagnostics.candidates.length,3);
+assert.equal(Object.hasOwn(proposals.collection,'diagnostics'),false);
+const legacy=await invoke('playbook','clips','propose',session.sessionId,...cache,'--goal','generated test pattern','--min-duration','2','--max-duration','3',
+  '--context-seconds','1','--strategy','legacy','-o',join(dir,'legacy-candidates.json'));
+assert.equal(legacy.strategy,'legacy');assert.equal(legacy.diagnostics,null);assert.equal(legacy.proposed,3);
+await assert.rejects(invoke('playbook','clips','propose',session.sessionId,...cache,'--goal','fixture','--strategy','unknown','-o',join(dir,'invalid-strategy.json')),/Allowed choices|invalid|balanced/);
 await assert.rejects(invoke('playbook','clips','plan',proposalPath,'clip-1',...cache,'-o',join(dir,'not-approved.json')),/needs review/);
 const authored=clipCollectionSchema.parse(proposals.collection);
 for(const [i,c] of authored.candidates.entries()) {
   c.title=`Synthetic clip ${i+1}`;c.narrative.whyStandalone='Contract test only, not a completed creative evaluation';
-  for(const role of ['promise','setup','action','payoff'] as const)c.narrative[role]={statement:`Known fixture ${role}`,observationIds:[`event-${i}`]};
+  assert.equal(c.seed.type,'observation');
+  for(const role of ['promise','setup','action','payoff'] as const)c.narrative[role]={statement:`Known fixture ${role}`,observationIds:[c.seed.id]};
 }
 let current=await write('authored.json',authored);
 for(const candidate of authored.candidates) {
@@ -79,6 +86,7 @@ if(process.argv[3] && process.argv[4]) {
 await writeFile(video,Buffer.concat([await readFile(video),Buffer.from('changed fixture')]));
 await assert.rejects(invoke('playbook','clips','check',current,...cache),/Source changed/);
 const report={passed:true,externalModelCalls:0,checks:['workflow schemas','empty evidence produces no highlights','three distinct proposals','pending blocks plan',
+  'balanced diagnostics outside strict collection','explicit legacy baseline','invalid strategy rejected',
   'recorded review and plan export across processes','no overwrite','prepared clip bundle','stale review','changed source',...linkedChecks],
   limitation:'Synthetic contract checks do not establish actual storytelling quality or human audiovisual review'};
 await write('smoke-report.json',report);console.log(JSON.stringify(report));
