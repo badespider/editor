@@ -4,7 +4,7 @@ import { readFile, realpath } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { fingerprint } from './preview.ts';
 import { readDeliveryBundle, runMedia } from './delivery.ts';
-import { portraitDocumentSchema, portraitSampleFrames } from './portrait-schema.ts';
+import { portraitDocumentSchema, portraitOutputSampleFrames } from './portrait-schema.ts';
 
 /** Full decode, streaming low-resolution frames so long edits do not fill RAM. */
 export async function decodeScan(path: string, signal?: AbortSignal) {
@@ -71,7 +71,7 @@ export function comparePcm(a: Float32Array, b: Float32Array) {
 export async function verifyDelivery(directory: string, video: string, options: { signal?: AbortSignal; onProgress?: (message: string) => void } = {}) {
   const signal = options.signal ? AbortSignal.any([options.signal, AbortSignal.timeout(3_600_000)]) : AbortSignal.timeout(3_600_000);
   const { root, bundle } = await readDeliveryBundle(directory, signal);
-  const portraitFrames = bundle.portrait ? portraitSampleFrames(portraitDocumentSchema.parse(JSON.parse(await readFile(join(root,'portrait.json'),'utf8'))).recipe) : [];
+  const portraitFrames = bundle.portrait ? portraitOutputSampleFrames(portraitDocumentSchema.parse(JSON.parse(await readFile(join(root,'portrait.json'),'utf8')))) : [];
   const path = await realpath(resolve(video));
   const data = JSON.parse((await runMedia(['-v', 'error', '-show_streams', '-show_format', '-of', 'json', '-protocol_whitelist', 'file,pipe', path],
     { binary: process.env.FFPROBE_PATH || 'ffprobe', signal })).toString());

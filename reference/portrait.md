@@ -33,6 +33,57 @@ for every shot. Split at known hard cuts or deliberate changes in attention.
 Protect the subject, hands, demonstration, reactions and context that matter.
 If a crop cannot do that, explicitly choose `contain` for the affected shot.
 
+## Imported captions and phone-size review (V2 opt-in)
+
+Existing V1 documents remain supported. Opt into the versioned mobile contract
+before recording the framing review:
+
+```sh
+dapi playbook clips portrait mobile portrait.json --captions transcript.srt --font caption-font.ttf -o mobile.json
+dapi playbook clips portrait check mobile.json
+```
+
+Use `mobile.json` in the subsequent framing-review command. This operation always
+clears framing approval, even when upgrading an already reviewed V1 document.
+It makes no model call and does not transcribe or upload anything. The local font
+must be a standalone TTF/OTF file that you are licensed to use. Its family is read
+from the font; an optional `--font-family` must match. Font bytes and caption input
+bytes are fingerprinted. Changing either file requires re-import and fresh review.
+
+Caption timestamps default to the **original source timeline**. Use `--timebase
+clip` only when the supplied captions already begin at the selected clip's zero.
+Cues are mapped to half-open 30-fps frame ranges and clamped to the selection.
+Boundary warnings require checking words against retained speech: segment timing
+is not word alignment. Plain-text SRT and WebVTT are supported, including UTF-8,
+BOM and CRLF. Overlaps, markup/entities, positioning settings and unsupported VTT
+metadata are rejected rather than silently discarded. Line breaks are explicit;
+there is no automatic word rewriting or karaoke timing. The first burn-in renderer
+rejects literal ASCII braces/backslashes rather than rewriting them or permitting
+ASS control injection. At most 200 output cues and three lines per cue are allowed;
+coarse width checks can require manual reflow. They are not font-metric proof.
+
+`mobile` without `--captions` enables the profile and phone-review gate alone.
+On an existing V2 document it retains captions; `--without-captions` explicitly
+removes them. Use `--profile profile.json` to supply a strict, editable profile:
+
+```json
+{"id":"my-channel-mobile","revision":1,"safeArea":{"left":0.08,"right":0.18,"top":0.1,"bottom":0.22}}
+```
+
+Insets are normalized fractions of the output dimensions. These values, including
+the `generic-mobile` default, are **editorial guidance, not certified platform safe
+zones**. Adjust them against the intended placement and actual devices. Caption
+style and mapped cues remain editable in a new document. Every content, font,
+style or profile change invalidates its old framing approval. Dense screen content
+still needs appropriate framing; captions do not enlarge unreadable source text.
+
+V2 preparation requires FFmpeg's `subtitles`/libass capability. It copies the exact
+source captions and font into `mobile-assets/`, generates bounded ASS, and bakes
+captions after reframing. The prepared reference therefore contains the intended
+captions; normal render comparisons are not bypassed. The bundle verifies its
+frozen assets and does not depend on the original external font/caption files
+remaining available after preparation. Missing capabilities fail explicitly.
+
 ## Recipe coordinates
 
 `recipe.sourceWidth/sourceHeight` come from probing the exact source.
@@ -81,7 +132,9 @@ the implementation does not guess how coordinates should transform.
 `check` returns `recipeSha256`. Author `framing-review.json` using the strict
 schema from `portrait workflow`: `recipeSha256`, `reviewer`, `decision`, and
 exactly one check each for `subject`, `context`, and `motion`, each with an actual
-`pass`/`fail` finding and `note`. Never copy pass outcomes without inspection.
+`pass`/`fail` finding and `note`. V2 additionally requires `captions` and `placement`
+(five checks total); only `captions` may be `not_applicable`, only when captions
+are absent. Never copy pass outcomes without inspection.
 
 ```sh
 dapi playbook clips portrait review portrait.json framing-review.json -o reviewed-portrait.json
@@ -134,8 +187,28 @@ its success is not proof of which application created the bytes.
 `evidenceIds`, a truthful `coverage` description and four checks: `story`, `speech`,
 `framing`, `continuity`, each with `outcome` and `note`. Acceptance requires every
 sample frame and, for audible footage, the full audio artifact to be cited.
-Only speech can be `not_applicable`, only for a digitally silent output. Schema
-validation cannot tell whether cited audio was listened to or transcribed.
+For V1, only speech can be `not_applicable`, only for a digitally silent output.
+Schema validation cannot tell whether cited audio was listened to or transcribed.
+
+For V2, `inspect` also samples caption boundaries/midpoints and writes a sibling
+`render-evidence.json.mobile/` directory. Its clean **360x640 motion preview** keeps
+the whole clip, while phone-size stills add a cyan safe-area guide; these guides
+are review artifacts, never burned into the delivered clip. Both are fingerprinted
+and bound to the exact video and profile, with an independent generation record in
+`bundle/mobile-inspections/`. Review checks that record as well as actual motion
+format/duration and PNG dimensions; self-declared filenames/hashes are insufficient.
+These local records are not authentication against someone who controls the entire
+filesystem. View the motion preview at its intended
+size, inspect guided stills, and check words, timing, wrapping and relevant picture
+content without assuming native-resolution readability transfers to a phone.
+
+V2 render review requires seven checks: `story`, `speech`, `framing`, `continuity`,
+`readability`, `captions`, and `placement`. Acceptance also requires citation of
+`phone-motion` and at least one returned `phone-frame-<frame>` artifact, alongside
+all required native samples and audible-output audio. Only silent-output speech
+and genuinely absent captions may be `not_applicable`. A legacy four-check review
+cannot approve a V2 render. Profile, preview or still-image changes require a new
+inspection. This recorded attribution is not proof of viewing or real-device QA.
 
 The resulting status is `agent_review_recorded` or `rejected`, never automatic
 publication approval. The receipt binds output bytes, recipe, bundle and evidence
@@ -151,6 +224,7 @@ npm test --workspace=@diffusionstudio/editing-playbook
 npm run check --workspaces --if-present
 npm run build --workspace=@diffusionstudio/cli
 node packages/editing-playbook/test/portrait-cli-smoke.ts NEW-SCRATCH-DIRECTORY
+node packages/editing-playbook/test/mobile-cli-smoke.ts NEW-SCRATCH-DIRECTORY NEW-MOBILE-DIRECTORY LOCAL-FONT.ttf
 ```
 
 The synthetic smoke clears provider credentials from its process. It tests the

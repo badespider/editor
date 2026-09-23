@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { clipCollectionSchema } from './clip-schema.ts';
+import { mobileOutputSchema } from './mobile.ts';
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 const text = z.string().trim().min(1).max(4000);
@@ -23,18 +24,44 @@ export const portraitRecipeSchema = z.object({
   }).strict()).min(1).max(16),
 }).strict().refine(v => v.width * 16 === v.height * 9, 'Portrait dimensions must be 9:16')
   .refine(v => v.shots.reduce((n, s) => n + s.keyframes.length, 0) <= 64, 'At most 64 keyframes per clip');
-export const portraitDocumentSchema = z.object({
+export const portraitMobileReviewSchema = z.object({
+  recipeSha256: hash, reviewer: text, decision: z.enum(['accept', 'reject']),
+  checks: z.array(z.object({ dimension: z.enum(['subject', 'context', 'motion', 'captions', 'placement']),
+    outcome: z.enum(['pass', 'fail', 'not_applicable']), note: text }).strict()).length(5),
+}).strict();
+export const portraitFramingReviewSchema = z.union([portraitReviewSchema, portraitMobileReviewSchema]);
+export const portraitDocumentV1Schema = z.object({
   schemaVersion: z.literal(1), kind: z.literal('agent-portrait-clip'),
   collection: clipCollectionSchema, candidateId: z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/),
   planSha256: hash, recipe: portraitRecipeSchema,
   review: portraitReviewSchema.nullable().default(null),
 }).strict();
-export const portraitRenderReviewSchema = z.object({
+export const portraitDocumentV2Schema = portraitDocumentV1Schema.extend({
+  schemaVersion: z.literal(2), mobile: mobileOutputSchema,
+  review: portraitMobileReviewSchema.nullable().default(null),
+}).strict();
+export const portraitDocumentSchema = z.discriminatedUnion('schemaVersion', [portraitDocumentV1Schema, portraitDocumentV2Schema]);
+const renderReviewBase = {
   packetSha256: hash, reviewer: text, decision: z.enum(['accept', 'reject']),
-  evidenceIds: z.array(text).max(512), coverage: text,
+  evidenceIds: z.array(text).max(3072), coverage: text,
+};
+export const portraitRenderReviewV1Schema = z.object({ ...renderReviewBase,
   checks: z.array(z.object({ dimension: z.enum(['story', 'speech', 'framing', 'continuity']),
     outcome: z.enum(['pass', 'fail', 'not_applicable']), note: text }).strict()).length(4),
 }).strict();
+export const portraitRenderReviewV2Schema = z.object({ ...renderReviewBase,
+  checks: z.array(z.object({ dimension: z.enum(['story', 'speech', 'framing', 'continuity', 'readability', 'captions', 'placement']),
+    outcome: z.enum(['pass', 'fail', 'not_applicable']), note: text }).strict()).length(7),
+}).strict();
+export const portraitRenderReviewSchema = z.union([portraitRenderReviewV1Schema, portraitRenderReviewV2Schema]);
+export const mobileInspectionPayloadSchema = z.object({
+  schemaVersion: z.literal(1), width: z.literal(360), height: z.literal(640),
+  profileSha256: hash, videoSha256: hash,
+  preview: z.object({ id: z.literal('phone-motion'), path: text, sha256: hash }).strict(),
+  frames: z.array(z.object({ id: z.string().regex(/^phone-frame-\d+$/), frame, path: text, sha256: hash }).strict()).min(1).max(1200),
+}).strict();
+export const mobileInspectionSchema = mobileInspectionPayloadSchema.extend({ recordSha256: hash }).strict();
+export type MobileInspection = z.infer<typeof mobileInspectionSchema>;
 export type PortraitRecipe = z.infer<typeof portraitRecipeSchema>;
 export type PortraitDocument = z.infer<typeof portraitDocumentSchema>;
 
@@ -80,6 +107,19 @@ export function portraitSampleFrames(recipe: PortraitRecipe) {
   return [...frames].sort((a,b) => a-b);
 }
 
+/** Output-only caption samples do not inflate the source-framing evidence requirement. */
+export function portraitOutputSampleFrames(doc: PortraitDocument) {
+  const frames = new Set(portraitSampleFrames(doc.recipe));
+  if (doc.schemaVersion === 2) for (const cue of doc.mobile.captions?.cues ?? []) {
+    for (const f of [cue.startFrame - 1, cue.startFrame, Math.floor((cue.startFrame + cue.endFrame - 1) / 2), cue.endFrame - 1, cue.endFrame]) {
+      if (f >= 0 && f < doc.recipe.frames) frames.add(f);
+    }
+  }
+  const result = [...frames].sort((a,b) => a-b);
+  if (result.length > 1200) throw new Error('Mobile inspection exceeds the 1200-frame evidence budget');
+  return result;
+}
+
 function axisExpression(shot: PortraitRecipe['shots'][number], axis: 'x' | 'y') {
   let expression = String(shot.keyframes.at(-1)![axis]);
   for (let i = shot.keyframes.length - 2; i >= 0; i--) {
@@ -91,7 +131,8 @@ function axisExpression(shot: PortraitRecipe['shots'][number], axis: 'x' | 'y') 
 }
 
 /** Pure numeric filter generation. No source strings or agent prose become expressions. */
-export function portraitVideoFilter(recipe: PortraitRecipe, input = 'portrait-input') {
+export function portraitVideoFilter(recipe: PortraitRecipe, input = 'portrait-input', output = 'v') {
+  if (![input, output].every(label => /^[a-zA-Z0-9_-]+$/.test(label))) throw new Error('Invalid portrait filter label');
   const errors = validatePortraitGeometry(recipe); if (errors.length) throw new Error(errors.join('; '));
   const geometry = coverGeometry(recipe), filters: string[] = [];
   const count = recipe.shots.length;
@@ -101,6 +142,6 @@ export function portraitVideoFilter(recipe: PortraitRecipe, input = 'portrait-in
       `scale=${geometry.width}:${geometry.height},crop=${recipe.width}:${recipe.height}:x='max(0,min(iw-ow,iw*(${axisExpression(s,'x')})-ow/2))':y='max(0,min(ih-oh,ih*(${axisExpression(s,'y')})-oh/2))'`;
     filters.push(`[ps${i}]trim=start_frame=${s.startFrame}:end_frame=${s.endFrame},setpts=PTS-STARTPTS,${fit},setsar=1[pv${i}]`);
   });
-  filters.push(`${recipe.shots.map((_,i)=>`[pv${i}]`).join('')}concat=n=${count}:v=1:a=0,tpad=stop_mode=clone:stop_duration=1,trim=end_frame=${recipe.frames+4},format=yuv420p[v]`);
+  filters.push(`${recipe.shots.map((_,i)=>`[pv${i}]`).join('')}concat=n=${count}:v=1:a=0,tpad=stop_mode=clone:stop_duration=1,trim=end_frame=${recipe.frames+4},format=yuv420p[${output}]`);
   return filters.join(';');
 }
