@@ -11,6 +11,7 @@ import { createMobileInspection, verifyMobileInspection } from '@diffusionstudio
 import { clipToPlan, jsonHash } from '@diffusionstudio/editing-playbook/clips';
 import { prepareDelivery, probePortraitSource, readDeliveryBundle } from '@diffusionstudio/editing-playbook/delivery';
 import { verifyDelivery } from '@diffusionstudio/editing-playbook/review';
+import { checkPortraitDraft, exportPortraitDraft } from '@diffusionstudio/editing-playbook/portrait-draft';
 import { fingerprint } from '@diffusionstudio/editing-playbook/node';
 import { deliveryFor, loadCollection, loadSource, readJson, writeJson } from './clips';
 
@@ -49,7 +50,8 @@ async function loadPortrait(path:string,options:Options,checkAssets=true) {
 export function registerPortraitCommands(clips:Command) {
   const portrait=clips.command('portrait').description('Agent-directed mobile framing, imported captions and actual-render review; no additional AI');
   portrait.command('workflow').action(()=>print({version:2,provider:'agent',instructions:'reference/portrait.md',
-    commands:['playbook clips portrait init reviewed.json clip-1 -o portrait.json',
+    commands:['playbook clips portrait draft-export candidates.json clip-1 --recipe recipe.json --acknowledge-unreviewed -o clip_DRAFT.mp4',
+      'playbook clips portrait init reviewed.json clip-1 -o portrait.json',
       'playbook clips portrait mobile portrait.json --captions transcript.srt --font font.ttf -o mobile.json',
       'playbook clips portrait check mobile.json',
       'playbook clips portrait review mobile.json framing-review.json -o reviewed-portrait.json',
@@ -60,7 +62,8 @@ export function registerPortraitCommands(clips:Command) {
     schemas:{document:z.toJSONSchema(portraitDocumentSchema),framingReview:z.toJSONSchema(portraitFramingReviewSchema),
       mobile:z.toJSONSchema(mobileOutputSchema),placementProfile:z.toJSONSchema(mobileProfileSchema),
       renderReview:z.toJSONSchema(portraitRenderReviewSchema),renderPacket:z.toJSONSchema(packetSchema)},
-    constraints:['Source review precedes portrait work. Centered draft is not a subject-detection result.',
+    constraints:['Reviewed delivery requires source approval. Explicit draft-export creates a separately labelled, unapproved local preview; it cannot produce an approval or delivery bundle.',
+      'Centered framing is not a subject-detection result.',
       'Agent authors shot boundaries and normalized centers from inspected source frames. Linear pans never cross shot boundaries.',
       'Mobile is an explicit V2 opt-in. V1 documents retain their original workflow; mobile changes clear framing approval.',
       'SRT/VTT import uses source timestamps by default; --timebase clip is explicit. A fingerprinted local font is required.',
@@ -68,6 +71,26 @@ export function registerPortraitCommands(clips:Command) {
       'Preparation bakes reviewed captions and framing into the same reference. Missing libass fails instead of dropping captions.',
       'V2 render review requires readability, captions and placement checks plus clean phone-motion and guided phone-frame evidence.',
       'No automatic transcription, tracking model, API calls, uploads or publishing.'],externalModelCalls:0}));
+  portrait.command('draft-export').argument('<candidates.json>').argument('<candidate-id>')
+    .requiredOption('--recipe <recipe.json>','explicit numeric portrait framing recipe')
+    .requiredOption('-o, --output <clip_DRAFT.mp4>').option('--cache-dir <directory>')
+    .option('--acknowledge-unreviewed','explicitly authorize a draft with unresolved review needs')
+    .option('--captions <subtitles.srt|subtitles.vtt>','optional imported draft captions; no transcription')
+    .option('--font <font.ttf|font.otf>').option('--profile <profile.json>')
+    .addOption(new Option('--timebase <origin>','caption timestamp origin').choices(['source','clip']))
+    .description('Render an UNREVIEWED local portrait draft; never approve or bypass the normal delivery gates')
+    .action(safe(async(path:string,id:string,options:MobileOptions & {recipe:string;acknowledgeUnreviewed?:boolean})=>{
+      if(!options.acknowledgeUnreviewed)throw new Error('Explicit --acknowledge-unreviewed is required');
+      const {collection,context}=await loadCollection(path,options);
+      const geometry=await probePortraitSource(context.source.path);
+      const checked=checkPortraitDraft(collection,context,id,await readJson(options.recipe),geometry);
+      const imported=await importMobileOutput({captions:options.captions,font:options.font,timebase:options.timebase,
+        profile:options.profile?await readJson(options.profile):undefined,...checked.candidate.range,...checked.recipe});
+      const controller=new AbortController(),abort=()=>controller.abort();process.once('SIGINT',abort);
+      try {print(await exportPortraitDraft(collection,context,id,checked.recipe,{output:options.output,
+        acknowledgeUnreviewed:true,mobile:imported.mobile,warnings:imported.warnings,signal:controller.signal}));}
+      finally {process.removeListener('SIGINT',abort);}
+    }));
   portrait.command('init').argument('<reviewed-candidates.json>').argument('<candidate-id>')
     .requiredOption('-o, --output <portrait.json>').option('--cache-dir <directory>')
     .action(safe(async(path:string,id:string,options:Options)=>{

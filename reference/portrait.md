@@ -33,6 +33,40 @@ for every shot. Split at known hard cuts or deliberate changes in attention.
 Protect the subject, hands, demonstration, reactions and context that matter.
 If a crop cannot do that, explicitly choose `contain` for the affected shot.
 
+## Explicit unreviewed draft export
+
+When the user wants a watchable preview before source/speech approval, use the
+separate draft path. Do not fabricate a review to unblock normal preparation.
+
+```sh
+dapi playbook clips portrait draft-export candidates.json clip-1 --recipe recipe.json --acknowledge-unreviewed --captions draft.srt --font caption-font.ttf -o clip_DRAFT.mp4
+```
+
+`recipe.json` is the strict numeric `recipe` object described below, not a reviewed
+portrait document. It must match the candidate's probed source geometry and frame
+count. Captions are optional; their default timebase is source-relative, with
+`--timebase clip` available for clip-relative SRT/VTT. Existing caption/font and
+pixel budgets apply. No transcript is generated or uploaded.
+
+This local draft encoder reuses the production crop and caption primitives. It
+checks source bytes, selection bounds, transcript-unit boundaries, crop geometry,
+caption/font files, dimensions, duration, audio-track presence and full decode.
+Unresolved narrative, speech and framing needs are retained in the sidecar, not
+changed into passes. Only missing review needs are allowed; technical errors,
+stale reviews and unknown evidence still fail. Evidence availability is not proof
+that someone inspected it. An explicit `--acknowledge-unreviewed` and a filename
+ending `_DRAFT.mp4` or `.draft.mp4` are required.
+
+The output has an exclusive `.draft.json` sidecar with status `unreviewed_draft`,
+`reviewRequired: true`, and `safeToAutoPublish: false`. Its `.draft-assets/`
+directory retains the request, frozen caption/font assets, filter and encoded
+staging file for diagnosis. Existing outputs are never overwritten; a failed or
+interrupted run can retain partial files, so choose a new output name on retry.
+The draft is **not** a desktop-editor export, normal delivery bundle, portrait
+review document or accepted render receipt. Normal `init/prepare/deliver` and
+review gates are unchanged. Review the draft with the evidence pipeline and
+attribute any user listening feedback honestly before making a reviewed export.
+
 ## Imported captions and phone-size review (V2 opt-in)
 
 Existing V1 documents remain supported. Opt into the versioned mobile contract
@@ -225,6 +259,7 @@ npm run check --workspaces --if-present
 npm run build --workspace=@diffusionstudio/cli
 node packages/editing-playbook/test/portrait-cli-smoke.ts NEW-SCRATCH-DIRECTORY
 node packages/editing-playbook/test/mobile-cli-smoke.ts NEW-SCRATCH-DIRECTORY NEW-MOBILE-DIRECTORY LOCAL-FONT.ttf
+node packages/editing-playbook/test/portrait-draft-cli-smoke.ts NEW-DRAFT-SCRATCH-DIRECTORY LOCAL-FONT.ttf
 ```
 
 The synthetic smoke clears provider credentials from its process. It tests the
@@ -233,3 +268,7 @@ nonzero source trim, blocked/stale reviews, missing evidence and overwrite refus
 Its verification stand-in is explicitly not an editor export. To check desktop
 delivery, render its generated `bundle` with `playbook deliver` in an isolated
 desktop profile, then use `portrait inspect` on that actual MP4.
+
+The separate draft smoke checks explicit acknowledgement, unapproved status,
+source-time caption burn-in, crop/cut/contain pixels, full decode, overwrite
+refusal and that the normal reviewed path remains blocked.

@@ -1,0 +1,30 @@
+// Generated fixtures only; real footage interpretation remains the caller's job.
+import assert from 'node:assert/strict';
+import {mkdtemp,readFile,writeFile} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import {join} from 'node:path';
+import {fileURLToPath} from 'node:url';
+import {run} from '../src/media.ts';
+const dir=await mkdtemp(join(tmpdir(),'dapi-reference-cli-')),video=join(dir,'motion.mp4');
+const cli=fileURLToPath(new URL('../../../apps/cli/dist/index.js',import.meta.url));
+for(const key of ['GEMINI_API_KEY','GOOGLE_API_KEY','GEMINI_API_KEY_FILE','OPENAI_API_KEY'])delete process.env[key];
+const call=async(...args:string[])=>JSON.parse(await run(process.execPath,[cli,...args]));
+await run('ffmpeg',['-v','error','-n','-f','lavfi','-i','testsrc2=size=320x180:rate=60:duration=2','-c:v','libx264',video]);
+const cache=['--cache-dir',join(dir,'cache')],opened=await call('media','understand',video,...cache,'--overview-count','2');
+const workflow=await call('media','reference','workflow');assert(workflow.schemas.extract);assert.equal(workflow.externalModelCalls,0);
+assert((await call('media','workflow')).steps.some((s:{id:string})=>s.id==='reference-animation'));
+const sequence=await call('media','reference','extract',opened.sessionId,...cache,'--start','.2','--end','1.7','-o',join(dir,'sequence-result.json'));
+assert.equal(sequence.frameCount,90);assert.equal(sequence.width,320);assert.equal(sequence.height,180);
+const first=await call('media','reference','page',opened.sessionId,sequence.id,...cache,'--count','48');assert.equal(first.artifacts.length,48);
+const second=await call('media','reference','page',opened.sessionId,sequence.id,...cache,'--from','48','--count','48');assert.equal(second.artifacts.length,42);assert.equal(second.nextFrom,null);
+const report={sequenceSha256:sequence.sequenceSha256,author:'CLI synthetic fixture',inspectedFrames:[0,89],elements:[{id:'pattern',label:'Moving test pattern',observation:'Fixture declaration only',inference:'No human review',uncertainty:'Not a reference lesson',phases:[{label:'change',startFrame:0,endFrame:89}],keyframes:[]}]};
+const notes=join(dir,'notes.json');await writeFile(notes,JSON.stringify(report));
+assert.equal((await call('media','reference','annotate',opened.sessionId,sequence.id,notes,...cache)).status,'agent_reported');
+const comparison=join(dir,'comparison.json');
+const compared=await call('media','reference','compare',opened.sessionId,sequence.id,opened.sessionId,sequence.id,...cache,'-o',comparison);
+assert.equal(compared.pairs.length,24);assert.equal(compared.referenceFrameCount,90);assert.equal(compared.nextFrom,24);assert.equal(compared.status,'measurements_only');assert.equal(compared.safeToAutoEdit,false);
+await assert.rejects(call('media','reference','compare',opened.sessionId,sequence.id,opened.sessionId,sequence.id,...cache,'-o',comparison),/exist/i);
+assert.equal(JSON.parse(await readFile(comparison,'utf8')).referenceSha256,sequence.sequenceSha256);
+await assert.rejects(call('media','reference','extract',opened.sessionId,...cache,'--start','0','--end','2','--max-frames','5'),/budget/);
+console.log(JSON.stringify({passed:true,dir,viewer:sequence.viewerPath,sessionId:opened.sessionId,sequenceId:sequence.id,frameCount:sequence.frameCount,externalModelCalls:0,
+  checks:['discovery','exact 60fps range','native dimensions','48-frame pagination','attributed notes','self comparison','exclusive output','frame budget rejection']}));

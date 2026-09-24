@@ -70,6 +70,15 @@ overview frames, 1,200 source seconds (raise explicitly to at most 7,200), up to
 48 frames/request, 120-second clips and 600-second audio samples. Use a small
 representative clip for testing. No recursive refinement loop is automatic.
 
+For studying animation or motion graphics frame by frame, use the separate
+[reference-analysis mode](media/reference-analysis.md): `media reference
+extract/page/annotate/compare`. It retains every native decoded frame and source
+PTS in a short range, rather than increasing the ordinary overview count. The
+offline viewer and paged artifacts support close inspection; change measurements
+remain hints and motion breakdowns remain agent-authored. V1 is local CLI/Node,
+not an additional desktop IPC endpoint. Its independent budgets do not alter
+the ordinary evidence workflow or its approval rules.
+
 ## Plan, edit and review when authorized
 
 Use `playbook recommend --format story --goal "the actual brief"` (choose the

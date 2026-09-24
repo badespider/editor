@@ -4,6 +4,7 @@ import { AgentEvidenceService, openSchema, inspectSchema, observationSchema, tra
 import { agentWorkflow } from "@diffusionstudio/video-understanding/workflow";
 import { z } from "zod";
 import { editor } from "./cli-client";
+import { registerReferenceAnalysis } from './reference-analysis';
 
 const print = (value: unknown) => console.log(JSON.stringify(value, null, 2));
 type Options = { desktop?: boolean; cacheDir?: string; times?: string[]; start?: string; end?: string; count?: string; native?: boolean; clip?: boolean; audio?: boolean; query?: string };
@@ -17,6 +18,7 @@ async function action(fn: (signal: AbortSignal) => Promise<unknown>) {
   finally { process.removeListener("SIGINT", abort); }
 }
 export function registerAgentEvidenceCommands(media: Command) {
+  registerReferenceAnalysis(media);
   media.command('workflow').description('Default agent-operated inspection → evidence → editing → review contract, with JSON input schemas. No editor or key required.')
     .action(() => print({ ...agentWorkflow, schemas: {
       open: z.toJSONSchema(openSchema, {io:'input'}), inspect: z.toJSONSchema(inspectSchema, {io:'input'}),

@@ -9,6 +9,7 @@ export const agentWorkflow = {
   steps: [
     { id: 'prepare', cli: 'media understand <local-video>', api: 'media.understand', purpose: 'Hash/probe the source and prepare timestamped overview frames. Defaults to agent mode in both interfaces.' },
     { id: 'inspect', cli: 'media inspect <session-id> --start <seconds> --end <seconds> --count 12 --audio --clip', api: 'media.inspect', purpose: 'Actually inspect overview files, then refine uncertain actions and cut boundaries. Use --native for small text.' },
+    { id: 'reference-animation', cli: 'media reference workflow', purpose: 'Local CLI/Node frame-by-frame reference mode: every native decoded frame in a short range, exact source PTS, paged evidence, offline stepping/overlay viewer, authored breakdowns and timestamp-aligned comparisons. No automatic motion understanding.' },
     { id: 'transcript', cli: 'media transcript-import <session-id> <transcript.json>', api: 'media.transcriptImport', purpose: 'Optional: import source-fingerprinted local ASR or supplied transcript. Remains unverified; unknown speech is not silence.' },
     { id: 'record', cli: 'media observe <session-id> <observations.json>', api: 'media.observe', purpose: 'Save what you inspected, separately from inference and uncertainty, citing returned evidence IDs.' },
     { id: 'retrieve', cli: 'media dossier <session-id> --query <terms>', api: 'media.dossier', purpose: 'Reuse saved evidence and attributed observations across agents and process restarts.' },
