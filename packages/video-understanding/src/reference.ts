@@ -159,6 +159,10 @@ export class ReferenceAnalysisService {
       nextFrom:request.from+frames.length<manifest.frames.length?request.from+frames.length:null,
       inspected:false,safeToAutoEdit:false,externalModelCalls:0};
   }
+  /** Read the validated source-bound manifest for recipe consumers, not arbitrary filesystem paths. */
+  async sequence(sessionId:string,id:string) {
+    return (await this.load(sessionId,id)).manifest;
+  }
   async annotate(sessionId:string,id:string,input:unknown,cancellation?:AbortSignal) {
     const signal=bounded(cancellation),{manifest,root}=await this.load(sessionId,id),report=validateBreakdown(input,manifest.sequenceSha256,manifest.frames);
     for(const i of report.inspectedFrames){const f=manifest.frames[i];await this.file(root,f.path,f.sha256,signal);}

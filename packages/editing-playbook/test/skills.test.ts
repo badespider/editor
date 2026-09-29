@@ -20,6 +20,14 @@ test("catalog covers declared skill IDs, with unique IDs, paths and CLI read arg
   for (const skill of skills) assert.deepEqual(skill.readArgs, ["playbook", "skill", skill.id]);
 });
 
+test('caption-motion requests discover the shared workflow without changing copy-only routing', () => {
+  for (const goal of ['Animated captions from this reference', 'Create a motion recipe', 'Caption animation']) {
+    const ids = idsFor(goal);
+    for (const id of ['editor-motion-workflow', 'editor-reference-learning', 'editor-video-evidence']) assert.ok(ids.includes(id as SkillId));
+    assert.ok(!recommend('story', goal, false, 'package').skills.some(s => s.id === 'editor-motion-workflow'));
+  }
+});
+
 test("vlog routing adds direction for everyday and multi-day requests, not every story", () => {
   for (const goal of ["Edit a multi-day vlog", "Shape a day-in-my-life video", "Plan my video diary", "Edit my VLOG"]) {
     assert.ok(idsFor(goal).includes("editor-vlog-story"), goal);

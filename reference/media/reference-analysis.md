@@ -9,6 +9,11 @@ export from `@diffusionstudio/video-understanding/reference`. It does not add a
 desktop IPC endpoint or edit the timeline. No API key, other model, download,
 upload, transcription or publishing is involved.
 
+For an authorized caption recreation, continue with the separate
+[motion workflow](../motion.md). It uses these frame sequences and breakdowns
+to generate reusable recipes and run footage adaptation/render corrections;
+the calling agent still supplies visual interpretation and review.
+
 ## Extract an exact short sequence
 
 ```sh

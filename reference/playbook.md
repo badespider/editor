@@ -1,6 +1,6 @@
 # Local editing playbook
 
-Twelve repo-scoped skills cover seven foundations (video evidence, story planning, pacing, visual focus, audio continuity, reference learning and review) and five creative specializations listed below. The catalog's relationship graph is a small application routing aid, not a native agent dependency loader. All skills begin as **starter guidance**. A successful schema test does not establish improved storytelling. Start footage tasks with [the default agent workflow](agent-workflow.md); `editor-video-evidence` is always recommended for footage plans.
+Repo-scoped skills cover seven foundations (video evidence, story planning, pacing, visual focus, audio continuity, reference learning and review), five creative specializations listed below, and [caption motion recipes](motion.md). The catalog's relationship graph is a small application routing aid, not a native agent dependency loader. All skills begin as **starter guidance**. A successful schema test does not establish improved storytelling. Start footage tasks with [the default agent workflow](agent-workflow.md); `editor-video-evidence` is always recommended for footage plans.
 
 Codex tasks opened in this repository can discover `.agents/skills`; other agents can read the same Markdown through files or `playbook skill`. Repo-local discovery does not make them globally installed. See [official skill discovery](https://learn.chatgpt.com/docs/build-skills). Do not copy credentials into skills.
 

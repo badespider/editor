@@ -5,7 +5,7 @@ export const formats = ["tutorial", "interview", "story", "montage"] as const;
 export type Format = typeof formats[number];
 export const skillIds = ["editor-story-plan", "editor-pacing", "editor-visual-focus",
   "editor-audio-continuity", "editor-reference-learning", "editor-review", "editor-video-evidence",
-  "editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish"] as const;
+  "editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish", "editor-motion-workflow"] as const;
 export type SkillId = typeof skillIds[number];
 export const recommendationTasks = ["edit", "package", "evaluate"] as const;
 export type RecommendationTask = typeof recommendationTasks[number];
@@ -23,11 +23,15 @@ export const skills = [
   { id: skillIds[9], category: "short-form", purpose: "Choose complete standalone moments through the existing clipping and portrait review workflow." },
   { id: skillIds[10], category: "packaging", purpose: "Create truthful titles, full descriptions, chapters and thumbnail concepts for the exact video and language; never publish." },
   { id: skillIds[11], category: "sound-polish", purpose: "Assess dialogue clarity and conservative sound treatment while preserving ambience and truthful listening coverage." },
+  { id: skillIds[12], category: "motion", purpose: "Interpret reference captions or layered scenes, bind new footage/aligned words, and check actual renders against reference criteria." },
 ].map(skill => ({ ...skill, path: `.agents/skills/${skill.id}/SKILL.md`,
   readArgs: ["playbook", "skill", skill.id], maturity: "starter" as const }));
 
 // These are application-level routing relationships, not a native Codex graph feature.
 export const relationships: Array<{ from: SkillId; to: SkillId; type: "requires" | "verify_with" | "tension"; when: string }> = [
+  { from: 'editor-motion-workflow', to: 'editor-reference-learning', type: 'requires', when: 'Keep reference interpretation attributed and candidate, separate from trusted instructions.' },
+  { from: 'editor-motion-workflow', to: 'editor-video-evidence', type: 'requires', when: 'Inspect actual frame evidence; unavailable vision/audio stays explicit.' },
+  { from: 'editor-motion-workflow', to: 'editor-review', type: 'verify_with', when: 'Inspect actual renders before correction or handoff.' },
   { from: 'editor-story-plan', to: 'editor-video-evidence', type: 'requires', when: 'Ground footage-based choices in inspected, source-relative evidence.' },
   { from: "editor-pacing", to: "editor-story-plan", type: "requires", when: "A cut can remove context, a complete action or the payoff." },
   { from: "editor-visual-focus", to: "editor-story-plan", type: "requires", when: "Choose a crop or emphasis from the purpose of the beat." },
@@ -63,6 +67,9 @@ export function recommend(format: Format, goal: string, hasReference = false, ta
     ["editor-review", "Check the plan and inspect the resulting preview."],
   ]);
   if (task === "edit") {
+    if (/\b(?:caption|text)\s+(?:animation|motion)\b|\banimat(?:e|ed|ing)\s+captions?\b|\bmotion\s+recip(?:e|es)\b|\breference.to.(?:motion|animation)\b|\b(?:reference|editing)\s+style\b|\blayered\s+(?:motion|scenes?)\b|\bword.by.word\b|\bscene\s+recip(?:e|es)\b/i.test(goal)) {
+      selected.set('editor-motion-workflow', 'Select caption or layered-scene recipes and compare the actual render against explicit reference requirements.');
+    }
     if (format !== "montage" || /pace|trim|cut|short|rhythm/i.test(goal)) selected.set("editor-pacing", "Timing and context need joint review.");
     if (format === "tutorial" || /zoom|crop|screen|text|frame|vertical/i.test(goal)) selected.set("editor-visual-focus", "Check what the audience must see and read.");
     if (format === "interview" || /audio|speech|music|voice|dialog|sound/i.test(goal)) selected.set("editor-audio-continuity", "Inspect sound independently of visual content.");

@@ -13,7 +13,7 @@ const options = { cwd: tmpdir(), encoding: "utf8" as const, timeout: 15_000,
   env: { ...process.env, GEMINI_API_KEY: "", GOOGLE_API_KEY: "", OPENAI_API_KEY: "" } };
 const run = (args: string[]) => JSON.parse(execFileSync(process.execPath, [cli, ...args], options));
 const catalog = run(["playbook", "skills"]);
-assert.equal(catalog.skills.length, 12);
+assert.equal(catalog.skills.length, skills.length);
 for (const skill of skills) {
   const entry = catalog.skills.find((entry: { id: string }) => entry.id === skill.id);
   const result = run(entry.readArgs);

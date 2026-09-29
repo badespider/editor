@@ -129,7 +129,7 @@ Time inputs take the `Time` format unless noted otherwise. Times in **outputs** 
 
 ## Editing skills and local plans
 
-See [the default agent workflow](./agent-workflow.md) and [playbook](./playbook.md) for the twelve-skill relationship map, plan validation,
+See [the default agent workflow](./agent-workflow.md) and [playbook](./playbook.md) for the editing-skill relationship map, plan validation,
 provider-free cut previews and candidate reference workflow. Use `playbook skills`
 to list, `playbook skill <id>` to read instructions, and `playbook recommend` for
 task-specific guidance. Copy-only requests use `recommend --task package`.
