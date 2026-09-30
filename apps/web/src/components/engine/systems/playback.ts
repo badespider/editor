@@ -207,12 +207,6 @@ function forwardAudioDecoder(world: EngineWorld, sid: number, eid: number, aid?:
 	}
 }
 
-function forwardHtmlHost(world: EngineWorld, sid: number, eid: number, fid: number): void {
-	const c = world.components;
-	if (world.mode === 'realtime' || c.Computed.visibility[eid] !== 1 || !c.HtmlHost[fid]) return;
-	world.promises?.push(c.HtmlHost[fid].whenReady(c.Computed.localTimeInSeconds[sid] ?? 0));
-}
-
 function forwardImageDecoder(world: EngineWorld, _sid: number, _eid: number, fid: number): void {
 	const resolvedDecoder = resolveImageDecoder(world, fid);
 	if (!resolvedDecoder) return;
@@ -254,10 +248,6 @@ function forwardDecoders(world: EngineWorld, sid: number, eid: number): void {
 
 			if (c.Paint[fid] === PaintType.IMAGE && visualsEnabled) {
 				forwardImageDecoder(world, sid, eid, fid);
-			}
-
-			if (c.Paint[fid] === PaintType.HTML && visualsEnabled) {
-				forwardHtmlHost(world, sid, eid, fid);
 			}
 
 			if (c.Paint[fid] === PaintType.SHADER && visualsEnabled) {

@@ -1,0 +1,110 @@
+{
+  "sha256": "5f528819196dfafbdef57865eac34943da42bb48b5dc88fe82ee875fb35f5f1b",
+  "entry": {
+    "id": "word-stack",
+    "version": 1,
+    "name": "Progressive word stack",
+    "description": "Progressive source-aligned words over video, with reserved row widths, optional word emphasis and brief lift/blur entry.",
+    "tags": [
+      "captions",
+      "video",
+      "speech"
+    ],
+    "origin": "Generalized from our authored MIT motion-study recipes, inspired by the user-supplied FROM BILLIONS TO NOTHING OVERNIGHT reference. No reference footage, source cutouts, narration, or approval is distributed.",
+    "limitations": [
+      "New assets and dimensions need fresh visual review; this is a reusable 2D structure, not recovered 3D.",
+      "Source-specific image masks were removed. Use a licensed transparent cutout or author a new mask for the new subject.",
+      "A contained layout preserves geometry across aspect ratios but may need manual reframing.",
+      "Font availability and speech timestamps must be checked locally. No publication approval is included."
+    ],
+    "requirements": {
+      "framing": "New media stays aspect-correct; intended subject and caption area remain visible.",
+      "typography": "Supplied titles and source-aligned words are readable, separate, and preserve emphasis hierarchy.",
+      "motion": "Words accumulate at their actual onsets with a brief lift/blur; earlier words retain their row positions.",
+      "rhythm": "Holds and reveals follow the new shot and bound speech cues; inspect entrances, exits and cut boundaries."
+    },
+    "design": {
+      "width": 1080,
+      "height": 1920
+    },
+    "duration": {
+      "min": 2,
+      "max": 12
+    },
+    "schemaVersion": 1,
+    "kind": "motion-catalog-entry",
+    "sourceRecipeSha256": "15d19de21faf79f42d66f92adbe702da9b9684bdecc9773ad710e578a2b46a2a",
+    "block": {
+      "id": "picture",
+      "background": "#070B16",
+      "layers": [
+        {
+          "id": "picture",
+          "kind": "video",
+          "slot": "picture",
+          "pose": {
+            "x": 0.5,
+            "y": 0.5,
+            "width": 1,
+            "height": 1,
+            "rotation": 0,
+            "opacity": 1,
+            "blur": 0,
+            "skewX": 0,
+            "reveal": 1
+          },
+          "keys": [],
+          "fill": "#FFFFFF",
+          "stroke": "#101A38",
+          "strokeWidth": 0,
+          "shadow": 0
+        },
+        {
+          "id": "caption-contrast",
+          "kind": "gradient",
+          "pose": {
+            "x": 0.5,
+            "y": 0.84,
+            "width": 1,
+            "height": 0.44,
+            "rotation": 0,
+            "opacity": 0.86,
+            "blur": 0,
+            "skewX": 0,
+            "reveal": 1
+          },
+          "keys": [],
+          "fill": "#000000",
+          "stroke": "#101A38",
+          "strokeWidth": 0,
+          "shadow": 0
+        }
+      ]
+    },
+    "caption": {
+      "font": {
+        "family": "Arial",
+        "weight": 900,
+        "size": 0.065,
+        "color": "#F5F1E7",
+        "italic": false,
+        "tracking": -0.015
+      },
+      "box": {
+        "x": 0.1,
+        "y": 0.716,
+        "width": 0.8,
+        "height": 0.18
+      },
+      "minFontSize": 0.025,
+      "lineGap": 1.04,
+      "entrySeconds": 0.06666666666666667,
+      "lift": 0.006,
+      "blur": 2,
+      "uppercase": true,
+      "shadow": 9,
+      "strokeWidth": 2,
+      "stroke": "#071124"
+    }
+  }
+}

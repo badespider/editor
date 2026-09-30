@@ -9,12 +9,17 @@ import { runMedia } from './media-process.ts';
 import { exists, readSeal, save } from './motion-workflow.ts';
 import { adaptScene, motionDigest, reviewScene, sceneCorrectionSchema, type SceneAdaptation } from './scene-motion.ts';
 import { sceneComposition } from './scene-composition.ts';
+import { preflightScene, scanSceneFrames } from './scene-quality.ts';
+import { sceneSegments, renderSceneSegments, type SegmentRenderer } from './scene-cache.ts';
+export { verifySceneSegment } from './scene-cache.ts';
+export { preflightScene } from './scene-quality.ts';
 
 type Evidence = { id: string; path: string; sha256: string; kind: 'frame' | 'audio'; role: 'reference' | 'render'; time?: number };
 type Job = { maxCorrections: number; styleSha256: string; sourceSha256: string; externalModelCalls: 0 };
 type Revision = { index: number; adaptation: SceneAdaptation; parentReviewSha256: string | null; reason: string;
   prepared: { audio: string; media: Record<string, string> }; preparedHashes: Record<string, string>; codeSha256: string; references: Evidence[] };
-type Inspection = { renderSha256: string; revisionSha256: string; sessionId: string; evidence: Evidence[]; contactSheets: string[] };
+type Inspection = { renderSha256: string; revisionSha256: string; sessionId: string; evidence: Evidence[]; contactSheets: string[];
+  quality?: { preflight: ReturnType<typeof preflightScene>; motion: ReturnType<typeof scanSceneFrames> } };
 const bounded = (signal?: AbortSignal) => AbortSignal.any([AbortSignal.timeout(300000), ...(signal ? [signal] : [])]);
 
 /** Source-bound scene previews. The host agent supplies interpretation and explicit comparison findings. */
@@ -96,7 +101,7 @@ export class SceneWorkflow {
     await mkdir(dirname(this.root), { recursive: true }); await mkdir(this.root);
     await save(join(this.root, 'job.json'), { maxCorrections, styleSha256: motionDigest(adaptation.recipe.style),
       sourceSha256: motionDigest({ assets: adaptation.input.assets, audio: adaptation.input.audio, transcript: adaptation.input.transcript }), externalModelCalls: 0 } satisfies Job);
-    return this.prepare(adaptation, references, 0, null, 'Initial reference-led scene adaptation', signal);
+    return this.prepare(adaptation, references, 0, null, adaptation.recipe.style.basis === 'catalog' ? 'Initial catalog adaptation; fresh review required' : 'Initial reference-led scene adaptation', signal);
   }
   private async prepare(adaptation: SceneAdaptation, references: Evidence[], index: number, parentReviewSha256: string | null, reason: string, cancellation?: AbortSignal) {
     const signal = bounded(cancellation), sources = await this.sources(adaptation, signal), folder = this.folder(index);
@@ -139,6 +144,7 @@ export class SceneWorkflow {
     for (const path of [prepared.audio, ...Object.values(prepared.media)]) preparedHashes[path] = await fingerprint(path, signal);
     await save(join(folder, 'revision.json'), { index, adaptation, parentReviewSha256, reason, prepared, preparedHashes,
       codeSha256: motionDigest(code), references } satisfies Revision);
+    await save(join(folder, 'preflight.json'), preflightScene(adaptation));
     return this.next();
   }
   private async latestReview(directory: string) {
@@ -152,15 +158,18 @@ export class SceneWorkflow {
     const inspectionPath = join(current.directory, 'inspection.json');
     if (!(await exists(inspectionPath))) return { stage: await exists(join(current.directory, 'preview_DRAFT.mp4')) ? 'needs_inspection'
       : await exists(join(current.directory, 'render-attempt.json')) ? 'render_interrupted_inspect_diagnostics' : 'needs_render',
-      directory: current.directory, revisionSha256: current.sha256, warnings: current.value.adaptation.warnings, externalModelCalls: 0 };
+      directory: current.directory, revisionSha256: current.sha256, warnings: current.value.adaptation.warnings,
+      preflight: preflightScene(current.value.adaptation), externalModelCalls: 0 };
     const inspection = await readSeal<Inspection>(inspectionPath);
     if (inspection.value.revisionSha256 !== current.sha256 || await fingerprint(join(current.directory, 'preview_DRAFT.mp4')) !== inspection.value.renderSha256) throw Error('Render or inspection changed');
     const review = await this.latestReview(current.directory);
     if (review && (review.value.revisionSha256 !== current.sha256 || review.value.inspectionSha256 !== inspection.sha256)) throw Error('Stale stored review');
-    return { stage: review?.value.status ?? 'needs_reference_comparison',
+    return { stage: review?.value.status ?? (current.value.adaptation.recipe.style.basis === 'catalog' ? 'needs_template_review' : 'needs_reference_comparison'),
       inspectionSha256: inspection.sha256, ...inspection.value, review: review?.value, reviewSha256: review?.sha256,
       criteria: current.value.adaptation.recipe.style.criteria, remainingCorrections: job.maxCorrections-current.value.index,
-      instruction: 'Inspect every provided frame; compare each essential reference criterion. Listen or mark speech/audio unknown. Good encoding/readability alone does not establish style fidelity.', safeToAutoPublish: false };
+      instruction: current.value.adaptation.recipe.style.basis === 'catalog'
+        ? 'Inspect every supplied render frame against every pinned template requirement. Cite render evidence; referenceEvidenceIds stay empty. Listen or mark speech/audio unknown. Template reuse is not original-reference matching or inherited approval.'
+        : 'Inspect every provided frame; compare each essential reference criterion. Listen or mark speech/audio unknown. Good encoding/readability alone does not establish style fidelity.', safeToAutoPublish: false };
   }
   async renderContext(signal?: AbortSignal) {
     const current = await this.current(); await this.sources(current.value.adaptation, bounded(signal));
@@ -172,6 +181,14 @@ export class SceneWorkflow {
   }
   async claimRender(signal?: AbortSignal) { const context = await this.renderContext(signal);
     await save(join(context.directory, 'render-attempt.json'), { revisionSha256: context.sha256, instruction: 'One attempt. Inspect interrupted exports before any retry.' }); return context; }
+  async renderIncremental(rendererId: string, render: SegmentRenderer, signal?: AbortSignal, onProgress?: (message:string)=>void) {
+    const c = await this.claimRender(signal);
+    const result = await renderSceneSegments({root:this.root,directory:c.directory,
+      segments:sceneSegments(c.value.adaptation,c.value.prepared,c.value.preparedHashes,rendererId),audio:c.value.prepared.audio,
+      duration:c.value.adaptation.duration,render,signal,onProgress,verify:path=>this.verifyRender(path,signal)});
+    await this.renderContext(signal); // Retain full source/prepared/composition integrity gates.
+    return result;
+  }
   async verifyRender(path: string, cancellation?: AbortSignal) {
     const signal = bounded(cancellation), c = await this.current(), a = c.value.adaptation, actual = await probe(path, signal);
     await runMedia(['-v','error','-xerror','-nostdin','-protocol_whitelist','file,pipe','-i',path,'-f','null','-'], { signal });
@@ -186,13 +203,20 @@ export class SceneWorkflow {
     if (await exists(join(c.directory, 'inspection.json'))) throw Error('Inspection exists; resume with next');
     const technical = await this.verifyRender(c.output, signal); if (!technical.technicalPass) throw Error('Technical render failure');
     const session = await this.evidence.open({ path: c.output, goal: 'Reference scene fidelity review', overviewCount: 1 }, signal);
-    const evidence: Evidence[] = [...c.value.references], contactSheets: string[] = [], times = c.value.adaptation.previewSamples;
+    const preflight=preflightScene(c.value.adaptation);
+    const pixels=await runMedia(['-v','error','-xerror','-nostdin','-i',c.output,'-an','-vf','scale=96:96,format=gray','-fps_mode','passthrough','-f','rawvideo','-'],
+      {signal,limit:preflight.frames*96*96+96*96});
+    const motion=scanSceneFrames(pixels,96*96,preflight);
+    const diagnosticFrames=[...preflight.boundaryFrames,...preflight.findings.flatMap(f=>[f.firstFrame,f.lastFrame]),
+      ...motion.suspectedStalls.flatMap(f=>[f.firstFrame-1,f.firstFrame,f.lastFrame])];
+    const evidence: Evidence[] = [...c.value.references], contactSheets: string[] = [], times = [...new Set([
+      ...c.value.adaptation.previewSamples,...diagnosticFrames.map(f=>f/30)])].sort((a,b)=>a-b);
     for (let i=0;i<times.length;i+=24) { const page = await this.evidence.inspect(session.id, { times: times.slice(i,i+24), native: true }, signal);
       if (page.contactSheet) contactSheets.push(page.contactSheet);
       for (const f of page.artifacts) if (f.kind==='frame') evidence.push({ id:f.id, path:f.path, sha256:await fingerprint(f.path,signal), role:'render', kind:'frame', time:f.start }); }
     const audio = await this.evidence.inspect(session.id, { start:0,end:c.value.adaptation.duration,count:1,audio:true },signal);
     for (const a of audio.artifacts.filter(a=>a.kind==='audio')) evidence.push({ id:a.id,path:a.path,sha256:await fingerprint(a.path,signal),role:'render',kind:'audio' });
-    await save(join(c.directory,'inspection.json'),{ renderSha256:technical.sha256,revisionSha256:c.sha256,sessionId:session.id,evidence,contactSheets } satisfies Inspection);
+    await save(join(c.directory,'inspection.json'),{ renderSha256:technical.sha256,revisionSha256:c.sha256,sessionId:session.id,evidence,contactSheets,quality:{preflight,motion} } satisfies Inspection);
     return this.next();
   }
   async review(input: unknown, signal?: AbortSignal) {

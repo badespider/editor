@@ -365,7 +365,7 @@ export function renderFills(world: EngineWorld, eid: number): void {
 			if (host) {
 				ctx.save();
 				ctx.clip();
-				host.draw(ctx, c.Computed.width[eid], c.Computed.height[eid]);
+				host.draw(ctx, c.Computed.width[eid], c.Computed.height[eid], world.mode === 'offline-video');
 				ctx.restore();
 			}
 		} else if (c.Paint[fid] === PaintType.SURFACE) {

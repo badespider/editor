@@ -11,14 +11,21 @@ const box = z.object({ x: unit, y: unit, width: unit.positive(), height: unit.po
 export const styleDimensions = ['framing', 'typography', 'motion', 'rhythm'] as const;
 export const styleSpecSchema = z.object({
   name: note,
+  basis: z.literal('catalog').optional(),
+  catalogEntries: z.array(z.object({ id, version: z.number().int().positive(), sha256: motionHash }).strict()).min(1).max(16).optional(),
   references: z.array(z.object({ id, cache: note, sessionId: motionHash, sequenceId: motionHash,
     sequenceSha256: motionHash, inspectedFrames: z.array(z.number().int().nonnegative()).min(2).max(1800),
-  }).strict()).min(1).max(8),
+  }).strict()).max(8),
   criteria: z.array(z.object({ id, dimension: z.enum(styleDimensions), essential: z.boolean(), requirement: note,
-    evidence: z.array(z.object({ referenceId: id, frames: z.array(z.number().int().nonnegative()).min(1) }).strict()).min(1),
+    evidence: z.array(z.object({ referenceId: id, frames: z.array(z.number().int().nonnegative()).min(1) }).strict()),
   }).strict()).min(4).max(24),
   avoid: z.array(note).max(20), uncertainties: z.array(note).min(1).max(20),
-}).strict();
+}).strict().superRefine((style, ctx) => {
+  const catalog = style.basis === 'catalog';
+  if (catalog ? (!style.catalogEntries?.length || style.references.length || style.criteria.some(c => c.evidence.length))
+    : (!style.references.length || style.catalogEntries !== undefined || style.criteria.some(c => !c.evidence.length)))
+    ctx.addIssue({ code: 'custom', message: 'Use either evidence-backed reference criteria or pinned catalog requirements; never mix or silently drop reference evidence' });
+});
 
 // Layer coordinates are normalized output coordinates. Key times are normalized shot time.
 const poseShape = { x: z.number().finite().min(-4).max(4), y: z.number().finite().min(-4).max(4),
@@ -149,7 +156,9 @@ export function adaptScene(recipeInput: unknown, input: unknown): SceneAdaptatio
     if (word.start < priorWord - .0001 || word.end <= word.start || word.end > data.audio.end + .0001) throw Error('Words need ordered, positive source-clock intervals inside the audio range');
     priorWord = word.end;
   }
-  const used: string[] = [], warnings = ['Reference interpretation and style judgments are agent-reported, not independently verified.',
+  const used: string[] = [], warnings = [recipe.style.basis === 'catalog'
+    ? 'Catalog adaptation: template conformance is not original-reference fidelity or inherited approval.'
+    : 'Reference interpretation and style judgments are agent-reported, not independently verified.',
     'Prepared crops preserve caller-selected regions, not automatically tracked subjects.'];
   if (data.transcript.verification === 'unverified') warnings.push('Word alignment/text is unverified; listening review remains required.');
   let priorCaption = 0;
@@ -188,7 +197,7 @@ export function sceneEase(t: number, easing: string) {
   return t;
 }
 /** Complete poses are accumulated at every authored key; arbitrary seeking is deterministic. */
-export function scenePoseAt(layer: SceneLayer, time: number): ScenePose {
+export function scenePoseAt(layer: Pick<SceneLayer, 'pose' | 'keys'>, time: number): ScenePose {
   let prior = { at: 0, pose: { ...layer.pose }, easing: 'linear' }, pose = { ...layer.pose };
   for (const key of layer.keys) {
     if (typeof key.at !== 'number') throw Error('Resolve speech cues before sampling a pose');
@@ -246,7 +255,7 @@ export function reviewScene(input: unknown, expected: { revisionSha256: string; 
     if (c.status !== 'unknown') {
       const modality = 'kind' in c && (c.kind === 'audio' || c.kind === 'speech_sync') ? 'audio' : 'frame';
       if (!c.renderEvidenceIds.some(id => evidence.get(id)?.kind === modality)) throw Error('A judgment needs matching rendered evidence');
-      if ('criterionId' in c) {
+      if ('criterionId' in c && expected.adaptation.recipe.style.basis !== 'catalog') {
         const criterion = expected.adaptation.recipe.style.criteria.find(s => s.id === c.criterionId)!;
         const valid = criterion.evidence.flatMap(e => e.frames.map(f => `ref-${e.referenceId}-${f}`));
         if (!c.referenceEvidenceIds.some(id => valid.includes(id))) throw Error('Style verdict needs its specific reference evidence');
@@ -256,7 +265,8 @@ export function reviewScene(input: unknown, expected: { revisionSha256: string; 
   const essential = review.criteria.filter(c => expected.adaptation.recipe.style.criteria.find(s => s.id === c.criterionId)!.essential);
   const failed = [...essential, ...review.checks].some(c => c.status === 'fail');
   return { ...review, styleMatch: essential.some(c => c.status === 'fail') ? 'mismatch' : essential.some(c => c.status === 'unknown') ? 'unassessed'
-    : review.criteria.some(c => c.status !== 'pass') ? 'partial_match' : 'agent_reported_match',
+    : review.criteria.some(c => c.status !== 'pass') ? 'partial_match'
+    : expected.adaptation.recipe.style.basis === 'catalog' ? 'agent_reported_template_conformance' : 'agent_reported_match',
     status: failed ? expected.revision < expected.maxCorrections ? 'needs_correction' : 'correction_limit'
       : review.checks.some(c => c.status === 'unknown') || essential.some(c => c.status === 'unknown') ? 'needs_human_review' : 'reviewed_draft',
     safeToAutoPublish: false, basis: 'agent_reported_not_independent_verification' };

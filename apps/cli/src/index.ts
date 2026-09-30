@@ -29,7 +29,9 @@ const APP_NAME = "Diffusion Studio";
 const PROTOCOL = "diffusion";
 
 // Forwarded to the app's process.argv;
-const HIDDEN_FLAG = "--hidden";
+// Pass the cadence flag at process launch (not appended after Chromium startup).
+// Hidden frame-by-frame HTML exports must receive a fresh paint per requested frame.
+const HEADLESS_FLAGS = ["--hidden", "--disable-frame-rate-limit"];
 
 function openApp(target?: string, background = false): void {
   const isUrl = !!target && target.startsWith(`${PROTOCOL}://`);
@@ -46,7 +48,7 @@ function openApp(target?: string, background = false): void {
     }
 
     if (background) {
-      args.push("--args", HIDDEN_FLAG);
+      args.push("--args", ...HEADLESS_FLAGS);
     }
 
     spawn("open", args, { detached: true, stdio: "ignore" }).unref();
@@ -56,7 +58,7 @@ function openApp(target?: string, background = false): void {
   if (os === "win32") {
     const arg = target ?? APP_NAME;
     const args = ["/c", "start", "", arg];
-    if (background) args.push(HIDDEN_FLAG);
+    if (background) args.push(...HEADLESS_FLAGS);
     spawn("cmd", args, { detached: true, stdio: "ignore" }).unref();
     return;
   }
@@ -69,7 +71,7 @@ function openApp(target?: string, background = false): void {
   const bin = candidates.find((p) => existsSync(p));
   if (bin) {
     const args = target ? [target] : [];
-    if (background) args.push(HIDDEN_FLAG);
+    if (background) args.push(...HEADLESS_FLAGS);
     spawn(bin, args, { detached: true, stdio: "ignore" }).unref();
     return;
   }

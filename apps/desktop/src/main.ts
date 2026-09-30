@@ -162,6 +162,9 @@ function createWindow(show = true) {
       : { backgroundColor: "#1c1c1c" }),
     webPreferences: {
       preload: join(app.getAppPath(), "dist", "preload.js"),
+      // Hidden agent exports still need a fresh DOM paint for every frame.
+      // Timer flags alone do not keep Chromium's paint cadence unthrottled.
+      backgroundThrottling: false,
     },
   });
 

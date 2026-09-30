@@ -21,7 +21,8 @@ export async function deliverPreparedEdit(directory: string, destination: string
 /** Shared actual-editor export mechanics; each bundle kind retains its own validator/verifier. */
 export async function renderPreparedComposition<R extends { technicalPass: boolean; sha256: string }>(root: string,
   bundle: { name: string; height: number; fps: 30; chapters: { seconds: number; title: string }[] }, destination: string,
-  verify: (directory: string, path: string, options: { onProgress?: (message: string) => void }) => Promise<R>, onProgress?: (message: string) => void) {
+  verify: (directory: string, path: string, options: { onProgress?: (message: string) => void }) => Promise<R>, onProgress?: (message: string) => void,
+  options: { audio?: boolean } = {}) {
   const output = resolve(destination), reportPath = output + '.review.json', chapterPath = output + '.chapters.txt';
   if (extname(output).toLowerCase() !== '.mp4') throw new Error('Delivery output must end in .mp4');
   await Promise.all([output, reportPath, chapterPath].map(requireAbsent));
@@ -49,7 +50,7 @@ export async function renderPreparedComposition<R extends { technicalPass: boole
     await recordState('rendering');
     await editor.node.render.mutate({ id: context.activeSceneId, output: workingOutput, config: {
       format: 'mp4', video: { codec: 'avc', resolution: bundle.height, fps: bundle.fps, bitrate: 12000000 },
-      audio: { enabled: true, codec: 'aac', bitrate: 192000, sampleRate: 48000, numberOfChannels: 2 },
+      audio: { enabled: options.audio ?? true, codec: 'aac', bitrate: 192000, sampleRate: 48000, numberOfChannels: 2 },
     } }, { context: { timeoutMs: 3_600_000 } });
     await recordState('verifying');
     const review = await verify(root, workingOutput, { onProgress });

@@ -24,6 +24,7 @@ import { playbackSystem } from '../systems/playback';
 import { motionSystem } from '../systems/motion';
 import { transformSystem } from '../systems/transform';
 import { renderSystem } from '../systems/render';
+import { prepareHtmlFrame } from '../systems/html-prepare';
 import { cloneFromRecords, serializeEntity } from '../api/serialize';
 import { getEntityTree } from '../api/query';
 import { AudioBus } from '../services/audio-bus';
@@ -275,6 +276,7 @@ export async function createEncoder(sourceWorld: EngineWorld, config: EncoderCon
 				if (videoEnabled) {
 					// only visual systems
 					transformSystem(world);
+					await prepareHtmlFrame(world);
 					renderSystem(world);
 				}
 
@@ -328,6 +330,10 @@ export async function createEncoder(sourceWorld: EngineWorld, config: EncoderCon
 				data: await buffer.close(containerFormat),
 			};
 		} catch (e) {
+			// Release the audio worklet and partial output on strict paint/decode
+			// failure too; a rejected frame must never finalize as a good export.
+			Atomics.store(sharedUint32Array, 0, 2 ** 31 - 1);
+			await output.cancel().catch(() => {});
 			return {
 				type: 'error',
 				error: e instanceof Error ? e : new Error('Unknown error'),

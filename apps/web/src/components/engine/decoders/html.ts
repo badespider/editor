@@ -35,6 +35,21 @@ let htmlCanvas: HTMLCanvasElement | null = null;
 let htmlCtx: CanvasRenderingContext2D | null = null;
 let htmlHosts = 0;
 
+async function waitForHtmlPaint(): Promise<void> {
+	const canvas = htmlCanvas as (HTMLCanvasElement & { requestPaint?: () => void }) | null;
+	if (canvas?.requestPaint) {
+		await new Promise<void>((resolve, reject) => {
+			const done = () => { clearTimeout(timer); canvas.removeEventListener('paint', done); resolve(); };
+			const timer = setTimeout(() => { canvas.removeEventListener('paint', done); reject(new Error('HTML export timed out waiting for a paint record')); }, 2000);
+			canvas.addEventListener('paint', done, { once: true });
+			try { canvas.requestPaint!(); }
+			catch (error) { clearTimeout(timer); canvas.removeEventListener('paint', done); reject(error); }
+		});
+	} else {
+		throw new Error('Strict HTML export requires browser canvas paint synchronization');
+	}
+}
+
 function acquireLayoutCanvas(): HTMLCanvasElement {
 	if (!htmlCanvas) {
 		htmlCanvas = document.createElement('canvas');
@@ -83,7 +98,7 @@ export class HtmlHost {
 	/**
 	 * Resolves asynchronously loaded html resources.
 	 */
-	public whenReady(timeInSeconds: number): Promise<void> {
+	public async whenReady(timeInSeconds: number, strict = false): Promise<void> {
 		// sync animations
 		for (const animation of this.element.getAnimations({ subtree: true })) {
 			if (animation.playState !== 'paused') animation.pause();
@@ -95,13 +110,17 @@ export class HtmlHost {
 
 		// wait for images to be ready
 		for (const image of this.element.querySelectorAll('img')) {
-			// `complete` covers loaded, failed, and srcless images alike; the
-			// rest are still in flight, and a failed decode just paints nothing.
-			if (image.complete) continue;
-			pending.push(image.decode().catch(() => undefined));
+			const check = () => {
+				if (strict && (image.currentSrc || image.getAttribute?.('src')) && (!image.naturalWidth || !image.naturalHeight))
+					throw new Error('HTML export image is missing or failed to decode');
+			};
+			if (image.complete) { check(); continue; }
+			pending.push(image.decode().then(check).catch(error => {
+				if (strict) throw new Error('HTML export image failed to decode', { cause: error });
+			}));
 		}
 
-		return Promise.all(pending).then(() => nextRenderingUpdate());
+		return Promise.all(pending).then(() => strict ? waitForHtmlPaint() : nextRenderingUpdate());
 	}
 
 	public setSize(width: number, height: number): void {
@@ -110,10 +129,24 @@ export class HtmlHost {
 		this.height = height;
 		this.element.style.width = `${width}px`;
 		this.element.style.height = `${height}px`;
+		// Resizing clears Chromium's cached descendant paint records. Allocate
+		// the ordinary 1x surface before readiness, never on its first draw.
+		if (htmlCanvas && htmlCanvas.width < Math.ceil(width)) htmlCanvas.width = Math.ceil(width);
+		if (htmlCanvas && htmlCanvas.height < Math.ceil(height)) htmlCanvas.height = Math.ceil(height);
 	}
 
-	public draw(ctx: Ctx2D, width: number, height: number): void {
-		if (this.disposed || !htmlCanvas || !htmlCtx) return;
+	/** Allocate at the final export transform BEFORE waiting for browser paint. */
+	public prepare(width: number, height: number, scaleX: number, scaleY: number): void {
+		this.setSize(width, height);
+		if (htmlCanvas && htmlCanvas.width < Math.ceil(width * scaleX)) htmlCanvas.width = Math.ceil(width * scaleX);
+		if (htmlCanvas && htmlCanvas.height < Math.ceil(height * scaleY)) htmlCanvas.height = Math.ceil(height * scaleY);
+	}
+
+	public draw(ctx: Ctx2D, width: number, height: number, strict = false): void {
+		if (this.disposed || !htmlCanvas || !htmlCtx) {
+			if (strict) throw new Error('HTML export host is unavailable');
+			return;
+		}
 
 		this.setSize(width, height);
 
@@ -126,6 +159,7 @@ export class HtmlHost {
 
 			// Grow-only: shrinking would clear and reallocate every time hosts
 			// of different sizes share the canvas within one frame.
+			if (strict && (htmlCanvas.width < pw || htmlCanvas.height < ph)) throw new Error('HTML export raster changed after paint preparation');
 			if (htmlCanvas.width < pw) htmlCanvas.width = pw;
 			if (htmlCanvas.height < ph) htmlCanvas.height = ph;
 
@@ -134,6 +168,7 @@ export class HtmlHost {
 			(htmlCtx as DrawElementContext).drawElementImage(this.element, 0, 0, width, height);
 			ctx.drawImage(htmlCanvas, 0, 0, pw, ph, 0, 0, width, height);
 		} catch (e) {
+			if (strict) throw new Error(`HTML export paint failed: ${e instanceof Error ? e.message : e}`, { cause: e });
 			// A transient failure (subtree not yet laid out or painted) just
 			// skips the frame; log once so a permanent one doesn't spam.
 			if (!this.warned) {

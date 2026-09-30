@@ -23,6 +23,12 @@ decorative template is not a substitute for an unsupported essential technique.
 
 ## Reusable recipes and adaptation
 
+For a shared searchable library with named slots, version pinning and new-media
+substitution, use the [motion catalog](motion-catalog.md). Catalog-mode recipes
+have pinned template requirements instead of original-reference frame evidence;
+they report template conformance, never original-reference match. The normal
+source checks, actual-editor rendering and fresh review/correction gates still apply.
+
 The **recipe** contains style criteria, templates and typography. Legacy templates
 put media slots before drawn layers; v2 allows free layer ordering. Bind slots and
 source-relative trims in the separate **input**. Reuse the same recipe with another
@@ -115,7 +121,11 @@ dapi playbook motion scene render NEW_JOB
 ```
 
 `start` validates reference/source fingerprints, freezes media, and generates a
-composition. `render` creates a new actual-editor project and prepares evidence.
+composition. `render` defaults to checked, job-local scene reuse: changed shots
+render in new actual-editor projects, and unchanged shots reuse verified video.
+The complete editable composition remains in the revision's `edit.tsx`.
+Choose `render NEW_JOB --full` **before the attempt** to export that complete
+composition in one editor project without the scene cache.
 `inspect` resumes evidence preparation when an export completed but inspection did
 not. Start with a short proof, usually 6–10s. Legacy limits are 30s and 32 layers
 per template; v2 limits are 60s and 48 layers. Both support up to 16 shots,
@@ -142,6 +152,59 @@ corrections, maximum four. Stop at the limit or a technical/interrupted render;
 inspect diagnostics rather than retrying concurrently or evading the limit with
 a new job. Files are not overwritten. Every output remains a draft.
 
+## Preflight, capture reliability and scene reuse
+
+1. Read `check`/`next`'s `preflight` before exporting. It samples every output
+   frame using the resolved motion/group transforms. Findings locate text outside
+   the picture, heading occlusion risks, text over protected regions, and caption
+   boxes crossing headings. These are conservative geometry warnings: masks,
+   transparency, glyph shapes and intentional entrances require judgment.
+2. Use the checkout's built CLI (or render from the editor checkout), with the
+   desktop app running that same code. Packaged CLIs without source fingerprints
+   can choose `--full` before the attempt.
+   Cache keys bind the generated shot code, prepared media bytes, dimensions,
+   codec settings and local renderer/compiler fingerprint. Caption groups that
+   straddle a cut retain already-revealed words and invalidate both affected shots.
+   A global typography change can invalidate every shot containing captions.
+3. Read `scene-render.json`: `renderedScenes`, `reusedScenes` and `renderedFrames`
+   describe work actually reused. A cold cache still renders every shot and has
+   setup overhead. Source verification, preparation, joining and final inspection
+   still run; a 50% frame reduction does not guarantee a 50% wall-clock speedup.
+4. Inspect all evidence from the assembled output. Inspection now includes two
+   neighboring frames on either side of each authored cut, flagged layout ranges,
+   and suspected stalled-motion ranges. The small-luma-frame diagnostic only flags
+   repeated output where the recipe expected movement; intentional holds remain
+   valid. Other moving content can hide a stuck layer. No warning is an all-clear.
+
+Scene cache receipts are written only after a checked actual-editor export. Hits
+are fingerprinted and decoded again; changed bytes, inconsistent codec parameters
+or incomplete attempts stop the run. Retain these diagnostics. `--full` is not an
+override for an already-claimed/interrupted revision. Cache entries live inside
+the job directory; they never import approvals from another job or reference.
+Keep the runtime/font environment consistent during a job; the fingerprint is of
+local source/dependencies, not remote attestation of the running desktop binary or
+a checksum of installed system fonts.
+
+Joining stream-copies video and encodes the continuous original narration once,
+avoiding per-scene audio encoder gaps. The complete export still passes the
+duration/frame/dimension/audio checks and receives a fresh exact-hash review.
+Output stays a draft. Existing caption-only jobs and legacy scene recipes remain
+supported; previously sealed scene revisions are not rewritten.
+
+HTML image/paint failures now fail offline export instead of silently dropping a
+layer. The host waits for browser paint readiness before capture; unsupported paint
+synchronization fails explicitly instead of falling back to a guessed delay.
+Restart the desktop app after this upgrade using `dapi open --background`.
+For a development Electron launch, pass `--hidden --disable-frame-rate-limit`
+as launch arguments. Appending this switch from the main script after Chromium
+starts did not work reliably in the Windows regression; keep it at launch.
+Hidden CLI launches disable the
+browser frame-rate limit so paint updates are not throttled to hidden-window cadence;
+visible interactive launches retain their normal cadence. Pixel diagnostics
+and layout checks remain separate from this hard failure path; they cannot certify
+smoothness, exact style fidelity, or listening. Implementation context:
+[HTML-in-Canvas synchronization](https://github.com/WICG/html-in-canvas#3-the-paint-event).
+
 ## Verification
 
 Run the package tests/typecheck and CLI build. `test/scene-motion.test.ts` covers
@@ -150,3 +213,11 @@ seeking, canvas/native data generation and reference-vs-technical review gates.
 `test/scene-cli-smoke.ts` covers real local evidence/preparation and source tampering
 with synthetic fixtures. A synthetic pass is not style fidelity; finish substantive
 changes with an actual-editor preview and evidence-backed comparison.
+
+`test/scene-quality.test.ts` covers frame envelopes, intentional holds, source and
+renderer cache invalidation, and cross-cut caption continuity. The CLI's
+`src/test/scene-cache-desktop-smoke.ts` runs a synthetic full-vs-segmented actual
+editor comparison, checks every moving-target frame, measures a one-shot
+correction, checks continuous audio correlation and rejects corrupted cache
+entries. Run it in an isolated desktop profile. Synthetic assertions are not
+perceptual review or a claim about production render speed.

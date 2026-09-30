@@ -6,6 +6,7 @@ import { referenceBreakdownSchema } from '@diffusionstudio/video-understanding/r
 import { renderPreparedComposition } from './playbook-delivery';
 import { waitForCliSocket } from './cli-client';
 import { registerSceneMotionCommands } from './scene-motion';
+import { registerMotionCatalogCommands } from './motion-catalog';
 
 const print = (value: unknown) => console.log(JSON.stringify(value, null, 2));
 async function action(fn: (signal: AbortSignal) => Promise<unknown>) {
@@ -16,6 +17,7 @@ async function action(fn: (signal: AbortSignal) => Promise<unknown>) {
 export function registerMotionCommands(playbook: Command) {
   const motion = playbook.command('motion').description('Agent-driven reference → reusable caption recipe → footage adaptation → bounded render/review corrections');
   registerSceneMotionCommands(motion);
+  registerMotionCatalogCommands(motion);
   motion.command('workflow').action(() => print({ schemaVersion: 1, instructions: 'reference/motion.md', skill: 'editor-motion-workflow',
     stages: ['start', 'next (vision inspection)', 'interpret', 'adapt', 'render', 'review', 'correct (only for failed review)', 'render/review'],
     schemas: Object.fromEntries(Object.entries({ breakdown: referenceBreakdownSchema, intent: motionIntentSchema, footage: motionInputSchema,

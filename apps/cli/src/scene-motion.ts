@@ -1,10 +1,11 @@
 import type { Command } from 'commander';
 import { z } from 'zod';
-import { SceneWorkflow } from '@diffusionstudio/editing-playbook/scene-workflow';
+import { SceneWorkflow, preflightScene, verifySceneSegment } from '@diffusionstudio/editing-playbook/scene-workflow';
 import { adaptScene, sceneRecipeSchema, sceneInputSchema, sceneReviewSchema, sceneCorrectionSchema } from '@diffusionstudio/editing-playbook/scene-motion';
 import { readMotionJSON } from '@diffusionstudio/editing-playbook/motion-workflow';
 import { renderPreparedComposition } from './playbook-delivery';
 import { waitForCliSocket } from './cli-client';
+import { sceneRendererId } from './scene-renderer-id';
 
 const print = (x: unknown) => console.log(JSON.stringify(x, null, 2));
 async function run(fn: (signal: AbortSignal) => Promise<unknown>) {
@@ -19,12 +20,24 @@ export function registerSceneMotionCommands(motion: Command) {
     schemas: Object.fromEntries(Object.entries({ recipe: sceneRecipeSchema, input: sceneInputSchema, review: sceneReviewSchema, correction: sceneCorrectionSchema })
       .map(([k,v]) => [k,z.toJSONSchema(v,{io:'input'})])), externalModelCalls: 0, safeToAutoPublish: false,
     limits: 'Legacy: 30s / 32 layers. layered-v2: 60s / 48 layers, ordered media/graphics, image masks, uniform-scale groups and source-word cues. Both: 16 shots / original continuous audio / 0–4 corrections. No automatic tracking, listening or 3D project recovery.' }));
-  scene.command('check').argument('<recipe.json>').argument('<input.json>').action((recipe:string,input:string)=>run(async()=>adaptScene(await readMotionJSON(recipe),await readMotionJSON(input))));
+  scene.command('check').argument('<recipe.json>').argument('<input.json>').action((recipe:string,input:string)=>run(async()=>{
+    const adaptation=adaptScene(await readMotionJSON(recipe),await readMotionJSON(input));return {...adaptation,preflight:preflightScene(adaptation)};
+  }));
   scene.command('start').argument('<recipe.json>').argument('<input.json>').requiredOption('-o, --output <new-directory>').option('--max-corrections <n>','bounded retries','2')
     .action((recipe:string,input:string,o:{output:string;maxCorrections:string})=>run(async signal=>new SceneWorkflow(o.output).create(await readMotionJSON(recipe),await readMotionJSON(input),Number(o.maxCorrections),signal)));
   scene.command('next').argument('<job>').action((job:string)=>run(()=>new SceneWorkflow(job).next()));
-  scene.command('render').argument('<job>').action((job:string)=>run(async signal=>{
-    const workflow=new SceneWorkflow(job);await workflow.renderContext(signal);await waitForCliSocket();const c=await workflow.claimRender(signal);
+  scene.command('render').argument('<job>').option('--full','Render the complete composition without scene cache').action((job:string,options:{full?:boolean})=>run(async signal=>{
+    const workflow=new SceneWorkflow(job);await workflow.renderContext(signal);await waitForCliSocket();
+    if(!options.full) {
+      const render=await workflow.renderIncremental(await sceneRendererId(),async ({directory,output,segment})=>{
+        const result=await renderPreparedComposition(directory,{name:`Scene DRAFT ${segment.shotId}`,height:segment.height,fps:30,chapters:[]},output,
+          (_root,path)=>verifySceneSegment(path,segment,signal),message=>console.error(message),{audio:false});
+        if(result.status==='technical_review_failed')throw Error('Scene render failed technical review');
+        return result;
+      },signal,message=>console.error(message));
+      return {render,next:await workflow.inspect(signal)};
+    }
+    const c=await workflow.claimRender(signal);
     const render=await renderPreparedComposition(c.directory,c.bundle,c.output,(_root,path)=>workflow.verifyRender(path,signal),message=>console.error(message));
     if(render.status==='technical_review_failed'){process.exitCode=1;return render;}
     return {render,next:await workflow.inspect(signal)};

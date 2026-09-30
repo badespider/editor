@@ -14,6 +14,7 @@ import { playbackSystem } from '../systems/playback';
 import { motionSystem } from '../systems/motion';
 import { transformSystem } from '../systems/transform';
 import { renderSystem } from '../systems/render';
+import { prepareHtmlFrame } from '../systems/html-prepare';
 import { cloneFromRecords, serializeEntity } from '../api/serialize';
 import { getEntityTree } from '../api/query';
 import { realizeMounts } from '@/utils/mount';
@@ -204,6 +205,7 @@ export async function createImageEncoder(sourceWorld: EngineWorld, config: Image
         await resolverSystem(world);
         motionSystem(world);
         transformSystem(world);
+        await prepareHtmlFrame(world);
         renderSystem(world);
 
         const stampFrame = startFrame + frame;
