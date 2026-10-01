@@ -4,6 +4,10 @@ Use this mode when studying animation timing, motion graphics, a rapid transitio
 or a one-frame visual change. Normal `media inspect` remains the efficient tool
 for storytelling overviews. Neither mode supplies the agent's visual reasoning.
 
+For optional manually seeded patch motion measurements, see
+[precision controls](../scene-precision.md#seed-a-visible-object-in-reference-frames).
+Keep uncertain tracks separate from authored keyframes and visual approval.
+
 V1 is available through the local CLI and the Node `ReferenceAnalysisService`
 export from `@diffusionstudio/video-understanding/reference`. It does not add a
 desktop IPC endpoint or edit the timeline. No API key, other model, download,

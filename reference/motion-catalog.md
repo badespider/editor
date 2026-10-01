@@ -4,6 +4,10 @@ Use this workflow when reusing a saved motion design on new footage or saving an
 authored design for future projects. The catalog stores **editable animation data**,
 not just inspiration notes. It is independent of the editing-skill catalog.
 
+For optional readable reflow during `apply` and same-input visual baseline checks
+after rendering, see [precision controls](scene-precision.md). These do not change
+pinned versions or confer review approval.
+
 ## Reuse
 
 1. Run `dapi playbook motion catalog list --query "images"`, then

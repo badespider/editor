@@ -5,6 +5,8 @@ import {AgentEvidenceService} from './agent.ts';
 import {fingerprint} from './media.ts';
 import {referenceProcess} from './reference-process.ts';
 import {referenceViewer} from './reference-viewer.ts';
+import { referenceTrackRequestSchema, trackGrayFrames } from './reference-tracking.ts';
+export { referenceTrackRequestSchema, trackGrayFrames } from './reference-tracking.ts';
 import {referenceId,referenceRequestSchema,referencePageSchema,referencePayloadSchema,referenceManifestSchema,
   parseReferenceStamps,checkReferenceBudget,frameChange,validateBreakdown} from './reference-schema.ts';
 import type {ReferenceRequest,ReferenceManifest} from './reference-schema.ts';
@@ -141,6 +143,20 @@ export class ReferenceAnalysisService {
       await writeJSON(join(root,'sequence.json'),manifest);
       return this.summary(manifest,root,false);
     }catch(error){await writeJSON(join(root,'failure.json'),{status:'incomplete',error:(error as Error).message}).catch(()=>{});throw error;}
+  }
+  async track(sessionId:string,id:string,input:unknown,cancellation?:AbortSignal){
+    const request=referenceTrackRequestSchema.parse(input),signal=bounded(cancellation),{manifest,root}=await this.load(sessionId,id);
+    const frames=manifest.frames.slice(request.from,request.from+request.count);
+    if(frames.length!==request.count)throw Error('Tracking range exceeds sequence');
+    for(const frame of frames)await this.file(root,frame.path,frame.sha256,signal);
+    const factor=Math.min(1,480/manifest.source.width,480/manifest.source.height),width=Math.floor(manifest.source.width*factor),height=Math.floor(manifest.source.height*factor);
+    const pixels=(await referenceProcess(ffmpeg(),['-v','error','-nostdin','-threads','2','-framerate','1','-start_number',String(request.from),
+      '-i',join(root,'frames','frame-%06d.png'),'-vf',`scale=${width}:${height}:flags=area,format=gray`,'-frames:v',String(request.count),'-threads:v','1','-f','rawvideo','-'],signal,32*1024**2)).stdout;
+    const result=trackGrayFrames(pixels,width,height,frames,request);
+    for(const frame of frames)await this.file(root,frame.path,frame.sha256,signal);
+    const value={schemaVersion:1,kind:'reference-pixel-track',sessionId,sequenceId:id,sequenceSha256:manifest.sequenceSha256,sourceSha256:manifest.source.sha256,
+      nativeWidth:manifest.source.width,nativeHeight:manifest.source.height,trackingWidth:width,trackingHeight:height,...result};
+    return {...value,sha256:digest(value)};
   }
   async page(sessionId:string,id:string,input:unknown={},cancellation?:AbortSignal) {
     const request=referencePageSchema.parse(input),signal=bounded(cancellation),{manifest,root}=await this.load(sessionId,id);

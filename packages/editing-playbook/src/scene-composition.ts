@@ -1,5 +1,6 @@
 import { scenePoseAt, type SceneAdaptation } from './scene-motion.ts';
 import { layeredComposition } from './scene-layered.ts';
+import { precisionMotionRuntime } from './scene-dynamics.ts';
 
 // Fixed drawing implementation. Recipe text is serialized as inert JSON, never executable source.
 export const sceneDrawingRuntime = `
@@ -34,10 +35,12 @@ function drawSceneCaptions(ctx,t,data){const {recipe,input}=data,W=input.width,H
 
 export function sceneComposition(adaptation: SceneAdaptation, prepared: { audio: string; media: Record<string, string> }) {
   if (adaptation.recipe.compositor === 'layered-v2') {
-    const runtime = sceneDrawingRuntime
+    let runtime = sceneDrawingRuntime
       .replace('ctx.font=font;', "ctx.font=font;ctx.letterSpacing=(size*(s.font.tracking||0))+'px';")
       .replace("ctx.save();ctx.font=w.font;", "ctx.save();ctx.font=w.font;ctx.letterSpacing=(w.size*(s.font.tracking||0))+'px';if(w.size<Math.min(W,H)*s.minFontSize)throw Error('Caption word below minimum readable size: '+c.id);")
       .replace('ctx.fillText(w.label,x,y+row.height/2+s.lift*H*(1-f));', "if(s.strokeWidth){ctx.lineWidth=s.strokeWidth;ctx.strokeStyle=s.stroke||'#000000';ctx.lineJoin='round';ctx.strokeText(w.label,x,y+row.height/2+s.lift*H*(1-f));}ctx.fillText(w.label,x,y+row.height/2+s.lift*H*(1-f));");
+    if (adaptation.recipe.templates.some(t => [...t.layers, ...(t.groups ?? [])].some(l => l.keys.some(k => typeof k.easing !== 'string' || k.easing === 'bounce' || k.path || k.propertyTiming))))
+      runtime = runtime.replace(/function easeScene[^\n]+\nfunction poseScene[^\n]+/, precisionMotionRuntime);
     return layeredComposition(adaptation, prepared, runtime);
   }
   const { width, height } = adaptation.input;

@@ -3,8 +3,11 @@
 Use `playbook motion scene workflow` for the authoritative recipe, input, review
 and correction schemas. This adds coordinated scenes to the existing editor;
 caption-only `motion` jobs keep their original contract. The caller supplies visual
-interpretation and judgment. No model, upload, tracking, transcription, music or
+interpretation and judgment. No model, upload, transcription, music or
 publication call is made by these commands.
+
+For opt-in curves, per-property timing, measured text layout, seeded render
+tracking and golden-frame regression checks, read [precision controls](scene-precision.md).
 
 ## Reference specification first
 

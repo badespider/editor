@@ -76,6 +76,20 @@ for (const pin of ['one-to-many@1', 'layered-image@1', 'scale-title@1', 'word-st
   });
 }
 
+test('aspect adaptation respects an opted-in measured-text minimum', async () => {
+  const entry = structuredClone(await catalog.get('scale-title@1'));
+  const title = entry.block.layers.find(l => l.id === 'stadium-title')!;
+  title.textLayout = { maxLines: 2, minFontSize: title.font!.size, lineGap: 1.1 };
+  const original = structuredClone(entry), request = catalogRequest(entry);
+  request.input.width = 1920; request.input.height = 1080;
+  const result = composeMotionCatalog([entry], request);
+  const adapted = result.recipe.templates[0].layers.find(l => l.id === 'stadium-title')!;
+  assert.equal(adapted.font!.size, title.textLayout.minFontSize);
+  assert.deepEqual(adapted.textLayout, title.textLayout);
+  assert.deepEqual(entry, original);
+  assert.doesNotThrow(() => adaptScene(result.recipe, result.input));
+});
+
 test('multiple scene instances share versioned blocks without sharing text or edits', async () => {
   const entry = await catalog.get('scale-title@1'), request = catalogRequest(entry);
   request.input.audio.end = 22;

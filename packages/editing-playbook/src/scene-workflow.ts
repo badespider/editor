@@ -11,6 +11,9 @@ import { adaptScene, motionDigest, reviewScene, sceneCorrectionSchema, type Scen
 import { sceneComposition } from './scene-composition.ts';
 import { preflightScene, scanSceneFrames } from './scene-quality.ts';
 import { sceneSegments, renderSceneSegments, type SegmentRenderer } from './scene-cache.ts';
+import { sceneMeasurementSchema, compareTrackedMotion, captureSceneGolden, compareSceneGoldens } from './scene-precision.ts';
+export { sceneMeasurementSchema, goldenRequestSchema } from './scene-precision.ts';
+export { reflowSceneLayout, sceneLayoutOptionsSchema } from './scene-layout.ts';
 export { verifySceneSegment } from './scene-cache.ts';
 export { preflightScene } from './scene-quality.ts';
 
@@ -219,6 +222,31 @@ export class SceneWorkflow {
     await save(join(c.directory,'inspection.json'),{ renderSha256:technical.sha256,revisionSha256:c.sha256,sessionId:session.id,evidence,contactSheets,quality:{preflight,motion} } satisfies Inspection);
     return this.next();
   }
+  async measure(raw:unknown,cancellation?:AbortSignal){
+    const request=sceneMeasurementSchema.parse(raw),signal=bounded(cancellation),c=await this.renderContext(signal);
+    const technical=await this.verifyRender(c.output,signal);if(!technical.technicalPass)throw Error('Measure only technically verified renders');
+    const inspection=await readSeal<Inspection>(join(c.directory,'inspection.json'));
+    if(inspection.value.renderSha256!==technical.sha256)throw Error('Stale measurement render');
+    if(new Set(request.targets.map(t=>t.id)).size!==request.targets.length)throw Error('Duplicate measurement ID');
+    const service=new ReferenceAnalysisService(join(this.root,'evidence')),results=[];
+    for(const target of request.targets){
+      const shot=c.value.adaptation.input.shots.find(s=>s.id===target.shotId);
+      if(!shot||target.start<shot.start||target.end>shot.end)throw Error('Measurement must stay inside its selected shot');
+      if(!c.value.adaptation.recipe.templates.find(t=>t.id===shot.templateId)?.layers.some(l=>l.id===target.layerId))throw Error('Unknown measurement layer');
+      const seq=await service.extract(inspection.value.sessionId,{start:target.start,end:target.end,maxFrames:120,maxDecodedMiB:1024},signal);
+      const manifest=await service.sequence(seq.sessionId,seq.id),seed=manifest.frames.reduce((a,b)=>Math.abs(a.time-target.seedTime)<=Math.abs(b.time-target.seedTime)?a:b);
+      const track=await service.track(seq.sessionId,seq.id,{from:0,count:manifest.frames.length,seedFrame:seed.index,box:target.box},signal);
+      results.push({track,comparison:compareTrackedMotion(c.value.adaptation,target,track.measurements)});
+    }
+    if(await fingerprint(c.output,signal)!==technical.sha256)throw Error('Render changed during precision measurement');
+    const value={revisionSha256:c.sha256,renderSha256:technical.sha256,request,results,safeToAutoPublish:false};
+    const path=join(c.directory,`precision-${motionDigest(request)}.json`);
+    if(await exists(path)){const stored=await readSeal<typeof value>(path);if(motionDigest(stored.value)!==motionDigest(value))throw Error('Stored precision measurement differs');return stored;}
+    return save(path,value);
+  }
+  async golden(request:unknown,signal?:AbortSignal){const c=await this.renderContext(signal),technical=await this.verifyRender(c.output,signal);
+    if(!technical.technicalPass)throw Error('Golden needs a verified render');return captureSceneGolden(c.output,c.value.adaptation,request,signal);}
+  async compareGolden(reference:unknown,request:unknown,tolerance=1,signal?:AbortSignal){return compareSceneGoldens(reference,await this.golden(request,signal),tolerance);}
   async review(input: unknown, signal?: AbortSignal) {
     const c = await this.renderContext(signal), job=await this.job(), inspection=await readSeal<Inspection>(join(c.directory,'inspection.json'));
     if (inspection.value.revisionSha256!==c.sha256 || await fingerprint(c.output,signal)!==inspection.value.renderSha256) throw Error('Stale render/inspection');

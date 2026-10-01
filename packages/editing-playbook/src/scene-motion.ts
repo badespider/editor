@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { motionDigest, motionHash } from './motion.ts';
+import { sceneCurveSchema, propertyTimingSchema, scenePathSchema, precisionEase, precisionPose, type SceneCurve } from './scene-dynamics.ts';
 
 const id = z.string().regex(/^[a-zA-Z0-9_-]{1,80}$/);
 const note = z.string().trim().min(1).max(4000);
@@ -33,9 +34,11 @@ const poseShape = { x: z.number().finite().min(-4).max(4), y: z.number().finite(
   rotation: z.number().finite().min(-360).max(360), opacity: unit,
   blur: z.number().finite().min(0).max(40), skewX: z.number().finite().min(-1).max(1), reveal: unit };
 export const scenePoseSchema = z.object(poseShape).strict();
-const easeSchema = z.enum(['linear', 'easeIn', 'easeOut', 'easeInOut', 'hold']);
+const easeSchema = sceneCurveSchema;
 const cueTime = z.object({ cue: id, edge: z.enum(['start', 'end']).default('start'), offsetSeconds: z.number().finite().min(-5).max(5).default(0) }).strict();
-const track = z.object({ at: z.union([unit, cueTime]), pose: scenePoseSchema.partial(), easing: easeSchema.default('linear') }).strict();
+const track = z.object({ at: z.union([unit, cueTime]), pose: scenePoseSchema.partial(), easing: easeSchema.default('linear'),
+  propertyTiming: propertyTimingSchema.optional(), path: scenePathSchema.optional() }).strict()
+  .refine(k => !(k.path && (k.propertyTiming?.x || k.propertyTiming?.y)), 'A spatial path owns x/y timing');
 const font = z.object({ family: z.string().regex(/^[\p{L}\p{N} _-]{1,80}$/u), weight: z.number().int().min(100).max(900),
   size: z.number().finite().min(.012).max(.3), color, italic: z.boolean().default(false), tracking: z.number().finite().min(-.05).max(.15).optional() }).strict();
 export const sceneRecipeSchema = z.object({ schemaVersion: z.literal(1), kind: z.literal('scene-motion-recipe'),
@@ -50,6 +53,8 @@ export const sceneRecipeSchema = z.object({ schemaVersion: z.literal(1), kind: z
       slot: id.optional(), text: note.optional(), pose: scenePoseSchema, keys: z.array(track).max(32).default([]),
       fill: color.default('#FFFFFF'), stroke: color.default('#FFFFFF'), strokeWidth: z.number().finite().min(0).max(20).default(0),
       font: font.optional(), shadow: z.number().finite().min(0).max(40).default(0),
+      textLayout: z.object({ maxLines: z.number().int().min(1).max(4), minFontSize: z.number().finite().min(.015).max(.15),
+        lineGap: z.number().finite().min(1).max(1.8) }).strict().optional(),
     }).strict()).max(48),
   }).strict()).min(1).max(16),
   caption: z.object({ font, box, minFontSize: z.number().finite().min(.02).max(.1),
@@ -111,6 +116,7 @@ export function adaptScene(recipeInput: unknown, input: unknown): SceneAdaptatio
     unique((t.groups ?? []).map(g => g.id), 'group');
     if (!recipe.compositor && (t.groups || t.layers.length > 32)) throw Error('Groups and extended layers require layered-v2');
     for (const g of t.groups ?? []) {
+      if (g.keys.some(k => JSON.stringify(k.propertyTiming?.width) !== JSON.stringify(k.propertyTiming?.height))) throw Error('Group scale needs identical width/height timing');
       let p = { ...g.pose };
       for (const key of [{ pose: g.pose }, ...g.keys]) {
         p = { ...p, ...key.pose };
@@ -119,12 +125,15 @@ export function adaptScene(recipeInput: unknown, input: unknown): SceneAdaptatio
     }
     for (const l of t.layers) {
       const media = l.kind === 'video' || l.kind === 'image';
+      if (media && l.keys.some(k => JSON.stringify(k.propertyTiming?.width) !== JSON.stringify(k.propertyTiming?.height))) throw Error('Media aspect ratio needs identical width/height timing');
+      if (l.textLayout && l.kind !== 'text') throw Error('Text layout applies only to text layers');
       if (media && (!l.slot || (!recipe.compositor && graphics))) throw Error('Media layers need slots and must precede drawn layers in legacy recipes');
       if (!media) graphics = true;
-      if (!recipe.compositor && (l.group || l.mask || l.motionBlur || l.keys.some(k => typeof k.at !== 'number'))) throw Error('Extended layers require layered-v2');
+      if (!recipe.compositor && (l.group || l.mask || l.motionBlur || l.textLayout || l.keys.some(k => typeof k.at !== 'number' || typeof k.easing !== 'string' || k.easing === 'bounce' || k.path || k.propertyTiming))) throw Error('Extended layers require layered-v2');
       if (l.group && !t.groups?.some(g => g.id === l.group)) throw Error('Unknown layer group');
       if (l.kind === 'video' && (l.mask || l.motionBlur || l.shadow || [l.pose, ...l.keys.map(k => k.pose)].some(p => p.blur || p.skewX || (p.reveal !== undefined && p.reveal !== 1)))) throw Error('Video masks, shadows, skew and motion blur are unsupported; use image layers or prepared footage');
-      if (l.kind === 'text' && (!l.text || !l.font)) throw Error('Text layers require text and font');
+      if (l.kind === 'text' && (!l.text?.trim() || !l.font)) throw Error('Text layers require nonblank text and font');
+      if (l.textLayout && l.font && l.textLayout.minFontSize > l.font.size) throw Error('Text layout minimum exceeds requested font size');
       let prior = -1;
       for (const k of l.keys) { if (!Object.keys(k.pose).length) throw Error('Keyframes need nonempty poses');
         if (typeof k.at === 'number') { if (k.at <= prior) throw Error('Keyframes need strictly increasing times'); prior = k.at; } }
@@ -188,7 +197,8 @@ export function adaptScene(recipeInput: unknown, input: unknown): SceneAdaptatio
     warnings, status: 'draft', safeToAutoPublish: false };
 }
 
-export function sceneEase(t: number, easing: string) {
+export function sceneEase(t: number, easing: SceneCurve) {
+  if (typeof easing !== 'string' || easing === 'bounce') return precisionEase(t, easing);
   t = Math.max(0, Math.min(1, t));
   if (easing === 'hold') return t < 1 ? 0 : 1;
   if (easing === 'easeOut') return 1 - (1 - t) ** 3;
@@ -198,15 +208,19 @@ export function sceneEase(t: number, easing: string) {
 }
 /** Complete poses are accumulated at every authored key; arbitrary seeking is deterministic. */
 export function scenePoseAt(layer: Pick<SceneLayer, 'pose' | 'keys'>, time: number): ScenePose {
+  if (layer.keys.some(k => typeof k.easing !== 'string' || k.easing === 'bounce' || k.path || k.propertyTiming)) {
+    if (layer.keys.some(k => typeof k.at !== 'number')) throw Error('Resolve speech cues before sampling a pose');
+    return precisionPose(layer as Parameters<typeof precisionPose>[0], time);
+  }
   let prior = { at: 0, pose: { ...layer.pose }, easing: 'linear' }, pose = { ...layer.pose };
   for (const key of layer.keys) {
     if (typeof key.at !== 'number') throw Error('Resolve speech cues before sampling a pose');
     const next = { ...pose, ...key.pose };
     if (time < key.at) {
-      const f = sceneEase((time - prior.at) / (key.at - prior.at), prior.easing);
+      const f = sceneEase((time - prior.at) / (key.at - prior.at), prior.easing as SceneCurve);
       return Object.fromEntries(Object.keys(pose).map(k => [k, pose[k as keyof ScenePose] + (next[k as keyof ScenePose] - pose[k as keyof ScenePose]) * f])) as ScenePose;
     }
-    pose = next; prior = { at: key.at, pose, easing: key.easing };
+    pose = next; prior = { at: key.at, pose, easing: key.easing as string };
   }
   return pose;
 }

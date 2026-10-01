@@ -3,6 +3,7 @@ import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import { adaptScene, motionDigest, sceneInputSchema, sceneRecipeSchema, styleDimensions, type ScenePose, type SceneRecipe } from './scene-motion.ts';
 import { preflightScene } from './scene-quality.ts';
+import { reflowSceneLayout, sceneLayoutOptionsSchema } from './scene-layout.ts';
 
 const id = z.string().regex(/^[a-z][a-z0-9-]{0,59}$/);
 const label = z.string().trim().min(1).max(1000);
@@ -33,6 +34,7 @@ export const motionCatalogRequestSchema = z.object({ input: sceneInputSchema,
   instances: z.array(selection).min(1).max(16),
   captionFromShot: z.string().min(1).max(80).optional(),
   mediaDimensions: z.record(z.string(), z.object({ width: dimension, height: dimension }).strict()),
+  layout: sceneLayoutOptionsSchema.optional(),
 }).strict();
 
 function selector(value: string) {
@@ -171,6 +173,11 @@ function layout(entry: MotionCatalogEntry, width: number, height: number) {
   return { pose, fontScale, box: (b: SceneRecipe['caption']['box']) => ({ x: .5 + (b.x - .5) * fx, y: .5 + (b.y - .5) * fy, width: b.width * fx, height: b.height * fy }) };
 }
 
+function mapPath(path:NonNullable<SceneRecipe['templates'][number]['layers'][number]['keys'][number]['path']>,transform:ReturnType<typeof layout>){
+  const point=(x:number,y:number)=>transform.pose({x,y,width:1,height:1,rotation:0,opacity:1,blur:0,skewX:0,reveal:1});
+  const a=point(path.x1,path.y1),b=point(path.x2,path.y2);return {x1:a.x,y1:a.y,x2:b.x,y2:b.y};
+}
+
 /** Same validated scene/render/review pipeline; approval and original-reference claims are never imported. */
 export function composeMotionCatalog(rawEntries: unknown[], rawRequest: unknown) {
   const entries = rawEntries.map(validateEntry), request = motionCatalogRequestSchema.parse(rawRequest);
@@ -193,7 +200,7 @@ export function composeMotionCatalog(rawEntries: unknown[], rawRequest: unknown)
     shot.templateId = block.id; shot.criteria = [...styleDimensions];
     for (const group of block.groups ?? []) {
       let p = group.pose; group.pose = transform.pose(p, true);
-      group.keys = group.keys.map(k => { p = { ...p, ...k.pose }; return { ...k, pose: transform.pose(p, true) }; });
+      group.keys = group.keys.map(k => { p = { ...p, ...k.pose }; return { ...k, pose: transform.pose(p, true), ...(k.path?{path:mapPath(k.path,transform)}:{}) }; });
     }
     for (const layer of block.layers) {
       let fit = (p: ScenePose) => transform.pose(p);
@@ -208,10 +215,10 @@ export function composeMotionCatalog(rawEntries: unknown[], rawRequest: unknown)
           return result; };
       }
       let p = layer.pose; layer.pose = fit(p);
-      layer.keys = layer.keys.map(k => { p = { ...p, ...k.pose }; return { ...k, pose: fit(p) }; });
+      layer.keys = layer.keys.map(k => { p = { ...p, ...k.pose }; return { ...k, pose: fit(p), ...(k.path?{path:mapPath(k.path,transform)}:{}) }; });
       layer.fill = paint(layer.fill); layer.stroke = paint(layer.stroke);
       if (layer.font) layer.font = { ...layer.font, family: instance.fontFamily ?? layer.font.family,
-        color: paint(layer.font.color), size: Math.max(.012, layer.font.size * transform.fontScale) };
+        color: paint(layer.font.color), size: Math.max(layer.textLayout?.minFontSize??.012, layer.font.size * transform.fontScale) };
       if (layer.kind === 'text') {
         layer.text = instance.text[layer.id];
         if (layer.text.length > 40) warnings.push(`${shot.id}/${layer.id}: long text auto-fits; inspect native-size readability.`);
@@ -236,9 +243,10 @@ export function composeMotionCatalog(rawEntries: unknown[], rawRequest: unknown)
         requirement: distinct.map(e => `${e.id}@${e.version}: ${e.requirements[d]}`).join('\n'), evidence: [] })),
       avoid: ['Do not inherit prior footage approval or claim original-reference fidelity.'],
       uncertainties: ['New footage, crops, timing and dimensions require fresh render inspection and listening.'] } };
-  const adaptation = adaptScene(recipe, input);
+  const reflow=request.layout?reflowSceneLayout(recipe,input,request.layout):null;
+  const adaptation = adaptScene(reflow?.recipe??recipe, reflow?.input??input);
   return { recipe: adaptation.recipe, input: adaptation.input, preflight: preflightScene(adaptation),
-    receipt: { schemaVersion: 1, kind: 'motion-catalog-use', entries: recipe.style.catalogEntries, requestSha256: motionDigest(request),
+    receipt: { schemaVersion: 1, kind: 'motion-catalog-use', entries: recipe.style.catalogEntries, requestSha256: motionDigest(request), ...(reflow?{layout:reflow.report}:{}),
       recipeSha256: motionDigest(adaptation.recipe), inputSha256: motionDigest(adaptation.input), origins: distinct.map(e => ({ id: e.id, origin: e.origin, sourceRecipeSha256: e.sourceRecipeSha256 })),
       warnings: [...warnings, ...adaptation.warnings], status: 'draft', safeToAutoPublish: false } };
 }

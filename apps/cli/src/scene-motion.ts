@@ -1,6 +1,8 @@
 import type { Command } from 'commander';
 import { z } from 'zod';
-import { SceneWorkflow, preflightScene, verifySceneSegment } from '@diffusionstudio/editing-playbook/scene-workflow';
+import { mkdir, writeFile } from 'node:fs/promises';
+import { resolve, join } from 'node:path';
+import { SceneWorkflow, preflightScene, verifySceneSegment, reflowSceneLayout, sceneLayoutOptionsSchema, sceneMeasurementSchema, goldenRequestSchema } from '@diffusionstudio/editing-playbook/scene-workflow';
 import { adaptScene, sceneRecipeSchema, sceneInputSchema, sceneReviewSchema, sceneCorrectionSchema } from '@diffusionstudio/editing-playbook/scene-motion';
 import { readMotionJSON } from '@diffusionstudio/editing-playbook/motion-workflow';
 import { renderPreparedComposition } from './playbook-delivery';
@@ -17,9 +19,29 @@ export function registerSceneMotionCommands(motion: Command) {
   const scene = motion.command('scene').description('Reference specification → layered scenes + aligned words → actual editor → fidelity review');
   scene.command('workflow').action(() => print({ instructions: 'reference/scene-motion.md', skill: 'editor-motion-workflow',
     stages: ['inspect bounded reference sequences', 'author recipe and source/asset/framing input', 'check', 'start', 'render', 'review every reference criterion', 'correct (bounded)'],
-    schemas: Object.fromEntries(Object.entries({ recipe: sceneRecipeSchema, input: sceneInputSchema, review: sceneReviewSchema, correction: sceneCorrectionSchema })
+    schemas: Object.fromEntries(Object.entries({ recipe: sceneRecipeSchema, input: sceneInputSchema, review: sceneReviewSchema, correction: sceneCorrectionSchema,
+      layout:sceneLayoutOptionsSchema,measurement:sceneMeasurementSchema,golden:goldenRequestSchema })
       .map(([k,v]) => [k,z.toJSONSchema(v,{io:'input'})])), externalModelCalls: 0, safeToAutoPublish: false,
-    limits: 'Legacy: 30s / 32 layers. layered-v2: 60s / 48 layers, ordered media/graphics, image masks, uniform-scale groups and source-word cues. Both: 16 shots / original continuous audio / 0–4 corrections. No automatic tracking, listening or 3D project recovery.' }));
+    limits: 'Legacy: 30s / 32 layers. layered-v2: 60s / 48 layers, ordered media/graphics, image masks, uniform-scale groups, source-word cues, precision curves and constrained text layout. Both: 16 shots / original continuous audio / 0–4 corrections. Seeded tracking and sampled visual regressions are fallible measurements, not semantic detection, listening or 3D recovery. See reference/scene-precision.md.' }));
+  scene.command('layout').argument('<recipe.json>').argument('<input.json>').argument('<options.json>').requiredOption('-o, --output <new-directory>')
+    .description('Propose constrained readable title layout; inspect unresolved placements before starting a render job')
+    .action((recipe:string,input:string,options:string,o:{output:string})=>run(async()=>{
+      const result=reflowSceneLayout(await readMotionJSON(recipe),await readMotionJSON(input),await readMotionJSON(options)),root=resolve(o.output);await mkdir(root);
+      for(const [name,value]of Object.entries(result))await writeFile(join(root,`${name}.json`),JSON.stringify(value,null,2)+'\n',{flag:'wx'});
+      return {directory:root,...result.report};
+    }));
+  scene.command('measure').argument('<job>').argument('<targets.json>').description('Seeded measurements from the actual rendered pixels; no automatic corrections or approval')
+    .action((job:string,path:string)=>run(async signal=>new SceneWorkflow(job).measure(await readMotionJSON(path),signal)));
+  scene.command('golden').argument('<job>').argument('<frames.json>').requiredOption('-o, --output <new-json>')
+    .action((job:string,path:string,o:{output:string})=>run(async signal=>{
+      const result=await new SceneWorkflow(job).golden(await readMotionJSON(path),signal);await writeFile(resolve(o.output),JSON.stringify(result,null,2)+'\n',{flag:'wx'});
+      return {path:resolve(o.output),sourceSha256:result.sourceSha256,frames:result.frames,safeToAutoPublish:false};
+    }));
+  scene.command('compare-golden').argument('<job>').argument('<baseline.json>').option('--tolerance <number>','mean RGB difference, 0–20','1')
+    .action((job:string,path:string,o:{tolerance:string})=>run(async signal=>{
+      const baseline=await readMotionJSON(path),settings=z.object({frames:z.array(z.number()),width:z.number()}).parse(baseline);
+      return new SceneWorkflow(job).compareGolden(baseline,settings,Number(o.tolerance),signal);
+    }));
   scene.command('check').argument('<recipe.json>').argument('<input.json>').action((recipe:string,input:string)=>run(async()=>{
     const adaptation=adaptScene(await readMotionJSON(recipe),await readMotionJSON(input));return {...adaptation,preflight:preflightScene(adaptation)};
   }));
