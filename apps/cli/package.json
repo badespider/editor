@@ -17,6 +17,7 @@
     "symlink:create": "npm run build && ln -sf \"$PWD/dist/index.js\" /opt/homebrew/bin/dapi"
   },
   "dependencies": {
+    "@diffusionstudio/remotion-renderer": "*",
     "@diffusionstudio/editing-playbook": "*",
     "@diffusionstudio/video-understanding": "*",
     "@babel/core": "^7.29.7",

@@ -9,6 +9,17 @@ publication call is made by these commands.
 For opt-in curves, per-property timing, measured text layout, seeded render
 tracking and golden-frame regression checks, read [precision controls](scene-precision.md).
 
+For the optional local `--renderer remotion` adapter, read [Remotion](remotion.md).
+It accepts layered-v2 jobs and uses the same exact-export review/correction flow.
+
+For the channel's hook, roadmap, diagram, screen demo, comparison cards or next
+step, read [the channel template](channel-template.md). It uses separately
+authored landscape/portrait layouts and user-brief criteria (`basis: "brief"`).
+Brief-mode scenes bind a versioned brief fingerprint, have no reference/catalog
+approval, and review every criterion with actual render evidence. Successful
+reviews report `agent_reported_brief_conformance`; real footage keeps the normal
+source, audio, caption, inspection and bounded correction gates.
+
 ## Reference specification first
 
 Inspect every original frame in short [reference sequences](media/reference-analysis.md).
@@ -25,6 +36,11 @@ Different footage/content may require a deliberate adaptation; document it. A ne
 decorative template is not a substitute for an unsupported essential technique.
 
 ## Reusable recipes and adaptation
+
+For a reference's style on different stories, use [motion styles](motion-styles.md).
+Its selected-scene guide connects several recipes and creates fresh criteria from
+general principles and the new shot purposes. Exact scene reconstruction is a
+separate choice; detailed measurements can inform either branch.
 
 For a shared searchable library with named slots, version pinning and new-media
 substitution, use the [motion catalog](motion-catalog.md). Catalog-mode recipes
@@ -224,3 +240,9 @@ editor comparison, checks every moving-target frame, measures a one-shot
 correction, checks continuous audio correlation and rejects corrupted cache
 entries. Run it in an isolated desktop profile. Synthetic assertions are not
 perceptual review or a claim about production render speed.
+
+## Detailed reference templates
+
+For new reference-derived templates and close matching, follow [reference fidelity](reference-fidelity.md)
+before composing. A complete `style.design` record generates per-feature review requirements;
+legacy four-dimension recipes remain compatible but do not constitute detailed analysis.

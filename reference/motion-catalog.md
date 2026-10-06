@@ -4,6 +4,11 @@ Use this workflow when reusing a saved motion design on new footage or saving an
 authored design for future projects. The catalog stores **editable animation data**,
 not just inspiration notes. It is independent of the editing-skill catalog.
 
+For learning a style across several reference scenes, selecting a family of recipes,
+or reviewing style on different content, use [motion styles](motion-styles.md) and
+`catalog style list/show/capture/add`. Add an explicit `style` selection to `apply`
+to carry generalized rules and shot decisions into the new render's review.
+
 For optional readable reflow during `apply` and same-input visual baseline checks
 after rendering, see [precision controls](scene-precision.md). These do not change
 pinned versions or confer review approval.
@@ -121,3 +126,10 @@ source preservation, version integrity, invalid input and fresh review semantics
 `apps/cli/src/test/motion-catalog-desktop-smoke.ts` runs the real-editor path with
 synthetic media in an isolated profile. It leaves previews and a result report in
 a new caller-selected directory. Synthetic tones are not listening approval.
+
+## Detailed design knowledge
+
+New detailed-reference captures retain `designKnowledge` and create fresh per-feature
+review criteria on reuse. See [reference fidelity](reference-fidelity.md). Inspect retained
+prose for private content before sharing; no imagery, local frame bindings or approval
+is inherited. Oversized checklists fail explicitly rather than dropping detail.

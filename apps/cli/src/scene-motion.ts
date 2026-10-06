@@ -8,6 +8,7 @@ import { readMotionJSON } from '@diffusionstudio/editing-playbook/motion-workflo
 import { renderPreparedComposition } from './playbook-delivery';
 import { waitForCliSocket } from './cli-client';
 import { sceneRendererId } from './scene-renderer-id';
+import { renderWithRemotion } from './remotion-renderer';
 
 const print = (x: unknown) => console.log(JSON.stringify(x, null, 2));
 async function run(fn: (signal: AbortSignal) => Promise<unknown>) {
@@ -18,7 +19,10 @@ async function run(fn: (signal: AbortSignal) => Promise<unknown>) {
 export function registerSceneMotionCommands(motion: Command) {
   const scene = motion.command('scene').description('Reference specification → layered scenes + aligned words → actual editor → fidelity review');
   scene.command('workflow').action(() => print({ instructions: 'reference/scene-motion.md', skill: 'editor-motion-workflow',
-    stages: ['inspect bounded reference sequences', 'author recipe and source/asset/framing input', 'check', 'start', 'render', 'review every reference criterion', 'correct (bounded)'],
+    renderers:{default:'editor',optional:{remotion:{instructions:'reference/remotion.md',command:'scene render JOB --renderer remotion [--remotion-options settings.json]',layeredOnly:true,desktopRequired:false}}},
+    detailedReference:{instructions:'reference/reference-fidelity.md',defaultForNewReferenceTemplates:true,proof:'Short technique proof on new content; reference-control only for explicit reconstruction or a narrowly uncertain effect',analysis:'media reference design',recipeField:'style.design'},
+    reusableStyle:{instructions:'reference/motion-styles.md',discover:'playbook motion catalog style list/show',recipeField:'style.guide'},
+    stages: ['inspect bounded reference scenes', 'record design evidence and generalized rules', 'choose reusable style/recipes and map new shot purposes', 'check', 'start', 'render short adaptation', 'review every applicable style criterion and proposed omission', 'correct (bounded)'],
     schemas: Object.fromEntries(Object.entries({ recipe: sceneRecipeSchema, input: sceneInputSchema, review: sceneReviewSchema, correction: sceneCorrectionSchema,
       layout:sceneLayoutOptionsSchema,measurement:sceneMeasurementSchema,golden:goldenRequestSchema })
       .map(([k,v]) => [k,z.toJSONSchema(v,{io:'input'})])), externalModelCalls: 0, safeToAutoPublish: false,
@@ -48,8 +52,15 @@ export function registerSceneMotionCommands(motion: Command) {
   scene.command('start').argument('<recipe.json>').argument('<input.json>').requiredOption('-o, --output <new-directory>').option('--max-corrections <n>','bounded retries','2')
     .action((recipe:string,input:string,o:{output:string;maxCorrections:string})=>run(async signal=>new SceneWorkflow(o.output).create(await readMotionJSON(recipe),await readMotionJSON(input),Number(o.maxCorrections),signal)));
   scene.command('next').argument('<job>').action((job:string)=>run(()=>new SceneWorkflow(job).next()));
-  scene.command('render').argument('<job>').option('--full','Render the complete composition without scene cache').action((job:string,options:{full?:boolean})=>run(async signal=>{
-    const workflow=new SceneWorkflow(job);await workflow.renderContext(signal);await waitForCliSocket();
+  scene.command('render').argument('<job>').option('--full','Render the complete composition without scene cache')
+    .option('--renderer <engine>','editor or remotion','editor').option('--remotion-options <json>','Local Remotion settings; see reference/remotion.md')
+    .action((job:string,options:{full?:boolean;renderer:string;remotionOptions?:string})=>run(async signal=>{
+    if(!['editor','remotion'].includes(options.renderer))throw Error('Renderer must be editor or remotion');
+    if(options.renderer==='remotion')return renderWithRemotion(job,options.remotionOptions,signal);
+    if(options.remotionOptions)throw Error('--remotion-options requires --renderer remotion');
+    const workflow=new SceneWorkflow(job),context=await workflow.renderContext(signal);
+    if(context.value.adaptation.recipe.templates.some(t=>t.finish))throw Error('Finishing requires --renderer remotion; the editor renderer cannot silently omit it');
+    await waitForCliSocket();
     if(!options.full) {
       const render=await workflow.renderIncremental(await sceneRendererId(),async ({directory,output,segment})=>{
         const result=await renderPreparedComposition(directory,{name:`Scene DRAFT ${segment.shotId}`,height:segment.height,fps:30,chapters:[]},output,

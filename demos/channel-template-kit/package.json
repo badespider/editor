@@ -1,0 +1,23 @@
+{
+  "name": "editor-channel-template-kit",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MPL-2.0",
+  "scripts": {
+    "studio": "remotion studio index.tsx --no-open",
+    "check": "tsc --noEmit",
+    "poster": "remotion still index.tsx Template-Overview out/five-templates.png --frame=0"
+  },
+  "dependencies": {
+    "remotion": "4.0.532",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  },
+  "devDependencies": {
+    "@remotion/cli": "4.0.532",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "typescript": "~5.9.3"
+  }
+}

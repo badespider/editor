@@ -10,6 +10,11 @@ export { referenceTrackRequestSchema, trackGrayFrames } from './reference-tracki
 import {referenceId,referenceRequestSchema,referencePageSchema,referencePayloadSchema,referenceManifestSchema,
   parseReferenceStamps,checkReferenceBudget,frameChange,validateBreakdown} from './reference-schema.ts';
 import type {ReferenceRequest,ReferenceManifest} from './reference-schema.ts';
+import {draftReferenceDesign,validateReferenceDesign} from './reference-design.ts';
+import {styleSourcesSchema, referenceStyleRequestSchema, draftStyleGuide, validateStyleGuide} from './reference-style.ts';
+import {pixelComparisonSchema,compareRGB} from './reference-pixels.ts';
+export {pixelComparisonSchema} from './reference-pixels.ts';
+export {referenceDesignSchema,designCategories,validateReferenceDesign,portableDesign} from './reference-design.ts';
 
 const digest=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 const ffmpeg=()=>process.env.FFMPEG_PATH||'ffmpeg',ffprobe=()=>process.env.FFPROBE_PATH||'ffprobe';
@@ -20,6 +25,40 @@ const writeJSON=(path:string,value:unknown)=>writeFile(path,JSON.stringify(value
 /** Source-bound dense evidence, deliberately separate from sparse-overview artifact budgets. */
 export class ReferenceAnalysisService {
   readonly agent:AgentEvidenceService;
+  async pixels(sessionId:string,id:string,candidateSession:string,candidateId:string,input:unknown,cancellation?:AbortSignal){
+    const request=pixelComparisonSchema.parse(input),signal=bounded(cancellation);
+    const a=await this.load(sessionId,id),b=await this.load(candidateSession,candidateId);
+    if(a.manifest.source.width!==b.manifest.source.width||a.manifest.source.height!==b.manifest.source.height)throw Error('Native comparison requires identical dimensions; no silent resizing');
+    const fa=a.manifest.frames[request.referenceFrame],fb=b.manifest.frames[request.candidateFrame];
+    if(!fa||!fb)throw Error('Comparison frame is outside the sequence');
+    const region=request.region??{x:0,y:0,width:a.manifest.source.width,height:a.manifest.source.height};
+    if(region.x+region.width>a.manifest.source.width||region.y+region.height>a.manifest.source.height)throw Error('Comparison region exceeds picture');
+    const pa=await this.file(a.root,fa.path,fa.sha256,signal),pb=await this.file(b.root,fb.path,fb.sha256,signal);
+    const crop=`format=rgb24,crop=${region.width}:${region.height}:${region.x}:${region.y}`;
+    const decode=async(path:string)=>(await referenceProcess(ffmpeg(),['-v','error','-nostdin','-protocol_whitelist','file,pipe','-i',path,'-vf',crop,'-frames:v','1','-pix_fmt','rgb24','-f','rawvideo','pipe:1'],signal,region.width*region.height*3+1024)).stdout;
+    const [ra,rb]=await Promise.all([decode(pa),decode(pb)]);
+    if(ra.length!==region.width*region.height*3||rb.length!==ra.length)throw Error('Unexpected native RGB geometry');
+    const result={schemaVersion:1,kind:'native-pixel-diagnostic',reference:{sequenceSha256:a.manifest.sequenceSha256,frame:fa.index,time:fa.time,sha256:fa.sha256},
+      candidate:{sequenceSha256:b.manifest.sequenceSha256,frame:fb.index,time:fb.time,sha256:fb.sha256},request,region,metrics:compareRGB(ra,rb),
+      limitations:['Explicit caller-selected temporal correspondence and region; not automatic alignment.','RGB display conversion only; compression, different words/footage/fonts affect this diagnostic.','No similarity percentage, perceptual judgment, motion verdict or fidelity approval.'],safeToAutoEdit:false};
+    const sha=digest(result),root=join(a.root,`pixels-${sha}`);
+    try{
+      const stored=await json(join(root,'comparison.json'));
+      if(stored.sha256!==sha||digest(stored.result)!==sha)throw Error('Pixel diagnostic changed');
+      for(const artifact of stored.artifacts)await this.file(root,artifact.kind+'.png',artifact.sha256,signal);
+      return {...result,sha256:sha,artifacts:stored.artifacts};
+    }catch(e){if((e as NodeJS.ErrnoException).code!=='ENOENT')throw e;}
+    await mkdir(root);
+    const outputs=[];
+    for(const [name,filter] of [['overlay','blend=all_expr=(A+B)/2'],['difference','blend=all_mode=difference']] as const){
+      const path=join(root,`${name}.png`);
+      await referenceProcess(ffmpeg(),['-v','error','-nostdin','-n','-protocol_whitelist','file,pipe','-i',pa,'-protocol_whitelist','file,pipe','-i',pb,
+          '-filter_complex',`[0:v]${crop}[a];[1:v]${crop}[b];[a][b]${filter},format=rgb24`,'-frames:v','1',path],signal);
+      outputs.push({kind:name,path,sha256:(await fingerprint(path,signal)).sha256});
+    }
+    await writeJSON(join(root,'comparison.json'),{result,sha256:sha,artifacts:outputs});
+    return {...result,sha256:sha,artifacts:outputs};
+  }
   constructor(cacheDirectory?:string){this.agent=new AgentEvidenceService(cacheDirectory);}
   private root(sessionId:string,id:string){return join(this.agent.directory,referenceId.parse(sessionId),'references',referenceId.parse(id));}
   private async source(sessionId:string) {
@@ -178,6 +217,38 @@ export class ReferenceAnalysisService {
   /** Read the validated source-bound manifest for recipe consumers, not arbitrary filesystem paths. */
   async sequence(sessionId:string,id:string) {
     return (await this.load(sessionId,id)).manifest;
+  }
+  async designTemplate(sessionId:string,id:string){return draftReferenceDesign(await this.sequence(sessionId,id));}
+  private async styleScenes(input:unknown, cancellation?:AbortSignal){
+    const sources=styleSourcesSchema.parse(input),signal=bounded(cancellation),scenes=[];
+    const ranges:{source:string;start:number;end:number}[]=[];
+    for(const source of sources){
+      const {manifest,root}=await this.load(source.sessionId,source.sequenceId);
+      if(ranges.some(r=>r.source===manifest.source.sha256&&r.start<manifest.request.end&&manifest.request.start<r.end))
+        throw Error('Style scenes must use distinct nonoverlapping source ranges');
+      ranges.push({source:manifest.source.sha256,start:manifest.request.start,end:manifest.request.end});
+      const record=await json(join(root,`design-${source.designSha256}.json`));
+      const analysis=validateReferenceDesign(record.value,manifest);
+      if(record.sha256!==source.designSha256||digest(analysis)!==source.designSha256)throw Error('Sealed reference design changed');
+      for(const frame of manifest.frames)await this.file(root,frame.path,frame.sha256,signal);
+      scenes.push({id:source.id,role:source.role,analysis});
+    }
+    return scenes;
+  }
+  async styleTemplate(input:unknown,cancellation?:AbortSignal){return draftStyleGuide(await this.styleScenes(input,cancellation));}
+  async style(input:unknown,cancellation?:AbortSignal){
+    const request=referenceStyleRequestSchema.parse(input),scenes=await this.styleScenes(request.sources,cancellation);
+    const value=validateStyleGuide(request.guide,scenes),sha256=digest(value),path=join(this.agent.directory,`style-${sha256}.json`);
+    const record={value,sha256,status:'agent_reported',externalModelCalls:0,safeToAutoEdit:false};
+    try{await writeJSON(path,record);}catch(e){if((e as NodeJS.ErrnoException).code!=='EEXIST')throw e;const prior=await json(path);if(digest(prior.value)!==sha256)throw Error('Stored style changed');}
+    return {...record,path};
+  }
+  async design(sessionId:string,id:string,input:unknown,cancellation?:AbortSignal){
+    const {manifest,root}=await this.load(sessionId,id),value=validateReferenceDesign(input,manifest),signal=bounded(cancellation);
+    for(const frame of manifest.frames)await this.file(root,frame.path,frame.sha256,signal);
+    const sha256=digest(value),path=join(root,`design-${sha256}.json`),record={value,sha256,status:'agent_reported',externalModelCalls:0,safeToAutoEdit:false};
+    try{await writeJSON(path,record);}catch(e){if((e as NodeJS.ErrnoException).code!=='EEXIST')throw e;const prior=await json(path);if(digest(prior.value)!==sha256)throw Error('Stored design changed');}
+    return {...record,path};
   }
   async annotate(sessionId:string,id:string,input:unknown,cancellation?:AbortSignal) {
     const signal=bounded(cancellation),{manifest,root}=await this.load(sessionId,id),report=validateBreakdown(input,manifest.sequenceSha256,manifest.frames);

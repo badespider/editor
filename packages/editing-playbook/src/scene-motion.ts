@@ -1,4 +1,7 @@
 import { z } from 'zod';
+import {channelSceneSchema,channelMediaBoxes} from './channel-contract.ts';
+import {referenceDesignSchema,designCriteria} from '@diffusionstudio/video-understanding/reference-design';
+import {sceneStyleGuideSchema,styleGuideCriteria,styleDigest} from '@diffusionstudio/video-understanding/reference-style';
 import { motionDigest, motionHash } from './motion.ts';
 import { sceneCurveSchema, propertyTimingSchema, scenePathSchema, precisionEase, precisionPose, type SceneCurve } from './scene-dynamics.ts';
 
@@ -12,7 +15,10 @@ const box = z.object({ x: unit, y: unit, width: unit.positive(), height: unit.po
 export const styleDimensions = ['framing', 'typography', 'motion', 'rhythm'] as const;
 export const styleSpecSchema = z.object({
   name: note,
-  basis: z.literal('catalog').optional(),
+  guide: sceneStyleGuideSchema.optional(),
+  design: z.array(z.object({referenceId:id,analysis:referenceDesignSchema}).strict()).min(1).max(8).optional(),
+  basis: z.enum(['catalog', 'brief']).optional(),
+  brief: z.object({ id, version: z.number().int().positive(), sha256: motionHash, description: note }).strict().optional(),
   catalogEntries: z.array(z.object({ id, version: z.number().int().positive(), sha256: motionHash }).strict()).min(1).max(16).optional(),
   references: z.array(z.object({ id, cache: note, sessionId: motionHash, sequenceId: motionHash,
     sequenceSha256: motionHash, inspectedFrames: z.array(z.number().int().nonnegative()).min(2).max(1800),
@@ -23,8 +29,35 @@ export const styleSpecSchema = z.object({
   avoid: z.array(note).max(20), uncertainties: z.array(note).min(1).max(20),
 }).strict().superRefine((style, ctx) => {
   const catalog = style.basis === 'catalog';
-  if (catalog ? (!style.catalogEntries?.length || style.references.length || style.criteria.some(c => c.evidence.length))
+  const brief = style.basis === 'brief';
+  if (brief ? (!style.brief || style.references.length || style.catalogEntries !== undefined || style.guide || style.design || style.criteria.some(c => c.evidence.length)) : style.brief !== undefined)
+    ctx.addIssue({ code: 'custom', message: 'A user brief requires its own fingerprint and render-only criteria, never reference or catalog approval' });
+  if(style.guide){
+    if(!catalog)ctx.addIssue({code:'custom',message:'Reusable style guide requires catalog mode'});
+    const binding=style.guide;
+    if(binding.guideSha256!==styleDigest(binding.guide)||binding.profile!==`${binding.guide.id}@${binding.guide.version}`)
+      ctx.addIssue({code:'custom',message:'Style guide fingerprint/identity changed'});
+    try{for(const expected of styleGuideCriteria(binding.guide,binding.applications)){
+      const actual=style.criteria.find(c=>c.id===expected.id);
+      if(!actual||JSON.stringify(actual)!==JSON.stringify(expected))ctx.addIssue({code:'custom',message:`Missing or changed style rule: ${expected.id}`});
+    }}catch(e){ctx.addIssue({code:'custom',message:(e as Error).message});}
+  }
+  if(style.design){
+    if(catalog)ctx.addIssue({code:'custom',message:'Catalog reuse cannot inherit reference analysis approval'});
+    if(new Set(style.design.map(d=>d.referenceId)).size!==style.design.length)ctx.addIssue({code:'custom',message:'Duplicate detailed reference'});
+    for(const [index,d] of style.design.entries()){
+      const ref=style.references.find(r=>r.id===d.referenceId);
+      if(!ref||ref.sequenceSha256!==d.analysis.sequenceSha256||JSON.stringify([...ref.inspectedFrames].sort((a,b)=>a-b))!==JSON.stringify([...d.analysis.inspectedFrames].sort((a,b)=>a-b)))
+        ctx.addIssue({code:'custom',message:'Detailed design must bind the exact inspected reference'});
+      for(const expected of designCriteria(d.referenceId,d.analysis,index)){
+        const actual=style.criteria.find(c=>c.id===expected.id);
+        if(!actual||JSON.stringify(actual)!==JSON.stringify(expected))ctx.addIssue({code:'custom',message:`Missing or changed detailed requirement: ${expected.id}`});
+      }
+    }
+  }
+  if (!brief && (catalog ? (!style.catalogEntries?.length || style.references.length || style.criteria.some(c => c.evidence.length))
     : (!style.references.length || style.catalogEntries !== undefined || style.criteria.some(c => !c.evidence.length)))
+  )
     ctx.addIssue({ code: 'custom', message: 'Use either evidence-backed reference criteria or pinned catalog requirements; never mix or silently drop reference evidence' });
 });
 
@@ -40,11 +73,15 @@ const track = z.object({ at: z.union([unit, cueTime]), pose: scenePoseSchema.par
   propertyTiming: propertyTimingSchema.optional(), path: scenePathSchema.optional() }).strict()
   .refine(k => !(k.path && (k.propertyTiming?.x || k.propertyTiming?.y)), 'A spatial path owns x/y timing');
 const font = z.object({ family: z.string().regex(/^[\p{L}\p{N} _-]{1,80}$/u), weight: z.number().int().min(100).max(900),
+  horizontalScale:z.number().finite().min(.5).max(1.5).optional(),
   size: z.number().finite().min(.012).max(.3), color, italic: z.boolean().default(false), tracking: z.number().finite().min(-.05).max(.15).optional() }).strict();
 export const sceneRecipeSchema = z.object({ schemaVersion: z.literal(1), kind: z.literal('scene-motion-recipe'),
   compositor: z.literal('layered-v2').optional(),
   style: styleSpecSchema,
   templates: z.array(z.object({ id, background: color,
+    channel: channelSceneSchema.optional(),
+    surface: z.object({ kind: z.literal('paper'), strength: unit, seed: z.number().int().min(0).max(2147483647) }).strict().optional(),
+    finish:z.object({grain:unit,vignette:unit,seed:z.number().int().min(0).max(2147483647)}).strict().optional(),
     groups: z.array(z.object({ id, pose: scenePoseSchema, keys: z.array(track).max(32) }).strict()).max(8).optional(),
     layers: z.array(z.object({ id, kind: z.enum(['video', 'image', 'rect', 'gradient', 'ellipse', 'hexagon', 'text']),
       group: id.optional(),
@@ -53,11 +90,13 @@ export const sceneRecipeSchema = z.object({ schemaVersion: z.literal(1), kind: z
       slot: id.optional(), text: note.optional(), pose: scenePoseSchema, keys: z.array(track).max(32).default([]),
       fill: color.default('#FFFFFF'), stroke: color.default('#FFFFFF'), strokeWidth: z.number().finite().min(0).max(20).default(0),
       font: font.optional(), shadow: z.number().finite().min(0).max(40).default(0),
+      cornerRadius: z.number().finite().min(0).max(.5).optional(),
       textLayout: z.object({ maxLines: z.number().int().min(1).max(4), minFontSize: z.number().finite().min(.015).max(.15),
         lineGap: z.number().finite().min(1).max(1.8) }).strict().optional(),
     }).strict()).max(48),
   }).strict()).min(1).max(16),
   caption: z.object({ font, box, minFontSize: z.number().finite().min(.02).max(.1),
+    visible:z.boolean().optional(),
     lineGap: z.number().finite().min(1).max(2), entrySeconds: z.number().finite().min(0).max(.5),
     lift: z.number().finite().min(-.1).max(.1), blur: z.number().finite().min(0).max(24),
     uppercase: z.boolean(), shadow: z.number().finite().min(0).max(30),
@@ -99,6 +138,12 @@ const overlap = (a: z.infer<typeof box>, b: z.infer<typeof box>) => a.x < b.x + 
 /** Adapt data, never execute reference content or invent speech alignment. */
 export function adaptScene(recipeInput: unknown, input: unknown): SceneAdaptation {
   const recipe = sceneRecipeSchema.parse(recipeInput), data = sceneInputSchema.parse(input);
+  if (!recipe.compositor && recipe.templates.some(t => t.channel || t.surface || t.layers.some(l => l.cornerRadius !== undefined)))
+    throw Error('Paper surfaces and rounded panels require layered-v2');
+  if (recipe.templates.some(t => t.layers.some(l => l.cornerRadius !== undefined && l.kind !== 'rect' && l.kind !== 'gradient')))
+    throw Error('Corner radius is supported on drawn rectangular panels only');
+  if(recipe.caption.font.horizontalScale!==undefined)throw Error('Horizontal font scale is supported on unwrapped layered titles only');
+  if(!recipe.compositor&&recipe.caption.visible===false)throw Error('Hidden captions require layered-v2');
   const duration = data.audio.end - data.audio.start;
   const limit = recipe.compositor === 'layered-v2' ? 60 : 30;
   if (duration <= 0 || duration > limit || Math.abs(duration * 30 - Math.round(duration * 30)) > .001) throw Error(`Use a 0–${limit} second, frame-aligned preview`);
@@ -127,6 +172,7 @@ export function adaptScene(recipeInput: unknown, input: unknown): SceneAdaptatio
       const media = l.kind === 'video' || l.kind === 'image';
       if (media && l.keys.some(k => JSON.stringify(k.propertyTiming?.width) !== JSON.stringify(k.propertyTiming?.height))) throw Error('Media aspect ratio needs identical width/height timing');
       if (l.textLayout && l.kind !== 'text') throw Error('Text layout applies only to text layers');
+      if(l.font?.horizontalScale!==undefined&&(!recipe.compositor||l.kind!=='text'||l.textLayout))throw Error('Horizontal font scale is supported on unwrapped layered titles only');
       if (media && (!l.slot || (!recipe.compositor && graphics))) throw Error('Media layers need slots and must precede drawn layers in legacy recipes');
       if (!media) graphics = true;
       if (!recipe.compositor && (l.group || l.mask || l.motionBlur || l.textLayout || l.keys.some(k => typeof k.at !== 'number' || typeof k.easing !== 'string' || k.easing === 'bounce' || k.path || k.propertyTiming))) throw Error('Extended layers require layered-v2');
@@ -148,6 +194,22 @@ export function adaptScene(recipeInput: unknown, input: unknown): SceneAdaptatio
     cursor = shot.end;
     const template = recipe.templates.find(t => t.id === shot.templateId);
     if (!template || shot.criteria.some(c => !recipe.style.criteria.some(r => r.id === c))) throw Error('Unknown template or criterion');
+    if(template.channel){
+      const c=template.channel,portrait=c.layout==='portrait';
+      if(c.mode!=='footage'||data.width!==(portrait?1080:1920)||data.height!==(portrait?1920:1080)||Math.abs(c.section.duration-(shot.end-shot.start))>.0001)
+        throw Error('Native channel scenes require matching footage mode, dimensions and duration');
+      const slots=Object.keys(channelMediaBoxes(c.layout,c.section.kind));
+      if(template.surface||template.finish||template.groups||template.layers.length!==slots.length||new Set(template.layers.map(l=>l.slot)).size!==slots.length||template.layers.some(l=>l.kind!=='video'||!slots.includes(l.slot??'')||l.id!==l.slot||l.keys.length||l.group||l.mask||l.motionBlur))
+        throw Error('Native channel scenes own their graphics and accept only their fixed camera/screen slots');
+      for(const l of template.layers){
+        const b=channelMediaBoxes(c.layout,c.section.kind)[l.slot as 'camera'|'screen']!,aspect=l.slot==='camera'?c.cameraAspectRatio:c.screenAspectRatio;
+        const w=Math.min(b.width,b.height*aspect),h=w/aspect;
+        const expected={x:(b.x+b.width/2)/data.width,y:(b.y+b.height/2)/data.height,width:w/data.width,height:h/data.height,
+          rotation:0,opacity:1,blur:0,skewX:0,reveal:1};
+        if(Object.entries(expected).some(([key,value])=>Math.abs(l.pose[key as keyof ScenePose]-value)>.000001)||l.shadow||l.strokeWidth)
+          throw Error('Native channel media geometry is fixed by its layout; use an evidence-backed source crop');
+      }
+    }
     resolveSceneTemplate(template, shot, data);
     unique(shot.bindings.map(b => b.slot), 'binding');
     const media = template.layers.filter(l => l.kind === 'video' || l.kind === 'image');
@@ -160,6 +222,13 @@ export function adaptScene(recipeInput: unknown, input: unknown): SceneAdaptatio
   }
   if (Math.abs(cursor - duration) > .0001) throw Error('Shots must cover the complete preview');
   for (const c of recipe.style.criteria.filter(c => c.essential)) if (!data.shots.some(s => s.criteria.includes(c.id))) throw Error(`Unimplemented essential criterion: ${c.id}`);
+  for(const application of recipe.style.guide?.applications??[]){
+    if(application.shotIds.some(id=>!data.shots.some(s=>s.id===id)))throw Error('Style rule names an unknown shot');
+    for(const shot of data.shots){
+      const expected=!application.shotIds.length||application.shotIds.includes(shot.id);
+      if(shot.criteria.includes(`style-${application.ruleId}`)!==expected)throw Error('Style rule shot mapping changed');
+    }
+  }
   let priorWord = data.audio.start;
   for (const word of data.transcript.words) {
     if (word.start < priorWord - .0001 || word.end <= word.start || word.end > data.audio.end + .0001) throw Error('Words need ordered, positive source-clock intervals inside the audio range');
@@ -167,6 +236,7 @@ export function adaptScene(recipeInput: unknown, input: unknown): SceneAdaptatio
   }
   const used: string[] = [], warnings = [recipe.style.basis === 'catalog'
     ? 'Catalog adaptation: template conformance is not original-reference fidelity or inherited approval.'
+    : recipe.style.basis === 'brief' ? 'User brief: render conformance is not reference matching or inherited approval.'
     : 'Reference interpretation and style judgments are agent-reported, not independently verified.',
     'Prepared crops preserve caller-selected regions, not automatically tracked subjects.'];
   if (data.transcript.verification === 'unverified') warnings.push('Word alignment/text is unverified; listening review remains required.');
@@ -269,7 +339,7 @@ export function reviewScene(input: unknown, expected: { revisionSha256: string; 
     if (c.status !== 'unknown') {
       const modality = 'kind' in c && (c.kind === 'audio' || c.kind === 'speech_sync') ? 'audio' : 'frame';
       if (!c.renderEvidenceIds.some(id => evidence.get(id)?.kind === modality)) throw Error('A judgment needs matching rendered evidence');
-      if ('criterionId' in c && expected.adaptation.recipe.style.basis !== 'catalog') {
+      if ('criterionId' in c && !expected.adaptation.recipe.style.basis) {
         const criterion = expected.adaptation.recipe.style.criteria.find(s => s.id === c.criterionId)!;
         const valid = criterion.evidence.flatMap(e => e.frames.map(f => `ref-${e.referenceId}-${f}`));
         if (!c.referenceEvidenceIds.some(id => valid.includes(id))) throw Error('Style verdict needs its specific reference evidence');
@@ -280,7 +350,8 @@ export function reviewScene(input: unknown, expected: { revisionSha256: string; 
   const failed = [...essential, ...review.checks].some(c => c.status === 'fail');
   return { ...review, styleMatch: essential.some(c => c.status === 'fail') ? 'mismatch' : essential.some(c => c.status === 'unknown') ? 'unassessed'
     : review.criteria.some(c => c.status !== 'pass') ? 'partial_match'
-    : expected.adaptation.recipe.style.basis === 'catalog' ? 'agent_reported_template_conformance' : 'agent_reported_match',
+    : expected.adaptation.recipe.style.basis === 'catalog' ? 'agent_reported_template_conformance'
+    : expected.adaptation.recipe.style.basis === 'brief' ? 'agent_reported_brief_conformance' : 'agent_reported_match',
     status: failed ? expected.revision < expected.maxCorrections ? 'needs_correction' : 'correction_limit'
       : review.checks.some(c => c.status === 'unknown') || essential.some(c => c.status === 'unknown') ? 'needs_human_review' : 'reviewed_draft',
     safeToAutoPublish: false, basis: 'agent_reported_not_independent_verification' };

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1660" height="586" viewBox="0 0 1660 586">
+ <rect width="1660" height="586" fill="#142d40"/>
+ <text x="90" y="100" fill="#9db3c3" font-family="Arial" font-size="26">SYNTHETIC SCREENSHOT · ASSET-SLOT TEST</text>
+ <text x="90" y="190" fill="#f3f5f3" font-family="Arial" font-size="56" font-weight="bold">Review the evidence</text>
+ <rect x="565" y="215" width="710" height="130" fill="#54e0e8"/>
+ <text x="595" y="294" fill="#081725" font-family="Arial" font-size="40">Read the original source.</text>
+ <text x="90" y="475" fill="#9db3c3" font-family="Arial" font-size="34">This is a labelled test fixture, not a product screenshot.</text>
+</svg>

@@ -3,7 +3,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve, join } from 'node:path';
 import { z } from 'zod';
 import { MotionCatalog, captureMotionEntry, describeMotionEntry, findMotionCatalogRoot,
-  motionCatalogEntrySchema, motionCatalogRequestSchema } from '@diffusionstudio/editing-playbook/motion-catalog';
+  motionCatalogEntrySchema, motionCatalogRequestSchema,motionStyleEntrySchema,styleRecipeBindingsSchema,describeMotionStyle } from '@diffusionstudio/editing-playbook/motion-catalog';
 import { readMotionJSON } from '@diffusionstudio/editing-playbook/motion-workflow';
 
 const print = (value: unknown) => console.log(JSON.stringify(value, null, 2));
@@ -14,8 +14,25 @@ export function registerMotionCatalogCommands(motion: Command) {
   const catalog = motion.command('catalog').description('Versioned reusable motion blocks; new text/media, same editable animation')
     .option('--catalog <directory>', 'Explicit shared/private library; defaults to this editor checkout');
   const library = async () => new MotionCatalog(catalog.opts().catalog ?? await findMotionCatalogRoot());
+  const style=catalog.command('style').description('Reusable style guides and pinned editable recipes for new stories');
+  style.command('workflow').action(()=>print({instructions:'reference/motion-styles.md',
+    stages:['inspect several distinct reference scenes','seal generalized style guide','capture/add guide with pinned recipes','show guide before storyboarding','apply with per-rule shot decisions','render/review new content'],
+    schemas:{entry:z.toJSONSchema(motionStyleEntrySchema),bindings:z.toJSONSchema(styleRecipeBindingsSchema),request:z.toJSONSchema(motionCatalogRequestSchema,{io:'input'})},externalModelCalls:0,safeToAutoPublish:false}));
+  style.command('list').option('--query <text>','Match words in name, description or tags','')
+    .action((o:{query:string})=>run(async()=>(await library()).listStyles(o.query)));
+  style.command('show').argument('<id@version>')
+    .action((pin:string)=>run(async()=>{const entry=await(await library()).getStyle(pin);return {...describeMotionStyle(entry),entry};}));
+  style.command('capture').argument('<sealed-guide.json>').argument('<recipe-bindings.json>').requiredOption('-o, --output <new-file>')
+    .action((guide:string,bindings:string,o:{output:string})=>run(async()=>{
+      const entry=await(await library()).captureStyle(await readMotionJSON(guide),await readMotionJSON(bindings));
+      const path=resolve(o.output);await writeFile(path,JSON.stringify(entry,null,2)+'\n',{flag:'wx'});
+      return {path,...describeMotionStyle(entry),next:'Inspect generalized rules and recipe purposes; add this candidate explicitly.'};
+    }));
+  style.command('add').argument('<style-entry.json>')
+    .action((path:string)=>run(async()=>(await library()).addStyle(await readMotionJSON(path))));
   catalog.command('workflow').action(() => print({ instructions: 'reference/motion-catalog.md',
-    stages: ['list/show pinned version', 'bind new footage/text/cues', 'apply', 'scene start/render/review', 'capture/add a new version when authorized'],
+    reusableStyles:{instructions:'reference/motion-styles.md',discover:'catalog style list/show',requestField:'style',review:'Fresh style-rule review using new story, media and timing'},
+    stages: ['list/show pinned version or style profile', 'bind new footage/text/cues', 'apply', 'scene start/render/review', 'capture/add a new version when authorized'],
     schemas: { entry: z.toJSONSchema(motionCatalogEntrySchema, { io: 'input' }), request: z.toJSONSchema(motionCatalogRequestSchema, { io: 'input' }) },
     safeToAutoPublish: false, externalModelCalls: 0 }));
   catalog.command('list').option('--query <text>', 'Match all words in name, description or tags', '')

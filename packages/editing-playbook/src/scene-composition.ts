@@ -33,7 +33,18 @@ function drawSceneCaptions(ctx,t,data){const {recipe,input}=data,W=input.width,H
  }}
 `;
 
+/** Opt-in title glyph aspect; ordinary sealed compositions retain their original bytes. */
+export function condensedTitles(runtime:string){
+  return runtime.replace('w/Math.max(1,ctx.measureText(l.text).width),h/(size*1.25));setFont();',
+    'w/Math.max(1,ctx.measureText(l.text).width*(f.horizontalScale||1)),h/(size*1.25));setFont();ctx.scale(f.horizontalScale||1,1);');
+}
+/** Opt-in panels; preserve generated legacy composition bytes when unused. */
+export function roundedPanels(runtime:string){
+  return runtime.replaceAll('else ctx.rect(-w/2,-h/2,w,h);',
+    'else if(l.cornerRadius)ctx.roundRect(-w/2,-h/2,w,h,Math.min(w,h)*l.cornerRadius);else ctx.rect(-w/2,-h/2,w,h);');
+}
 export function sceneComposition(adaptation: SceneAdaptation, prepared: { audio: string; media: Record<string, string> }) {
+  if(adaptation.recipe.templates.some(t=>t.finish||t.surface||t.channel))return 'throw new Error("This recipe uses Remotion-only finishing, paper surfaces or native channel scenes. Render with --renderer remotion; effects must not be silently dropped.");\n';
   if (adaptation.recipe.compositor === 'layered-v2') {
     let runtime = sceneDrawingRuntime
       .replace('ctx.font=font;', "ctx.font=font;ctx.letterSpacing=(size*(s.font.tracking||0))+'px';")
@@ -41,7 +52,10 @@ export function sceneComposition(adaptation: SceneAdaptation, prepared: { audio:
       .replace('ctx.fillText(w.label,x,y+row.height/2+s.lift*H*(1-f));', "if(s.strokeWidth){ctx.lineWidth=s.strokeWidth;ctx.strokeStyle=s.stroke||'#000000';ctx.lineJoin='round';ctx.strokeText(w.label,x,y+row.height/2+s.lift*H*(1-f));}ctx.fillText(w.label,x,y+row.height/2+s.lift*H*(1-f));");
     if (adaptation.recipe.templates.some(t => [...t.layers, ...(t.groups ?? [])].some(l => l.keys.some(k => typeof k.easing !== 'string' || k.easing === 'bounce' || k.path || k.propertyTiming))))
       runtime = runtime.replace(/function easeScene[^\n]+\nfunction poseScene[^\n]+/, precisionMotionRuntime);
-    return layeredComposition(adaptation, prepared, runtime);
+    if(adaptation.recipe.caption.visible===false)runtime=runtime.replace('const {recipe,input}=data,W=input.width,H=input.height,s=recipe.caption;','const {recipe,input}=data,W=input.width,H=input.height,s=recipe.caption;if(s.visible===false)return;');
+    let code=layeredComposition(adaptation, prepared, runtime);
+    if(adaptation.recipe.templates.some(t=>t.layers.some(l=>l.cornerRadius)))code=roundedPanels(code);
+    return adaptation.recipe.templates.some(t=>t.layers.some(l=>l.font?.horizontalScale!==undefined))?condensedTitles(code):code;
   }
   const { width, height } = adaptation.input;
   const media = adaptation.input.shots.flatMap(shot => {

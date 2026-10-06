@@ -1,9 +1,13 @@
 import { lstat, mkdir, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { z } from 'zod';
+import {portableDesign,portableDesignSchema,designRequirement} from '@diffusionstudio/video-understanding/reference-design';
 import { adaptScene, motionDigest, sceneInputSchema, sceneRecipeSchema, styleDimensions, type ScenePose, type SceneRecipe } from './scene-motion.ts';
 import { preflightScene } from './scene-quality.ts';
 import { reflowSceneLayout, sceneLayoutOptionsSchema } from './scene-layout.ts';
+import {styleGuideCriteria, styleDigest} from '@diffusionstudio/video-understanding/reference-style';
+import {motionStyleEntrySchema,motionStyleSelectionSchema,styleRecipeBindingsSchema,describeMotionStyle} from './motion-style.ts';
+export {motionStyleEntrySchema,motionStyleSelectionSchema,styleRecipeBindingsSchema,describeMotionStyle} from './motion-style.ts';
 
 const id = z.string().regex(/^[a-z][a-z0-9-]{0,59}$/);
 const label = z.string().trim().min(1).max(1000);
@@ -23,6 +27,7 @@ export const motionCatalogEntrySchema = metadata.extend({ schemaVersion: z.liter
   sourceRecipeSha256: z.string().regex(/^[a-f0-9]{64}$/),
   block: sceneRecipeSchema.shape.templates.element,
   caption: sceneRecipeSchema.shape.caption,
+  designKnowledge:z.array(portableDesignSchema).min(1).max(8).optional(),
 }).strict();
 export type MotionCatalogEntry = z.infer<typeof motionCatalogEntrySchema>;
 
@@ -35,6 +40,7 @@ export const motionCatalogRequestSchema = z.object({ input: sceneInputSchema,
   captionFromShot: z.string().min(1).max(80).optional(),
   mediaDimensions: z.record(z.string(), z.object({ width: dimension, height: dimension }).strict()),
   layout: sceneLayoutOptionsSchema.optional(),
+  style: motionStyleSelectionSchema.optional(),
 }).strict();
 
 function selector(value: string) {
@@ -57,15 +63,18 @@ export function describeMotionEntry(raw: unknown) {
     textSlots: entry.block.layers.filter(l => l.kind === 'text').map(l => l.id),
     mediaSlots: [...new Map(media.map(l => [l.slot!, { slot: l.slot!, kind: l.kind }])).values()],
     cues: [...new Set(cues)], colors: [...new Set(colors)],
+    ...(entry.designKnowledge?{designKnowledge:entry.designKnowledge}:{}),
     controls: ['text by layer ID', 'media by slot', 'named speech cues', 'shot duration', 'color replacement', 'font family', 'contain layout to output dimensions'],
     status: 'draft_template_requires_fresh_output_review', safeToAutoPublish: false };
 }
 
 function validateEntry(raw: unknown): MotionCatalogEntry {
   const entry = motionCatalogEntrySchema.parse(raw), block = entry.block;
+  if(entry.caption.font.horizontalScale!==undefined)throw Error('Horizontal font scale is supported on unwrapped layered titles only');
   unique(block.layers.map(l => l.id), 'layer ID'); unique((block.groups ?? []).map(g => g.id), 'group ID');
   const slots = new Map<string, string>();
   for (const layer of block.layers) {
+    if(layer.font?.horizontalScale!==undefined&&(layer.kind!=='text'||layer.textLayout))throw Error('Horizontal font scale is supported on unwrapped layered titles only');
     if (layer.kind === 'image' || layer.kind === 'video') {
       if (!layer.slot) throw Error('Media needs a named slot');
       if (slots.has(layer.slot) && slots.get(layer.slot) !== layer.kind) throw Error('Media slot mixes image and video');
@@ -102,7 +111,7 @@ export function captureMotionEntry(recipeInput: unknown, templateId: string, met
   // and source/transcript data live in input and are never read by capture.
   for (const layer of block.layers) if (layer.kind === 'text') layer.text = layer.id;
   return validateEntry({ ...meta, schemaVersion: 1, kind: 'motion-catalog-entry', sourceRecipeSha256: motionDigest(recipe),
-    block, caption: recipe.caption });
+    block, caption: recipe.caption, ...(recipe.style.design?{designKnowledge:recipe.style.design.map(d=>portableDesign(d.analysis))}:{}) });
 }
 
 /** Immutable version files; an edited/corrupt/symlinked version is never silently reused. */
@@ -147,7 +156,47 @@ export class MotionCatalog {
   }
   async apply(raw: unknown) {
     const request = motionCatalogRequestSchema.parse(raw), pins = [...new Set(request.instances.map(i => i.template))];
-    return composeMotionCatalog(await Promise.all(pins.map(p => this.get(p))), request);
+    const style=request.style?await this.getStyle(request.style.profile):undefined;
+    return composeMotionCatalog(await Promise.all(pins.map(p => this.get(p))), request, style);
+  }
+  private styleDirectory(name:string,create=false){return new MotionCatalog(join(this.root,'.styles')).directory(name,create);}
+  async getStyle(value:string){
+    const pin=selector(value),path=join(await this.styleDirectory(pin.id),`${pin.version}.json`),info=await lstat(path);
+    if(!info.isFile()||info.isSymbolicLink()||info.size>512*1024)throw Error('Invalid or oversized style file');
+    const stored=JSON.parse(await readFile(path,'utf8')),entry=motionStyleEntrySchema.parse(stored.entry);
+    if(entry.guide.id!==pin.id||entry.guide.version!==pin.version||motionDigest(entry)!==stored.sha256)throw Error('Style version fingerprint/identity changed');
+    for(const recipe of entry.recipes)if(motionDigest(await this.get(recipe.template))!==recipe.sha256)throw Error('Pinned style recipe changed');
+    return entry;
+  }
+  async captureStyle(recordInput:unknown,bindingsInput:unknown){
+    const record=z.object({value:motionStyleEntrySchema.shape.guide,sha256:z.string().regex(/^[a-f0-9]{64}$/),
+      status:z.literal('agent_reported'),externalModelCalls:z.literal(0),safeToAutoEdit:z.literal(false),path:z.string().optional()}).strict().parse(recordInput);
+    if(styleDigest(record.value)!==record.sha256)throw Error('Style guide record fingerprint changed');
+    const bindings=styleRecipeBindingsSchema.parse(bindingsInput),recipes=[];
+    for(const binding of bindings)recipes.push({...binding,sha256:motionDigest(await this.get(binding.template))});
+    return motionStyleEntrySchema.parse({schemaVersion:1,kind:'motion-style-entry',guide:record.value,recipes});
+  }
+  async addStyle(raw:unknown){
+    const entry=motionStyleEntrySchema.parse(raw);
+    for(const recipe of entry.recipes)if(motionDigest(await this.get(recipe.template))!==recipe.sha256)throw Error('Pinned style recipe changed');
+    const bytes=JSON.stringify({sha256:motionDigest(entry),entry},null,2)+'\n';
+    if(Buffer.byteLength(bytes)>512*1024)throw Error('Style entry exceeds the 512 KiB budget');
+    const path=join(await this.styleDirectory(entry.guide.id,true),`${entry.guide.version}.json`);
+    await writeFile(path,bytes,{flag:'wx'});return {path,...describeMotionStyle(entry)};
+  }
+  async listStyles(query=''){
+    const results:ReturnType<typeof describeMotionStyle>[]=[];
+    let folders;try{folders=await readdir(join(this.root,'.styles'),{withFileTypes:true});}catch(e){if((e as NodeJS.ErrnoException).code==='ENOENT')return results;throw e;}
+    for(const folder of folders.sort((a,b)=>a.name.localeCompare(b.name))){
+      if(!id.safeParse(folder.name).success||!folder.isDirectory())continue;
+      for(const name of (await readdir(await this.styleDirectory(folder.name))).sort()){
+        if(!/^[1-9][0-9]{0,3}\.json$/.test(name))continue;
+        if(results.length>=500)throw Error('Style library exceeds 500-version budget');
+        results.push(describeMotionStyle(await this.getStyle(`${folder.name}@${name.slice(0,-5)}`)));
+      }
+    }
+    const terms=query.toLowerCase().split(/\s+/).filter(Boolean);
+    return results.filter(r=>terms.every(t=>`${r.selector} ${r.name} ${r.description} ${r.tags.join(' ')}`.toLowerCase().includes(t)));
   }
 }
 
@@ -179,8 +228,11 @@ function mapPath(path:NonNullable<SceneRecipe['templates'][number]['layers'][num
 }
 
 /** Same validated scene/render/review pipeline; approval and original-reference claims are never imported. */
-export function composeMotionCatalog(rawEntries: unknown[], rawRequest: unknown) {
+export function composeMotionCatalog(rawEntries: unknown[], rawRequest: unknown, rawStyle?:unknown) {
   const entries = rawEntries.map(validateEntry), request = motionCatalogRequestSchema.parse(rawRequest);
+  const style=rawStyle===undefined?undefined:motionStyleEntrySchema.parse(rawStyle);
+  if(!!style!==!!request.style)throw Error('Style selection requires its pinned profile');
+  if(style&&request.style?.profile!==`${style.guide.id}@${style.guide.version}`)throw Error('Wrong pinned style profile');
   unique(entries.map(e => `${e.id}@${e.version}`), 'catalog version'); unique(request.instances.map(i => i.shotId), 'shot selection');
   const input = structuredClone(request.input), warnings: string[] = [];
   if (request.instances.length !== input.shots.length || request.instances.some(i => !input.shots.some(s => s.id === i.shotId))) throw Error('Select exactly one template for every shot');
@@ -188,6 +240,10 @@ export function composeMotionCatalog(rawEntries: unknown[], rawRequest: unknown)
     const entry = entries.find(e => `${e.id}@${e.version}` === i.template);
     if (!entry) throw Error(`Missing pinned entry: ${i.template}`); return entry;
   });
+  if(style)for(const entry of used){
+    const pinned=style.recipes.find(r=>r.template===`${entry.id}@${entry.version}`);
+    if(!pinned||pinned.sha256!==motionDigest(entry))throw Error('Selected recipe is not a pinned member of this style');
+  }
   const templates = request.instances.map((instance, index) => {
     const entry = used[index], info = describeMotionEntry(entry), shot = input.shots.find(s => s.id === instance.shotId)!;
     if (shot.end - shot.start < entry.duration.min || shot.end - shot.start > entry.duration.max) throw Error(`Shot ${shot.id} exceeds ${info.selector} duration limits`);
@@ -237,16 +293,33 @@ export function composeMotionCatalog(rawEntries: unknown[], rawRequest: unknown)
   caption.font.color = instance.colors[caption.font.color] ?? caption.font.color;
   if (caption.stroke) caption.stroke = instance.colors[caption.stroke] ?? caption.stroke;
   const distinct = [...new Map(used.map(e => [`${e.id}@${e.version}`, e])).values()];
+  const guideBinding=style&&request.style?{profile:request.style.profile,profileSha256:motionDigest(style),guideSha256:styleDigest(style.guide),
+    guide:style.guide,applications:request.style.applications}:undefined;
+  const details=guideBinding?styleGuideCriteria(guideBinding.guide,guideBinding.applications):distinct.flatMap((e,index)=>(e.designKnowledge??[]).flatMap((d,di)=>d.features.map((f,fi)=>({id:`detail-${index}-${di}-${fi}`,
+    dimension:f.dimension,essential:f.essential,requirement:`${e.id}@${e.version}: ${designRequirement(f)}`,evidence:[]}))));
+  if(details.length+styleDimensions.length>24)throw Error('Detailed review exceeds 24 criteria; split the scene job instead of discarding design requirements');
+  for(const [index,instance] of request.instances.entries()){
+    const di=distinct.indexOf(used[index]);
+    const ids=guideBinding?details.filter(d=>{
+      const a=guideBinding.applications.find(a=>`style-${a.ruleId}`===d.id)!;return !a.shotIds.length||a.shotIds.includes(instance.shotId);
+    }):details.filter(d=>d.id.startsWith(`detail-${di}-`));
+    input.shots.find(s=>s.id===instance.shotId)!.criteria.push(...ids.map(d=>d.id));
+  }
   const recipe: SceneRecipe = { schemaVersion: 1, kind: 'scene-motion-recipe', compositor: 'layered-v2', templates, caption,
-    style: { name: 'Catalog adaptation', basis: 'catalog', catalogEntries: distinct.map(e => ({ id: e.id, version: e.version, sha256: motionDigest(e) })),
-      references: [], criteria: styleDimensions.map(d => ({ id: d, dimension: d, essential: true,
-        requirement: distinct.map(e => `${e.id}@${e.version}: ${e.requirements[d]}`).join('\n'), evidence: [] })),
+    style: { name: style?.guide.name??'Catalog adaptation', basis: 'catalog', ...(guideBinding?{guide:guideBinding}:{}),catalogEntries: distinct.map(e => ({ id: e.id, version: e.version, sha256: motionDigest(e) })),
+      references: [], criteria: [...styleDimensions.map(d => ({ id: d, dimension: d, essential: true,
+        requirement: guideBinding?styleQuality[d]:distinct.map(e => `${e.id}@${e.version}: ${e.requirements[d]}`).join('\n'), evidence: [] })),...details],
       avoid: ['Do not inherit prior footage approval or claim original-reference fidelity.'],
-      uncertainties: ['New footage, crops, timing and dimensions require fresh render inspection and listening.'] } };
+      uncertainties: ['New footage, crops, timing and dimensions require fresh render inspection and listening.',...(style?style.guide.adaptation.limitations:[])] } };
   const reflow=request.layout?reflowSceneLayout(recipe,input,request.layout):null;
   const adaptation = adaptScene(reflow?.recipe??recipe, reflow?.input??input);
   return { recipe: adaptation.recipe, input: adaptation.input, preflight: preflightScene(adaptation),
-    receipt: { schemaVersion: 1, kind: 'motion-catalog-use', entries: recipe.style.catalogEntries, requestSha256: motionDigest(request), ...(reflow?{layout:reflow.report}:{}),
+    receipt: { schemaVersion: 1, kind: 'motion-catalog-use', entries: recipe.style.catalogEntries, ...(guideBinding?{style:{profile:guideBinding.profile,profileSha256:guideBinding.profileSha256,guideSha256:guideBinding.guideSha256,applications:guideBinding.applications}}:{}),requestSha256: motionDigest(request), ...(reflow?{layout:reflow.report}:{}),
       recipeSha256: motionDigest(adaptation.recipe), inputSha256: motionDigest(adaptation.input), origins: distinct.map(e => ({ id: e.id, origin: e.origin, sourceRecipeSha256: e.sourceRecipeSha256 })),
       warnings: [...warnings, ...adaptation.warnings], status: 'draft', safeToAutoPublish: false } };
 }
+
+const styleQuality={framing:'New imagery and composition support each declared shot purpose and preserve important subjects; inspect framing in the output dimensions.',
+  typography:'New words retain clear hierarchy, fit their available space, and remain readable at mobile size; inspect actual glyphs and line breaks.',
+  motion:'Movement supports the new explanation or emotion; inspect complete entrances, holds, exits, cutout edges and transitions for continuity.',
+  rhythm:'Pacing gives the new content enough time to be understood and aligns declared speech cues with source timestamps; listening remains a separate check.'};

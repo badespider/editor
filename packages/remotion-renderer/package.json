@@ -1,0 +1,22 @@
+{
+  "name": "@diffusionstudio/remotion-renderer",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "MPL-2.0",
+  "exports": { "./runner": "./src/runner.mjs", "./channel-demo": "./src/channel-demo.mjs" },
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --test test/*.test.ts"
+  },
+  "dependencies": {
+    "@diffusionstudio/editing-playbook": "*",
+    "@remotion/bundler": "4.0.532",
+    "@remotion/renderer": "4.0.532",
+    "remotion": "4.0.532",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "zod": "^4.2.0"
+  },
+  "devDependencies": { "@types/react": "^19.0.0", "@types/react-dom": "^19.0.0", "typescript": "~5.9.3" }
+}

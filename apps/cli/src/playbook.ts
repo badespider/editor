@@ -13,6 +13,7 @@ import { registerClipCommands } from './clips';
 import { registerExperimentCommands } from './experiments';
 import { registerLayeredCommands } from './layered';
 import { registerMotionCommands } from './motion';
+import { registerChannelCommands } from './channel-template';
 
 const readJson = async (path: string): Promise<unknown> => JSON.parse(await readFile(resolve(path), "utf8"));
 const print = (value: unknown) => console.log(JSON.stringify(value, null, 2));
@@ -26,6 +27,7 @@ export function registerPlaybookCommands(program: Command) {
   registerExperimentCommands(playbook);
   registerLayeredCommands(playbook);
   registerMotionCommands(playbook);
+  registerChannelCommands(playbook);
   playbook.command("skills").description("List editing skills and their relationship graph, including the default agent evidence workflow")
     .action(() => print({ schemaVersion: 1, skills, relationships, note: "Paths are relative to the editor repository. Use readArgs to retrieve instructions with playbook skill. Skills remain starter guidance, not learned results." }));
   playbook.command("skill").argument("<id>").option("--repo <directory>", "editor checkout containing .agents/skills; defaults to this CLI build's checkout")

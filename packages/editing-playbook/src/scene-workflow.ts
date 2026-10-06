@@ -3,6 +3,7 @@ import { dirname, extname, join, resolve } from 'node:path';
 import { z } from 'zod';
 import { AgentEvidenceService } from '@diffusionstudio/video-understanding/agent';
 import { ReferenceAnalysisService } from '@diffusionstudio/video-understanding/reference';
+import {validateReferenceDesign} from '@diffusionstudio/video-understanding/reference-design';
 import { fingerprint, probe } from './preview.ts';
 import { probePortraitSource } from './delivery.ts';
 import { runMedia } from './media-process.ts';
@@ -51,6 +52,8 @@ export class SceneWorkflow {
       const service = new ReferenceAnalysisService(ref.cache), seq = await service.sequence(ref.sessionId, ref.sequenceId);
       if (seq.sequenceSha256 !== ref.sequenceSha256 || await fingerprint(seq.source.path, signal) !== seq.source.sha256) throw Error('Reference source/sequence changed');
       if (ref.inspectedFrames.length !== seq.frames.length || seq.frames.some(f => !ref.inspectedFrames.includes(f.index))) throw Error('Inspect every frame in each bounded reference sequence');
+      const detailed=adaptation.recipe.style.design?.find(d=>d.referenceId===ref.id);
+      if(detailed)validateReferenceDesign(detailed.analysis,seq);
       const cited = new Set(adaptation.recipe.style.criteria.flatMap(c => c.evidence.filter(e => e.referenceId === ref.id).flatMap(e => e.frames)));
       for (let from = 0; from < seq.frames.length; from += 24) {
         const page = await service.page(ref.sessionId, ref.sequenceId, { from, count: Math.min(24, seq.frames.length - from) }, signal);
@@ -104,7 +107,8 @@ export class SceneWorkflow {
     await mkdir(dirname(this.root), { recursive: true }); await mkdir(this.root);
     await save(join(this.root, 'job.json'), { maxCorrections, styleSha256: motionDigest(adaptation.recipe.style),
       sourceSha256: motionDigest({ assets: adaptation.input.assets, audio: adaptation.input.audio, transcript: adaptation.input.transcript }), externalModelCalls: 0 } satisfies Job);
-    return this.prepare(adaptation, references, 0, null, adaptation.recipe.style.basis === 'catalog' ? 'Initial catalog adaptation; fresh review required' : 'Initial reference-led scene adaptation', signal);
+    return this.prepare(adaptation, references, 0, null, adaptation.recipe.style.basis === 'catalog' ? 'Initial catalog adaptation; fresh review required'
+      : adaptation.recipe.style.basis === 'brief' ? 'Initial user-brief adaptation; fresh review required' : 'Initial reference-led scene adaptation', signal);
   }
   private async prepare(adaptation: SceneAdaptation, references: Evidence[], index: number, parentReviewSha256: string | null, reason: string, cancellation?: AbortSignal) {
     const signal = bounded(cancellation), sources = await this.sources(adaptation, signal), folder = this.folder(index);
@@ -167,10 +171,13 @@ export class SceneWorkflow {
     if (inspection.value.revisionSha256 !== current.sha256 || await fingerprint(join(current.directory, 'preview_DRAFT.mp4')) !== inspection.value.renderSha256) throw Error('Render or inspection changed');
     const review = await this.latestReview(current.directory);
     if (review && (review.value.revisionSha256 !== current.sha256 || review.value.inspectionSha256 !== inspection.sha256)) throw Error('Stale stored review');
-    return { stage: review?.value.status ?? (current.value.adaptation.recipe.style.basis === 'catalog' ? 'needs_template_review' : 'needs_reference_comparison'),
+    return { stage: review?.value.status ?? (current.value.adaptation.recipe.style.basis === 'catalog' ? 'needs_template_review'
+      : current.value.adaptation.recipe.style.basis === 'brief' ? 'needs_brief_review' : 'needs_reference_comparison'),
       inspectionSha256: inspection.sha256, ...inspection.value, review: review?.value, reviewSha256: review?.sha256,
       criteria: current.value.adaptation.recipe.style.criteria, remainingCorrections: job.maxCorrections-current.value.index,
-      instruction: current.value.adaptation.recipe.style.basis === 'catalog'
+      instruction: current.value.adaptation.recipe.style.basis === 'brief'
+        ? 'Inspect every supplied render frame against the user brief. Cite render evidence; referenceEvidenceIds stay empty. Listen or mark speech/audio unknown. Brief conformance is not reference matching or publication approval.'
+        : current.value.adaptation.recipe.style.basis === 'catalog'
         ? 'Inspect every supplied render frame against every pinned template requirement. Cite render evidence; referenceEvidenceIds stay empty. Listen or mark speech/audio unknown. Template reuse is not original-reference matching or inherited approval.'
         : 'Inspect every provided frame; compare each essential reference criterion. Listen or mark speech/audio unknown. Good encoding/readability alone does not establish style fidelity.', safeToAutoPublish: false };
   }

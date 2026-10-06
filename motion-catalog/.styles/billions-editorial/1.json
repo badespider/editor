@@ -1,0 +1,389 @@
+{
+  "sha256": "625d9cc370cc8fd0957a3f9d2d59b2a03479ecaa166bfcbca9fa7265293b180c",
+  "entry": {
+    "schemaVersion": 1,
+    "kind": "motion-style-entry",
+    "guide": {
+      "schemaVersion": 1,
+      "kind": "motion-style-guide",
+      "id": "billions-editorial",
+      "version": 1,
+      "name": "Layered editorial explanation",
+      "description": "A selected-scene study of photographic collage, subject identification and progressive speech emphasis, adaptable to new stories.",
+      "tags": [
+        "editorial",
+        "collage",
+        "typography",
+        "depth",
+        "speech"
+      ],
+      "origin": "Generalized by Codex from three inspected scenes in the user-supplied FROM BILLIONS TO NOTHING OVERNIGHT reference; editable recipes come from our earlier authored studies.",
+      "coverage": "selected-scenes",
+      "scenes": [
+        {
+          "id": "collage",
+          "role": "headline explanation",
+          "sequenceSha256": "646fface4cdca79f6eee17fe820916890acff0c5bf0c17b6130d95528cfcfd74",
+          "analysisSha256": "e770712cbcbdb4876b37e225a2db87c558e7a2e4250960c3313ad14d1d7131de"
+        },
+        {
+          "id": "identity",
+          "role": "subject introduction",
+          "sequenceSha256": "5b9f744c03016a1280b07a1c7703ff25364b405a2f405c780718e356ed1c2532",
+          "analysisSha256": "db79c342da97d886ac8387c684109a313f1af9efec6d2ff48330aa00bb2127d8"
+        },
+        {
+          "id": "captions",
+          "role": "spoken emphasis",
+          "sequenceSha256": "f81ccf0a1cd5104be3691b12b00cf592f400dfa3d7d5c41de607b99eba78a34b",
+          "analysisSha256": "f907e4e0ab98fe2ca0f304d264f0ee3a4e6d9e4cb79f9a2305e761677e3016f8"
+        }
+      ],
+      "rules": [
+        {
+          "id": "purposeful-composition",
+          "category": "composition",
+          "dimension": "framing",
+          "principle": "Choose a composition that makes the new subject and its relationship to the words immediately clear.",
+          "useWhen": "A fact, subject or concept needs visual explanation.",
+          "avoidWhen": "An extra graphic would hide a meaningful live action or emotional expression.",
+          "essential": true,
+          "confidence": "repeated",
+          "evidence": [
+            {
+              "sceneId": "collage",
+              "featureId": "layout"
+            },
+            {
+              "sceneId": "identity",
+              "featureId": "layout"
+            }
+          ],
+          "verification": "native-frame",
+          "review": "Check that every foreground image and label serves the declared new shot purpose.",
+          "tolerance": "Adapt the content, occupied area and duration to the new story; retain the stated hierarchy or movement relationship. Exact original font/camera values are unknown.",
+          "editableControls": [
+            "Subject/media slots",
+            "Layer arrangement",
+            "Protected regions"
+          ]
+        },
+        {
+          "id": "type-hierarchy",
+          "category": "typography",
+          "dimension": "typography",
+          "principle": "Use bold high-contrast titles and unequal word/line emphasis to distinguish the main idea from context.",
+          "useWhen": "A name, claim or key spoken concept needs emphasis.",
+          "avoidWhen": "Every word would become equally loud or long wording would become unreadable.",
+          "essential": true,
+          "confidence": "repeated",
+          "evidence": [
+            {
+              "sceneId": "collage",
+              "featureId": "condensed-type"
+            },
+            {
+              "sceneId": "identity",
+              "featureId": "type-hierarchy"
+            },
+            {
+              "sceneId": "captions",
+              "featureId": "type-hierarchy"
+            }
+          ],
+          "verification": "native-frame",
+          "review": "Inspect glyph proportions, hierarchy, line breaks, contrast and reading size with the actual new wording.",
+          "tolerance": "Adapt the content, occupied area and duration to the new story; retain the stated hierarchy or movement relationship. Exact original font/camera values are unknown.",
+          "editableControls": [
+            "Font characteristics",
+            "Line breaks",
+            "Word size/weight",
+            "Tracking"
+          ]
+        },
+        {
+          "id": "clean-subject-separation",
+          "category": "masks",
+          "dimension": "framing",
+          "principle": "Use a clean subject silhouette and intentional overlaps to separate a featured object from its environment.",
+          "useWhen": "A photographic collage or object introduction benefits from distinct planes.",
+          "avoidWhen": "A reliable matte is unavailable or the whole action must remain visible.",
+          "essential": true,
+          "confidence": "repeated",
+          "evidence": [
+            {
+              "sceneId": "collage",
+              "featureId": "skyline-mask"
+            },
+            {
+              "sceneId": "identity",
+              "featureId": "cutout"
+            }
+          ],
+          "verification": "native-frame",
+          "review": "Inspect edges at native size; reject old subject-specific masks, halos and accidental rectangular borders.",
+          "tolerance": "Adapt the content, occupied area and duration to the new story; retain the stated hierarchy or movement relationship. Exact original font/camera values are unknown.",
+          "editableControls": [
+            "New subject matte",
+            "Layer order",
+            "Overlap"
+          ]
+        },
+        {
+          "id": "material-detail",
+          "category": "texture",
+          "dimension": "framing",
+          "principle": "Give graphic environments subtle photographic or tactile detail so large surfaces retain depth and character.",
+          "useWhen": "A generated graphic scene has otherwise empty surfaces.",
+          "avoidWhen": "The picture already has enough detail or grain would reduce legibility.",
+          "essential": true,
+          "confidence": "repeated",
+          "evidence": [
+            {
+              "sceneId": "collage",
+              "featureId": "ground-texture"
+            },
+            {
+              "sceneId": "identity",
+              "featureId": "material"
+            }
+          ],
+          "verification": "native-frame",
+          "review": "Inspect surfaces and typography together; detail must support the new setting without covering letters.",
+          "tolerance": "Adapt the content, occupied area and duration to the new story; retain the stated hierarchy or movement relationship. Exact original font/camera values are unknown.",
+          "editableControls": [
+            "Authorized textures",
+            "Texture scale",
+            "Grain amount"
+          ]
+        },
+        {
+          "id": "graphic-palette",
+          "category": "palette",
+          "dimension": "framing",
+          "principle": "Use a restrained cool graphic base with strong light/dark separation and a limited purposeful accent.",
+          "useWhen": "A collage, identity card or diagram needs a coherent graphic palette.",
+          "avoidWhen": "Natural footage or an established new brand palette would be harmed.",
+          "essential": true,
+          "confidence": "repeated",
+          "evidence": [
+            {
+              "sceneId": "collage",
+              "featureId": "tone"
+            },
+            {
+              "sceneId": "identity",
+              "featureId": "palette"
+            }
+          ],
+          "verification": "native-frame",
+          "review": "Check palette relationships and subject/text contrast; natural footage can retain its own colors.",
+          "tolerance": "Adapt the content, occupied area and duration to the new story; retain the stated hierarchy or movement relationship. Exact original font/camera values are unknown.",
+          "editableControls": [
+            "Palette replacements",
+            "Accent roles",
+            "Text edge colors"
+          ]
+        },
+        {
+          "id": "focus-handoff",
+          "category": "depth",
+          "dimension": "motion",
+          "principle": "Hand visual emphasis between related information planes, letting the current idea become sharper or more prominent.",
+          "useWhen": "Several related concepts must be introduced in sequence.",
+          "avoidWhen": "There is only one idea or shifting focus would obscure an important face/action.",
+          "essential": false,
+          "confidence": "single-example",
+          "evidence": [
+            {
+              "sceneId": "collage",
+              "featureId": "focus-depth"
+            }
+          ],
+          "verification": "consecutive-frames",
+          "review": "Inspect consecutive frames across each handoff; new emphasis must remain readable during its hold.",
+          "tolerance": "Adapt the content, occupied area and duration to the new story; retain the stated hierarchy or movement relationship. Exact original font/camera values are unknown.",
+          "editableControls": [
+            "Relative scale",
+            "Blur timing",
+            "Focus order"
+          ]
+        },
+        {
+          "id": "independent-depth-motion",
+          "category": "camera",
+          "dimension": "motion",
+          "principle": "Coordinate independently moving planes to give a graphic explanation a sense of camera movement and depth.",
+          "useWhen": "Layered objects or labels need a spatial relationship.",
+          "avoidWhen": "The footage already communicates the relationship clearly or the available renderer cannot express it.",
+          "essential": false,
+          "confidence": "single-example",
+          "evidence": [
+            {
+              "sceneId": "collage",
+              "featureId": "parallax"
+            }
+          ],
+          "verification": "consecutive-frames",
+          "review": "Inspect relative movement and edges through entry, hold and exit; a 2D approximation must be disclosed.",
+          "tolerance": "Adapt the content, occupied area and duration to the new story; retain the stated hierarchy or movement relationship. Exact original font/camera values are unknown.",
+          "editableControls": [
+            "Groups",
+            "Per-layer transforms",
+            "Movement curves"
+          ]
+        },
+        {
+          "id": "progressive-words",
+          "category": "motion",
+          "dimension": "motion",
+          "principle": "Build speech captions progressively, keeping earlier words readable while short entrances settle into place.",
+          "useWhen": "Speech carries the scene and captions improve comprehension.",
+          "avoidWhen": "An additional word animation would compete with a diagram or duplicate another headline.",
+          "essential": true,
+          "confidence": "single-example",
+          "evidence": [
+            {
+              "sceneId": "captions",
+              "featureId": "word-build"
+            }
+          ],
+          "verification": "consecutive-frames",
+          "review": "Inspect complete word entrances and settled holds; verify new source-clock cues separately from listening.",
+          "tolerance": "Adapt the content, occupied area and duration to the new story; retain the stated hierarchy or movement relationship. Exact original font/camera values are unknown.",
+          "editableControls": [
+            "Caption groups",
+            "Word onsets",
+            "Lift/blur entrance"
+          ]
+        },
+        {
+          "id": "context-transitions",
+          "category": "transitions",
+          "dimension": "rhythm",
+          "principle": "Use a cut or brief transition to mark a change of visual argument or return to the speaker.",
+          "useWhen": "A new scene purpose or phrase needs a clear context change.",
+          "avoidWhen": "The change would interrupt a continuous action, natural reaction or necessary explanation.",
+          "essential": true,
+          "confidence": "repeated",
+          "evidence": [
+            {
+              "sceneId": "collage",
+              "featureId": "entry"
+            },
+            {
+              "sceneId": "captions",
+              "featureId": "context-cut"
+            }
+          ],
+          "verification": "consecutive-frames",
+          "review": "Inspect frames on both sides of new cuts for continuity, appropriate context and clean phrase reset.",
+          "tolerance": "Adapt the content, occupied area and duration to the new story; retain the stated hierarchy or movement relationship. Exact original font/camera values are unknown.",
+          "editableControls": [
+            "Cut point",
+            "Transition duration",
+            "Phrase grouping"
+          ]
+        },
+        {
+          "id": "reading-and-emphasis-holds",
+          "category": "timing",
+          "dimension": "rhythm",
+          "principle": "Give the main idea enough settled reading time, varying pacing between a graphic hold and speech-led phrase building.",
+          "useWhen": "A name, role, diagram or changing phrase needs time to be understood.",
+          "avoidWhen": "A fixed duration copied from the reference would rush or stall the new scene.",
+          "essential": true,
+          "confidence": "repeated",
+          "evidence": [
+            {
+              "sceneId": "identity",
+              "featureId": "hold"
+            },
+            {
+              "sceneId": "captions",
+              "featureId": "phrase-pacing"
+            }
+          ],
+          "verification": "consecutive-frames",
+          "review": "Check new text length and explanation load against holds; sound alignment remains unknown until listened to.",
+          "tolerance": "Adapt the content, occupied area and duration to the new story; retain the stated hierarchy or movement relationship. Exact original font/camera values are unknown.",
+          "editableControls": [
+            "Shot duration",
+            "Named cues",
+            "Hold lengths"
+          ]
+        },
+        {
+          "id": "speaker-presence",
+          "category": "composition",
+          "dimension": "framing",
+          "principle": "Keep meaningful expressions and actions visible while placing speech text in a quieter part of the picture.",
+          "useWhen": "A person is speaking or reacting on screen.",
+          "avoidWhen": "A full graphic explanation intentionally replaces the speaker for a brief beat.",
+          "essential": true,
+          "confidence": "single-example",
+          "evidence": [
+            {
+              "sceneId": "captions",
+              "featureId": "face-clear"
+            }
+          ],
+          "verification": "native-frame",
+          "review": "Inspect the new speaker/action throughout the shot and ensure moving captions stay clear of protected details.",
+          "tolerance": "Adapt the content, occupied area and duration to the new story; retain the stated hierarchy or movement relationship. Exact original font/camera values are unknown.",
+          "editableControls": [
+            "Caption box",
+            "Subject framing",
+            "Protected regions"
+          ]
+        }
+      ],
+      "adaptation": {
+        "preserve": [
+          "Clear subject-to-label relationship",
+          "Unequal typography hierarchy",
+          "Intentional separation of graphic planes",
+          "Readable settled holds and purposeful context changes"
+        ],
+        "replace": [
+          "All subjects, names, facts and headline wording",
+          "All source footage and photographic imagery",
+          "Every subject-specific cutout/mask",
+          "Graphic arrangement and accent colors when the new explanation requires it"
+        ],
+        "retime": "Use the new transcript, actual speech cues, word lengths and reading load. Reference durations are examples; each new scene has its own entrance, hold and exit.",
+        "limitations": [
+          "Selected scenes only; additional examples may change these rules.",
+          "Original fonts, materials, easing and 3D geometry remain uncertain.",
+          "Identity-card entrance is outside the inspected range.",
+          "No direct sound-design or speech-sync listening was performed.",
+          "Linked recipes are editable starting points with known 2D limits; this profile does not certify their fidelity or any new output."
+        ]
+      },
+      "status": "agent_authored_style_candidate"
+    },
+    "recipes": [
+      {
+        "template": "word-stack@1",
+        "sha256": "5f528819196dfafbdef57865eac34943da42bb48b5dc88fe82ee875fb35f5f1b",
+        "purpose": "Keep the new speaker visible with progressive emphasized speech.",
+        "useWhen": "Speech carries the scene.",
+        "avoidWhen": "Captions compete with an important live detail or a full diagram."
+      },
+      {
+        "template": "layered-image@1",
+        "sha256": "7b988b8eb696f9bf4a57823fbe2254931f2ec79e3fdfab5231b96dec5e4322cf",
+        "purpose": "Introduce the new subject or object using photographic separation and a clear label.",
+        "useWhen": "An object/person needs a short visual introduction.",
+        "avoidWhen": "New image/matte quality is poor or the live action is essential."
+      },
+      {
+        "template": "scale-title@1",
+        "sha256": "7e9add077cbe54bf409d3f6d5d6784dc173628ebe2493a05c12ba3264087adc4",
+        "purpose": "Emphasize a new claim or concept using depth-like image and headline movement.",
+        "useWhen": "A brief graphic beat clarifies the new story.",
+        "avoidWhen": "Repeated headline spectacle would distract from the explanation."
+      }
+    ]
+  }
+}

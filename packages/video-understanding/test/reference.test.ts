@@ -6,6 +6,7 @@ import {join} from 'node:path';
 import {AgentEvidenceService} from '../src/agent.ts';
 import {ReferenceAnalysisService} from '../src/reference.ts';
 import {run} from '../src/media.ts';
+import {designFixture} from './design-fixture.ts';
 
 test('every 60fps frame, one-frame flash, native geometry, paging, cache, comparison and tamper detection',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'dapi-reference-')),path=join(dir,'flash.mp4'),cache=join(dir,'cache');
@@ -32,6 +33,17 @@ test('every 60fps frame, one-frame flash, native geometry, paging, cache, compar
     const recorded=await service.annotate(s.id,result.id,note);assert.equal(recorded.status,'agent_reported');assert.equal(recorded.coverage.inspectedFrames,3);
     assert.equal((await agent.read(s.id)).inspections.length,1,'Dense evidence must not exhaust sparse artifact budget');
     await assert.rejects(service.annotate(s.id,result.id,{...note,inspectedFrames:[40]}),/endpoints/);
+    const design=designFixture(120,result.sequenceSha256),sealed=await service.design(s.id,result.id,design);
+    assert.equal(sealed.externalModelCalls,0);assert.equal((await service.design(s.id,result.id,design)).sha256,sealed.sha256);
+    await assert.rejects(service.design(s.id,result.id,{...design,inspectedFrames:[0,1]}),/every frame/);
+    await assert.rejects(service.design(s.id,result.id,{...design,sequenceSha256:'b'.repeat(64)}),/different reference/);
+    const req={referenceFrame:40,candidateFrame:41,rationale:'Synthetic flash correspondence'};
+    const pixels=await service.pixels(s.id,result.id,s.id,result.id,req);
+    assert(pixels.metrics.meanAbsoluteChannelError>0);assert.equal(pixels.artifacts.length,2);
+    assert.deepEqual(await service.pixels(s.id,result.id,s.id,result.id,req),pixels);
+    const roi=await service.pixels(s.id,result.id,s.id,result.id,{...req,region:{x:0,y:0,width:10,height:10}});assert.equal(roi.metrics.meanAbsoluteChannelError,0);
+    await assert.rejects(service.pixels(s.id,result.id,s.id,result.id,{...req,region:{x:150,y:0,width:20,height:20}}),/exceeds/);
+    await writeFile(pixels.artifacts[0].path,'tampered');await assert.rejects(service.pixels(s.id,result.id,s.id,result.id,req),/changed/);
     const artifact=first.artifacts[0];await writeFile(artifact.path,'tampered');await assert.rejects(service.page(s.id,result.id,{from:0,count:1}),/changed/);
     await assert.rejects(service.compare(s.id,result.id,s.id,result.id),/changed/);
     const before=await stat(path);await utimes(path,new Date(),new Date(before.mtimeMs+10000));await assert.rejects(service.page(s.id,result.id),/Source changed/);

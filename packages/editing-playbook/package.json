@@ -22,7 +22,8 @@
     "./motion-workflow": "./src/motion-workflow.ts",
     "./scene-motion": "./src/scene-motion.ts",
     "./scene-workflow": "./src/scene-workflow.ts",
-    "./motion-catalog": "./src/motion-catalog.ts"
+    "./motion-catalog": "./src/motion-catalog.ts",
+    "./channel-template": "./src/channel-template.ts"
   },
   "scripts": {
     "check": "tsc --noEmit",
