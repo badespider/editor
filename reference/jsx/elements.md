@@ -41,6 +41,7 @@ All visual elements accept:
 | `offsetX`, `offsetY` | `Animatable<number>` | `0` | Render-time translation on top of `x`/`y`, px; moves the drawn content without changing the layout box. Subpixel values are kept. |
 | `width`, `height` | `Animatable<number>` | parent size | Box size, px. |
 | `rotation` | `Animatable<number>` | `0` | Rotation in degrees. |
+| `scale` | `Animatable<number>` | `1` | Uniform scale around the element's center; finite and non-negative. |
 | `opacity` | `Animatable<number>` | `1` | `0`-`1`. |
 | `cornerRadius` | `Animatable<number>` | `0` | Uniform corner radius, px. |
 | `start`, `end`, `sourceIn`, `sourceOut` | `Time` | see [timing.md](./timing.md) | Temporal placement. |

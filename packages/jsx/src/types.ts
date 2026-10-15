@@ -147,6 +147,8 @@ export type PatchProps = {
   height?: Animatable<number>;
   /** Rotation in degrees. Animatable. */
   rotation?: Animatable<number>;
+  /** Uniform scale around the element's center. Non-negative; 1 is the authored size. Animatable. */
+  scale?: Animatable<number>;
   /** Opacity, 0–1 (out-of-range values clamp, like CSS). Animatable. */
   opacity?: Animatable<number>;
   /** Uniform corner radius, px. Animatable. */
@@ -249,6 +251,7 @@ export const PATCH_PROP_KEYS = Object.keys({
   width: true,
   height: true,
   rotation: true,
+  scale: true,
   opacity: true,
   cornerRadius: true,
   start: true,
@@ -284,7 +287,7 @@ type TimingProps = Pick<PatchProps, "start" | "end" | "sourceIn" | "sourceOut">;
 type CommonProps = TimingProps &
   Pick<
     PatchProps,
-    | "key" | "scene" | "name" | "x" | "y" | "offsetX" | "offsetY" | "width" | "height" | "rotation"
+    | "key" | "scene" | "name" | "x" | "y" | "offsetX" | "offsetY" | "width" | "height" | "rotation" | "scale"
     | "opacity" | "cornerRadius" | "transition" | "animations"
   >;
 
@@ -365,7 +368,7 @@ export type AudioProps = TimingProps &
 export type TextProps = CommonProps &
   Pick<
     PatchProps,
-    "fontFamily" | "fontSize" | "fontWeight" | "fontStyle" | "color" | "textAlign" | "textBaseline"
+    "fontFamily" | "fontSize" | "fontWeight" | "fontStyle" | "fill" | "textAlign" | "textBaseline"
   > & {
     /** The text content. Required. */
     children: SolidJSX.Element;

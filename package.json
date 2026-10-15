@@ -16,6 +16,7 @@
     "release": "node scripts/release.mjs",
     "lint": "npm run lint --workspaces --if-present",
     "check": "npm run check --workspaces --if-present && tsc -p examples --noEmit",
-    "test:playbook": "npm run test --workspace=@diffusionstudio/editing-playbook"
+    "test:playbook": "npm run test --workspace=@diffusionstudio/editing-playbook",
+    "test:effects": "npm run test:presets --workspace=@diffusionstudio/jsx"
   }
 }

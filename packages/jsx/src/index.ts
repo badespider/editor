@@ -15,6 +15,17 @@ export type {
 } from "./generate";
 export { PATCH_PROP_KEYS } from "./types";
 export { parseTime, TIME_FPS } from "./time";
+// Native visual treatments and frame-based motion presets share the host runtime.
+export * from "./effects";
+export * from "./look-presets";
+export * from "./motion-presets";
+export * from "./presentation-themes";
+export * from "./documentary";
+export * from "./documentary-map";
+export * from "./education-core";
+export * from "./education-equation";
+export * from "./education-cards";
+export * from "./education-diagrams";
 export {
   Audio,
   Captions,

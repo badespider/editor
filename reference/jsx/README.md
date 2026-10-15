@@ -21,6 +21,10 @@ The pipeline is driven by two commands: [`dapi mount`](../mount.md) renders the 
 | [html.md](./html.md) | `<html>`: reactive HTML children drawn into the box |
 | [surface-paint.md](./surface-paint.md) | `<surface>`: a ref-provided canvas you draw into, sampled every frame |
 | [shader-paint.md](./shader-paint.md) | `<shaderPaint>`: a WGSL fragment shader over the media paint below it |
+| [effects.md](./effects.md) | reusable native effects, film looks and editable motion presets |
+| [presentation.md](./presentation.md) | curated themes, complete motion beats and readable documentary/teaching layouts |
+| [documentary.md](./documentary.md) | editable documentary cards, timelines, evidence callouts and local geographic route maps |
+| [education.md](./education.md) | lessons, native equations, worked examples, code, quizzes and math/physics/IT diagrams |
 | [media.md](./media.md) | `src` resolution (paths, URLs, asset ids, `AssetRef`) |
 | [timing.md](./timing.md) | `start` / `end` / `sourceIn` / `sourceOut`, time formats |
 | [keyframes.md](./keyframes.md) | Keyframe animation and easing |

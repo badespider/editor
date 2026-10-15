@@ -19,6 +19,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "check": "tsc --noEmit",
+    "test:presets": "node scripts/test-presets.mjs",
     "prepublishOnly": "npm run build",
     "prepack": "node scripts/prepack.mjs",
     "postpack": "node scripts/postpack.mjs"
@@ -34,6 +35,7 @@
     "solid-js": "^1.9.0"
   },
   "devDependencies": {
+    "esbuild": "^0.28.1",
     "typescript": "~5.9.3"
   }
 }

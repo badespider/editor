@@ -14,8 +14,17 @@ identity, so re-mounting an example replaces its scene in place.
 | [06-three.tsx](06-three.tsx) | `dapi mount examples/06-three.tsx` | three.js WebGL renderer owning a `<surface>`, glTF model loaded over the network |
 | [07-webgpu.tsx](07-webgpu.tsx) | `dapi mount examples/07-webgpu.tsx` | raw WebGPU on a `<surface>`: a triangle whose colors cycle with composition time |
 | [08-shader-paint.tsx](08-shader-paint.tsx) | `dapi mount examples/08-shader-paint.tsx` | `<shaderPaint>` post-processing a `<video>`: WGSL chromatic aberration + vignette, uniforms patchable live |
+| [09-native-effects.tsx](09-native-effects.tsx) | `dapi mount examples/09-native-effects.tsx` | native effects gallery, using a local illustrated source served by the desktop dev server |
+| [10-native-motion.tsx](10-native-motion.tsx) | `dapi mount examples/10-native-motion.tsx` | native motion gallery with editable keyframes |
+| [11-documentary-story.tsx](11-documentary-story.tsx) | `dapi mount examples/11-documentary-story.tsx` | an original, illustrative question/map/evidence/timeline/reveal sequence with native documentary graphics |
+| [12-education-kit.tsx](12-education-kit.tsx) | `dapi mount examples/12-education-kit.tsx` | editable math, worked steps, plots, force vectors, network flows, literal code and an authored quiz reveal |
+| [13-education-portrait.tsx](13-education-portrait.tsx) | `dapi mount examples/13-education-portrait.tsx` | 9:16 lesson and quiz cards with explicit mobile layout |
+| [14-curated-looks.tsx](14-curated-looks.tsx) | `dapi mount examples/14-curated-looks.tsx` | large original/processed comparisons of four curated native look presets |
 
 Requirements: `02-genai.tsx` consumes generation credits (results are cached per session);
 `01-basics.tsx`, `06-three.tsx`, and `08-shader-paint.tsx` fetch remote media.
+
+Mount each native-library gallery into a separate project for isolated preview/export.
+Their shared layout lives in `native-library-scenes.tsx`.
 
 Typecheck with `tsc -p examples --noEmit` (part of `npm run check`).

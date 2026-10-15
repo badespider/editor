@@ -1041,6 +1041,21 @@ export class WorldDocument implements ProjectDocument<HostNode> {
         assert(value >= 0, "`height` must be >= 0");
         resizeEntity(world, eid, { height: Math.round(value) });
         break;
+      } case "scale": {
+        const readScale = (v: unknown): number => {
+          assert(typeof v === "number" && Number.isFinite(v) && v >= 0, "`scale` must be a finite non-negative number");
+          return v;
+        };
+        if (Array.isArray(value)) {
+          const keyframes = parseKeyframes(name, value, readScale);
+          setComponent(world, eid, c.UniformScale, keyframes[0].value);
+          setKeyframeTrack(world, eid, "scale", keyframes);
+          break;
+        }
+        const scale = readScale(value);
+        setKeyframeTrack(world, eid, "scale", []);
+        setComponent(world, eid, c.UniformScale, scale);
+        break;
       } case "rotation": {
         if (Array.isArray(value)) {
           const keyframes = parseKeyframes(name, value, (v) => {
