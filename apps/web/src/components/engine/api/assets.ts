@@ -402,7 +402,8 @@ export async function createScriptAsset(world: EngineWorld, code: string): Promi
 
   const id = allocateId(world);
   const mimeType = 'text/javascript';
-  const uniqueName = id + mimeTypeToExtension(mimeType);
+  // Asset IDs repeat across projects, while their backing directory is shared.
+  const uniqueName = `${state.projectId}-${id}${mimeTypeToExtension(mimeType)}`;
 
   const directory = await state.directoryHandle;
   const assetsFolder = await directory.getDirectoryHandle('assets', { create: true });
