@@ -45,3 +45,38 @@ test('short or truncated waveform samples cannot pass alignment review', () => {
   assert.equal(comparePcm(new Float32Array(1000), new Float32Array(1000)).pass, false);
   assert.equal(comparePcm(new Float32Array(8000), new Float32Array(7999)).pass, false);
 });
+
+// A high-frequency chirp models the phase sensitivity of unvoiced speech.
+// Generate each offset directly so the fixture does not share the reviewer's
+// interpolation implementation or require personal footage in the test suite.
+function speechLikeWave(delay = 0, gain = 1, startHz = 3000) {
+  return Float32Array.from({ length: 8000 }, (_, i) => {
+    const t = i - delay;
+    if (t < 0 || t >= 8000) return 0;
+    return gain * .03 * (1 + .4 * Math.sin(t * .0013)) *
+      Math.sin(2 * Math.PI * (startHz * t / 16000 + 2800 * t * t / (2 * 8000 * 16000)));
+  });
+}
+
+test('waveform review resolves a half-sample speech delay without weakening source or level checks', () => {
+  const reference = speechLikeWave();
+  const shifted = speechLikeWave(.5, .96);
+  const result = comparePcm(reference, shifted);
+  assert.equal(result.pass, true);
+  assert.equal(result.lagMs, .5 / 16);
+  assert(result.correlation > .9);
+  assert.equal(comparePcm(reference, speechLikeWave(.5, 1, 1000)).pass, false);
+  assert.equal(comparePcm(reference, new Float32Array(reference.length)).pass, false);
+  assert.equal(comparePcm(reference, speechLikeWave(.5, .5)).pass, false);
+  assert.equal(comparePcm(reference, speechLikeWave(.5, 2)).pass, false);
+});
+
+test('fractional refinement preserves the exact 20ms alignment limit and handles odd sample counts', () => {
+  const reference = speechLikeWave();
+  const inside = comparePcm(reference, speechLikeWave(319.5));
+  const outside = comparePcm(reference, speechLikeWave(320.5));
+  assert.equal(inside.pass, true); assert.equal(inside.lagMs, 319.5 / 16);
+  assert.equal(outside.pass, false); assert.equal(outside.lagMs, 320.5 / 16);
+  const odd = Float32Array.from({ length: 8001 }, (_, i) => .1 * Math.sin(.2 * i + .00003 * i * i));
+  assert.equal(comparePcm(odd, odd).pass, true);
+});

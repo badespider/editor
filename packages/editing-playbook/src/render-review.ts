@@ -53,13 +53,25 @@ export function comparePcm(a: Float32Array, b: Float32Array) {
   if (n <= 1280 || a.length !== b.length) return { pass: false, status: 'insufficient_samples', expectedRms, actualRms, correlation: 0, lagMs: 0 };
   if (expectedRms < .0001) return { pass: actualRms < .001, status: 'silent_reference_not_identity_proof', expectedRms, actualRms, correlation: 0, lagMs: 0 };
   let best = -1, bestLag = 0;
-  // Up to +/- 40ms, measured at 1ms increments. Periodic audio remains ambiguous.
-  for (let lag = -640; lag <= 640; lag += 16) {
+  // Up to +/- 40ms. Scan whole samples before refining the peak: a 1ms grid
+  // misses sub-sample decoder/resampler delays, especially on fricative speech.
+  // Periodic audio remains ambiguous; the existing gain and 20ms limits apply.
+  const correlationAt = (lag: number) => {
     let xy = 0, ax = 0, bx = 0;
+    const whole = Math.floor(lag), fraction = lag - whole;
     for (let i = 640; i < n - 640; i += 2) {
-      xy += a[i] * b[i + lag]; ax += a[i] ** 2; bx += b[i + lag] ** 2;
+      const sample = fraction ? b[i + whole] * (1 - fraction) + b[i + whole + 1] * fraction : b[i + whole];
+      xy += a[i] * sample; ax += a[i] ** 2; bx += sample ** 2;
     }
-    const corr = xy / Math.sqrt(ax * bx || 1);
+    return xy / Math.sqrt(ax * bx || 1);
+  };
+  for (let lag = -640; lag <= 640; lag++) {
+    const corr = correlationAt(lag);
+    if (corr > best) { best = corr; bestLag = lag; }
+  }
+  const coarseLag = bestLag;
+  for (let lag = Math.max(-640, coarseLag - 1); lag <= Math.min(640, coarseLag + 1); lag += .25) {
+    const corr = correlationAt(lag);
     if (corr > best) { best = corr; bestLag = lag; }
   }
   const gain = actualRms / expectedRms;
