@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "techniques": [
+    {
+      "id": "course-it-style-1",
+      "version": 1,
+      "skillId": "course-it-style-1",
+      "title": "Course IT Style 1",
+      "category": "visual",
+      "useWhen": [
+        "This approved IT teaching style is selected for a course explanation or troubleshooting diagram."
+      ],
+      "preserve": [
+        "Persistent technical objects, causal state changes, navy/cream/cyan art direction, readable holds and narration-led reveals."
+      ],
+      "adapt": [
+        "Replace topic, objects, geometry, labels, source-backed claims and timing using the new lesson's narration."
+      ],
+      "avoidWhen": [
+        "The brief requires a different style, real footage as proof or an ordinary vlog; do not force this look onto every video."
+      ],
+      "placements": [
+        "direction",
+        "full-frame"
+      ],
+      "implementations": [
+        {
+          "id": "hyperframes-svg",
+          "renderer": "hyperframes",
+          "aspects": [
+            "landscape"
+          ],
+          "placements": [
+            "full-frame"
+          ],
+          "limits": [
+            "User approved the USB sample's visual style on 2026-10-12. The saved kit is an editable SVG/HTML + GSAP authoring example, not a universal generator or automatic renderer adapter.",
+            "Narration and private footage are excluded. Adapt topic, geometry and real cues in a new project; fresh checks and preview review are required. Portrait, overlays, camera compositing and Remotion are not verified."
+          ]
+        }
+      ]
+    }
+  ]
+}

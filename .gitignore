@@ -59,3 +59,6 @@ skills-lock.json
 !/.agents/skills/editor-youtube-packaging/
 !/.agents/skills/editor-sound-polish/
 !/.agents/skills/editor-motion-workflow/
+
+# Share the approved reusable course style, not local agent state.
+!/.agents/skills/course-it-style-1/

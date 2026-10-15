@@ -5,7 +5,7 @@ export const formats = ["tutorial", "interview", "story", "montage"] as const;
 export type Format = typeof formats[number];
 export const skillIds = ["editor-story-plan", "editor-pacing", "editor-visual-focus",
   "editor-audio-continuity", "editor-reference-learning", "editor-review", "editor-video-evidence",
-  "editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish", "editor-motion-workflow"] as const;
+  "editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish", "editor-motion-workflow", "course-it-style-1"] as const;
 export type SkillId = typeof skillIds[number];
 export const recommendationTasks = ["edit", "package", "evaluate"] as const;
 export type RecommendationTask = typeof recommendationTasks[number];
@@ -24,11 +24,13 @@ export const skills = [
   { id: skillIds[10], category: "packaging", purpose: "Create truthful titles, full descriptions, chapters and thumbnail concepts for the exact video and language; never publish." },
   { id: skillIds[11], category: "sound-polish", purpose: "Assess dialogue clarity and conservative sound treatment while preserving ambience and truthful listening coverage." },
   { id: skillIds[12], category: "motion", purpose: "Interpret reference captions or layered scenes, bind new footage/aligned words, and check actual renders against reference criteria." },
+  { id: "course-it-style-1" as const, category: "course-style", purpose: "Apply the explicitly selected Course IT Style 1 with persistent technical diagrams, source-bound narration and fresh output review." },
 ].map(skill => ({ ...skill, path: `.agents/skills/${skill.id}/SKILL.md`,
   readArgs: ["playbook", "skill", skill.id], maturity: "starter" as const }));
 
 // These are application-level routing relationships, not a native Codex graph feature.
 export const relationships: Array<{ from: SkillId; to: SkillId; type: "requires" | "verify_with" | "tension"; when: string }> = [
+  { from: 'course-it-style-1', to: 'editor-review', type: 'verify_with', when: 'Style approval does not approve a new lesson; inspect its actual content, timing and rendered output.' },
   { from: 'editor-motion-workflow', to: 'editor-reference-learning', type: 'requires', when: 'Keep reference interpretation attributed and candidate, separate from trusted instructions.' },
   { from: 'editor-motion-workflow', to: 'editor-video-evidence', type: 'requires', when: 'Inspect actual frame evidence; unavailable vision/audio stays explicit.' },
   { from: 'editor-motion-workflow', to: 'editor-review', type: 'verify_with', when: 'Inspect actual renders before correction or handoff.' },
@@ -67,6 +69,9 @@ export function recommend(format: Format, goal: string, hasReference = false, ta
     ["editor-review", "Check the plan and inspect the resulting preview."],
   ]);
   if (task === "edit") {
+    if (/\bcourse(?:\s+|-)+it(?:\s+|-)+style(?:\s+|-)+1\b/i.test(goal)) {
+      selected.set('course-it-style-1', 'Use the explicitly selected course style; adapt technical objects, claims and real narration cues to this lesson.');
+    }
     if (/\b(?:caption|text)\s+(?:animation|motion)\b|\banimat(?:e|ed|ing)\s+captions?\b|\bmotion\s+recip(?:e|es)\b|\breference.to.(?:motion|animation)\b|\b(?:reference|editing)\s+style\b|\blayered\s+(?:motion|scenes?)\b|\bword.by.word\b|\bscene\s+recip(?:e|es)\b/i.test(goal)) {
       selected.set('editor-motion-workflow', 'Select caption or layered-scene recipes and compare the actual render against explicit reference requirements.');
     }

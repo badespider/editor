@@ -158,3 +158,39 @@ node packages/editing-playbook/test/synthetic-preview.ts "new-synthetic-output-f
 ```
 
 The fixture covers a local silent OBS clip with a visible state change between adjacent original frames at 0.017 and 0.033 seconds. It is a timestamp-preservation regression, not a broad benchmark for dialogue, emotional storytelling or YouTube retention. Pure tests need no media/provider. Real preview checks additionally require FFmpeg/FFprobe and an explicitly supplied local source.
+
+## Course IT Style 1
+
+For this explicitly selected IT teaching style, read
+`.agents/skills/course-it-style-1/SKILL.md` and
+`demos/course-it-style-1-kit/README.md`. The kit contains design tokens, an
+editable USB authoring example, licensed runtime/font assets and an inspected
+contact sheet. It intentionally excludes private audio, source footage and
+rendered videos.
+
+After `npm run build --workspace=@diffusionstudio/cli`, agents can discover it
+without native skill support or a running editor:
+
+```sh
+node apps/cli/dist/index.js playbook skills
+node apps/cli/dist/index.js playbook skill course-it-style-1
+node apps/cli/dist/index.js playbook creative list
+node apps/cli/dist/index.js playbook creative show course-it-style-1@1
+```
+
+The read commands also accept `--repo <editor-checkout>`. The versioned creative
+entry includes its full instructions and implementation limits. For explicit
+composition planning, `playbook creative workflow` returns the request schema;
+`creative draft <request.json> -o <new-plan.json>` pins selected instruction
+fingerprints and refuses overwrites, and `creative check <plan.json>` validates
+timing and compatibility. These commands do not generate, render or approve
+videos and need no model API.
+
+Preserve the teaching language, not the example's USB labels or timings.
+Adapt the topic, geometry, claims and real narration cues in a separate project.
+The demonstrated implementation is landscape full-frame HyperFrames SVG/HTML
+with GSAP, not a universal generator or native motion-catalog recipe.
+Vertical layouts, overlays, camera composites and other renderers need new
+implementation and review. The archived generator expects authorized narration
+that is not included; do not run it in place or fill the gap with dummy audio.
+Style approval does not approve future content, exports or publishing.

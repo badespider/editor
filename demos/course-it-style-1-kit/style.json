@@ -1,0 +1,68 @@
+{
+  "schemaVersion": 1,
+  "id": "course-it-style-1",
+  "version": 1,
+  "name": "Course IT Style 1",
+  "approval": {
+    "scope": "visual style of the USB motion sample, not future outputs or audio review",
+    "date": "2026-10-12",
+    "userFeedback": "i like this style can u save it as course IT style 1 for example"
+  },
+  "canvas": { "width": 1920, "height": 1080, "fps": 30, "aspect": "landscape" },
+  "palette": {
+    "background": "#0B1728",
+    "foreground": "#F7F5EF",
+    "hardware": "#EFEBDD",
+    "accent": "#66DBEC",
+    "muted": "#A9BBC9"
+  },
+  "typography": {
+    "family": "Geist",
+    "weights": [400, 700],
+    "headlinePx": 72,
+    "specificationPx": 54,
+    "compactSpecificationPx": 42,
+    "bodyPx": 32,
+    "notePx": 36,
+    "objectLabelPx": 30,
+    "metadataPx": 24
+  },
+  "layout": {
+    "titleSafeFraction": 0.1,
+    "actionSafeFraction": 0.05,
+    "cornerRadiusPx": 8,
+    "outlineStrokePx": 3,
+    "routeStrokePx": 13,
+    "activeTraceStrokePx": 7,
+    "signalStrokePx": 10
+  },
+  "motionStartingRanges": {
+    "settleSeconds": [0.3, 0.8],
+    "explanatoryDrawSeconds": [1.2, 2.0],
+    "settleEasing": "power3.out",
+    "repositionEasing": "power2.inOut",
+    "flowEasing": "none",
+    "flowRepeat": "finite and narration-bound",
+    "holds": "reading time and complete meaning; not a compulsory movement quota"
+  },
+  "implementation": {
+    "renderer": "hyperframes",
+    "frameworkVersionAtApproval": "0.8.149",
+    "runtime": "SVG/HTML + GSAP 3.14.2",
+    "placement": "full-frame",
+    "parameterizedGenerator": false,
+    "nativeMotionCatalogAdapter": false,
+    "portraitVerified": false,
+    "remotionVerified": false,
+    "cameraCompositeVerified": false
+  },
+  "approvedExample": {
+    "projectId": "usb-motion-sample",
+    "durationSeconds": 121.4,
+    "generator": "approved-example/build.mjs",
+    "overview": "approved-example/contact-sheet.jpg",
+    "narrationIncluded": false,
+    "sourceFootageIncluded": false,
+    "finalCompositedExportReviewed": false
+  }
+}

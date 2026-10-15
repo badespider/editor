@@ -1,0 +1,4 @@
+interface:
+  display_name: "Course IT Style 1"
+  short_description: "Calm, causal diagrams for IT course videos"
+  default_prompt: "Use $course-it-style-1 to explain this IT lesson with narration-led technical diagrams."
