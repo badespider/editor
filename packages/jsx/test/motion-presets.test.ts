@@ -23,6 +23,41 @@ function invoke(method: keyof typeof motion, options?: unknown): unknown {
   return Reflect.apply(motion[method], undefined, [options]);
 }
 
+test("reveal protects an explicit reading hold at the exact canonical frame budget", () => {
+  const options = { duration: "20f", delay: "2f", enterDuration: "4f", exitDuration: "3f" } as const;
+  const result = motion.reveal({ ...options, minHold: "10f", direction: "left" });
+  const opacity = track(result, "opacity");
+  assert.deepEqual(frameNumbers(opacity), [0, 2, 6, 16, 19]);
+  assert.deepEqual(opacity.map(key => key.value), [0, 0, 1, 1, 0]);
+  assert.equal(opacity[2].easing, "linear");
+  assert.equal(opacity[3].easing, "easeIn");
+  assert.throws(() => motion.reveal({ ...options, minHold: "11f" }), /reading-hold has 10 frames but minHold requires 11/);
+  assert.throws(() => motion.reveal({ ...options, duration: "19f", minHold: "10f" }), /minHold requires 10/);
+  assert.deepEqual(motion.reveal({ ...options, minHold: 10 / 30 }), motion.reveal({ ...options, minHold: "10f" }));
+});
+
+test("minimum hold preserves existing default tracks and never removes the one-frame hold", () => {
+  assert.deepEqual(motion.reveal({ duration: 4 }), motion.reveal({ duration: 4, minHold: "1f" }));
+  const smallestDefault = motion.reveal({ duration: "25f" });
+  assert.deepEqual(frameNumbers(track(smallestDefault, "opacity")), [0, 3, 15, 16, 24]);
+  assert.throws(() => motion.reveal({ duration: "25f", minHold: "2f" }), /minHold/);
+  for (const minHold of [0, -.1, NaN, Infinity, null, false, ".001f", "0.1f", "bad", "1second"]) {
+    assert.throws(() => invoke("reveal", { duration: 4, minHold }), /minHold/);
+  }
+});
+
+test("reading hold and final frame travel exactly once with a trimmed media clock", () => {
+  const original = motion.reveal({ duration: "20f", delay: "2f", enterDuration: "4f", exitDuration: "3f", minHold: "10f", direction: "up" });
+  const baseline = structuredClone(original);
+  const shifted = motion.forClip({ sourceIn: "91f" }, original);
+  for (const property of Object.keys(original) as (keyof MotionPreset)[]) {
+    assert.deepEqual(frameNumbers(track(shifted, property)), [91, 93, 97, 107, 110]);
+    assert.deepEqual(track(shifted, property).map(key => key.value), track(original, property).map(key => key.value));
+  }
+  assert.equal(track(shifted, "opacity").at(-1)?.value, 0);
+  assert.deepEqual(original, baseline);
+});
+
 test("popIn is spreadable native opacity and uniform-scale motion", () => {
   const props: PatchProps = motion.popIn();
   assert.deepEqual(Object.keys(props).sort(), ["opacity", "scale"]);

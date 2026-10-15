@@ -49,7 +49,7 @@ const samples: { title: string; subtitle: string; preset: MotionPreset; label: s
   { title: "Slide + fade", subtitle: "Combine independent native tracks", preset: motion.combine(motion.slideIn({ direction: "left", distance: 96, duration: 0.7, delay: 0.2 }), motion.fadeIn({ duration: 0.7, delay: 0.2 })), label: "BACK OUTSIDE" },
   { title: "Slow zoom", subtitle: "A gentle eight-second push", preset: motion.slowZoom({ duration: 8, from: 1, to: 1.12 }), label: "TAKE IT IN" },
   { title: "Float", subtitle: "Smooth keyframes, repeatable on every seek", preset: motion.float({ duration: 8, distance: 18, cycles: 2 }), label: "SMALL DETAILS" },
-  { title: "Build / hold / resolve", subtitle: "Entrance, reading hold and a faster exit", preset: motion.reveal({ duration: 8, direction: "right", distance: 36 }), label: "LET THE IDEA LAND" },
+  { title: "Build / hold / resolve", subtitle: "Includes an authored three-second reading minimum", preset: motion.reveal({ duration: 8, minHold: 3, direction: "right", distance: 36 }), label: "LET THE IDEA LAND" },
   { title: "Fade out", subtitle: "Begins at a precise local time", preset: motion.fadeOut({ at: 5, duration: 1.2 }), label: "SEE YOU NEXT TIME" },
 ];
 

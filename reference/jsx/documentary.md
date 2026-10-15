@@ -35,7 +35,7 @@ export default function RouteStory() {
 }
 ```
 
-See [the complete example](../../examples/11-documentary-story.tsx) for all seven components.
+See [the complete example](../../examples/11-documentary-story.tsx) for all seven components in a 24-second **fictional mail-route case**. Its invented dispatch, route, timeline and conclusion tell the same story; real city coordinates do not make the fictional mail journey a historical claim.
 
 ## Shared card props
 
@@ -47,7 +47,7 @@ The six native components accept `DocumentaryProps`:
 | `start` | Parent-local placement, default `0`. |
 | `duration` | Visible duration, default `6` seconds. Does not estimate reading time. |
 | `end` | Absolute end on the parent's timeline; use **either** `end` **or** `duration`. |
-| `animate` | Default `true`: fade and a 24px entrance slide, up to 12 canonical frames. `false` is static. `ChapterCard` also grows its underline. There is no automatic exit animation. |
+| `animate` | Default `true`: fade and a 24px entrance slide, up to 12 canonical frames. `EvidenceCallout` fades **in place**, keeping the authored target pinned. `false` is static. `ChapterCard` also grows its underline. There is no automatic exit animation. |
 | `fontSize` | Base typography size, default `32`; individual labels scale from it. |
 | `theme` | Partial override of `DOCUMENTARY_THEME`; defaults are not mutated. |
 
@@ -64,7 +64,7 @@ Times accept the existing [time formats](./timing.md): numeric seconds, frame st
 | `SourceCard` | `title`, `source` | `detail`, `date`, `url` | `(1104, 96, 720, 520)` |
 | `QuoteCard` | `quote`, `attribution` | `source` | `(192, 224, 1536, 632)` |
 | `Timeline` | `events` | `title`, `activeIndex` | `(96, 230, 1728, 620)` |
-| `EvidenceCallout` | `target`, `label` | `detail`, `source`, `labelPosition` | `(0, 0, 1920, 1080)` |
+| `EvidenceCallout` | `target`, `label` | `detail`, `source`, `labelPosition`, `protectedAreas` | `(0, 0, 1920, 1080)` |
 
 All provenance, dates, URLs, quotations, and labels are caller-supplied text. Components do not retrieve sources, verify claims, detect subjects, or invent missing attribution. `SourceCard.url` is displayed text; it is not fetched.
 
@@ -72,17 +72,25 @@ All provenance, dates, URLs, quotations, and labels are caller-supplied text. Co
 
 ### Evidence label placement
 
-`target: {x, y, width, height}` uses coordinates **local to the callout's box** and must fit inside it. The callout draws an outline around that authored rectangle; it does not magnify or analyze the picture.
+`target: {x, y, width, height}` uses coordinates **local to the callout's box** and must fit inside it. The callout draws an outline around that authored rectangle; it does not magnify or analyze the picture. Its entrance changes opacity only, so the frame stays aligned with the supplied pixels from its first visible frame. This does not track a moving or separately animated source: the caller must supply matching target coordinates and timing.
 
-`labelPosition` accepts `"auto"` (default), `"above"`, `"below"`, `"left"`, or `"right"`. Auto tries above, then below. Explicit positions must fit without overlapping the target or they throw. The label panel is up to 680×240px with a 16px gap; side placements center vertically and clamp to the component bounds. Placement only protects the target, so review overlap with other scene content.
+`labelPosition` accepts `"auto"` (default), `"above"`, `"below"`, `"left"`, or `"right"`. Auto tries **above → below → right → left**. Each candidate must fit without overlapping the target or any `protectedAreas`; an explicit side fails on collision rather than silently moving elsewhere. If no candidate works, enlarge the available box, revise the authored layout or choose another shot. The label panel is up to 680×240px with a 16px gap; side placements center vertically and clamp to the component bounds.
+
+`protectedAreas` is an optional readonly array of at most 64 complete `{x, y, width, height}` rectangles in the **same local coordinate system**. Every rectangle must have finite coordinates, positive size and fit the callout box; missing/inherited array entries are rejected. Use them for source identity, dates, URLs, surrounding command output or another essential action. They reserve space from the **label panel**; they do not crop, hide, detect or reposition the underlying content. Caller input is not mutated. The target outline can still mark a rectangle within protected context. Boundary contact is allowed, so author a margin if needed.
 
 ```tsx
 <EvidenceCallout start={2} duration={4}
-  target={{ x: 250, y: 608, width: 970, height: 165 }}
+  target={{ x: 160, y: 606, width: 1000, height: 170 }}
+  protectedAreas={[
+    { x: 170, y: 275, width: 980, height: 320 }, // Source title and identity.
+    { x: 170, y: 780, width: 980, height: 130 }, // Provenance footer.
+  ]}
   labelPosition="right" label="Authored annotation"
   detail="State what matters."
   source="Source record ID" />
 ```
+
+Keep a wider context view long enough to establish the source before the annotation appears. Inspect the **actual editor render** at the first visible entrance frame, during the fade and after settling, plus any source/target movement. Check target alignment and essential text at the delivery size; successful placement validation does not establish readability, source truth or sufficient reading time.
 
 ### Text limits
 

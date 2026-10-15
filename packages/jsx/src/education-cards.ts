@@ -21,6 +21,8 @@ export type CodeWalkthroughProps = EducationProps & {
   title: string; lines: readonly string[];
   /** One-based line numbers. Only changes emphasis; code is never executed. */
   highlightedLines?: readonly number[]; note?: string;
+  /** One-based last visible line; omitted shows all. Hidden lines still validate and retain their rows. */
+  visibleThroughLine?: number;
 };
 export type QuizCardProps = EducationProps & {
   question: string; choices: readonly string[];
@@ -102,6 +104,7 @@ function codeLine(value: string, index: number, width: number, height: number, f
 }
 
 export function CodeWalkthrough(props: CodeWalkthroughProps): JSX.Element {
+  const visibleThroughLine = createMemo(() => props.visibleThroughLine);
   const highlightedLines = createMemo<readonly number[]>(() => {
     const input = props.highlightedLines;
     if (input === undefined) return [];
@@ -116,6 +119,8 @@ export function CodeWalkthrough(props: CodeWalkthroughProps): JSX.Element {
   }, [], {equals: (previous, next) => previous.length === next.length && previous.every((value, index) => value === next[index])});
   return educationComponent("CodeWalkthrough", props, DEFAULT_BOX, (l, t) => {
     const lines = completeArray(props.lines, 1, 10, "CodeWalkthrough.lines"), highlights = highlightedLines();
+    const suppliedLimit = visibleThroughLine();
+    const lastVisibleLine = suppliedLimit === undefined ? lines.length : indexIn(suppliedLimit, lines.length, "visibleThroughLine", true);
     const selected = new Set<number>();
     for (const number of highlights) {
       indexIn(number, lines.length, "highlightedLines entry", true);
@@ -128,6 +133,7 @@ export function CodeWalkthrough(props: CodeWalkthroughProps): JSX.Element {
     lines.forEach((line, index) => {
       const y = l.height * .24 + index * row, height = row * .76;
       const literal = codeLine(line, index, textWidth, height, font), emphasized = selected.has(index + 1);
+      if (index + 1 > lastVisibleLine) return;
       nodes.push(eduRect(`Code line ${index + 1} panel`, {x: p, y, width, height: row * .92}, emphasized ? t.surface : t.background, l.frames));
       if (emphasized) nodes.push(eduRect(`Code line ${index + 1} marker`, {x: p, y, width: 4, height: row * .92}, t.accent, l.frames));
       nodes.push(eduText(`Code line ${index + 1} number`, String(index + 1), {x: p + 12, y: y + row * .12, width: gutter - 20, height}, l.font * .7, t, l.frames, emphasized ? t.accent : t.muted, false, {fontFamily: t.monoFamily}));

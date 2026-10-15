@@ -64,6 +64,8 @@ export type RevealOptions = {
   exitDuration?: Time;
   /** Defaults to 3 frames, so the first motion does not jump at the cut. */
   delay?: Time;
+  /** Author-chosen minimum still reading hold, rounded to frames. Positive; default 1 frame. */
+  minHold?: Time;
   /** Entry edge, as in slideIn; exit continues in the same travel direction. */
   direction?: "left" | "right" | "up" | "down" | "none";
   /** Entry excursion; the exit travels 65% as far. Default 24px; zero is valid. */
@@ -203,8 +205,10 @@ function reveal(options: RevealOptions): MotionPreset {
   const enter = frames(options.enterDuration ?? "12f", "enterDuration");
   const exit = frames(options.exitDuration ?? "8f", "exitDuration");
   const delay = frames(options.delay ?? "3f", "delay", true);
+  const minHold = frames(options.minHold === undefined ? "1f" : options.minHold, "minHold");
   const last = duration - 1, entered = delay + enter, leaving = last - exit;
   if (!Number.isSafeInteger(entered) || leaving <= entered) throw new RangeError("motion.reveal needs a full reading-hold frame between entrance and exit; increase duration or shorten delay/enterDuration/exitDuration");
+  if (leaving - entered < minHold) throw new RangeError(`motion.reveal reading-hold has ${leaving - entered} frames but minHold requires ${minHold}; increase duration or shorten delay/enterDuration/exitDuration`);
   const direction = options.direction ?? "down";
   if (!["left", "right", "up", "down", "none"].includes(direction)) throw new RangeError("direction must be left, right, up, down or none");
   const distance = positive(options.distance ?? 24, "distance", 0);

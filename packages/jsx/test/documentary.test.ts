@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createSignal } from "solid-js";
 import { ChapterCard, LowerThird, SourceCard, QuoteCard, Timeline, EvidenceCallout, DOCUMENTARY_THEME, wrapDocumentaryText } from "../src/documentary";
+import type { EvidenceTarget } from "../src/documentary";
 import { renderProject } from "../src/renderer";
 import type { ProjectDocument } from "../src/document";
 import type { JSX } from "solid-js";
@@ -169,6 +170,123 @@ test("callout explicit side placements fit the box and preserve the authored tar
   assert.throws(() => mount(() => EvidenceCallout({target: {x: 800, y: 100, width: 800, height: 200}, label: "Note", labelPosition: "right"})), /labelPosition right/);
   assert.throws(() => mount(() => EvidenceCallout({target: {x: 100, y: 100, width: 100, height: 100}, label: "Note", labelPosition: "above"})), /labelPosition above/);
   assert.throws(() => mount(() => Reflect.apply(EvidenceCallout, undefined, [{target: {x: 100, y: 100, width: 100, height: 100}, label: "Note", labelPosition: "diagonal"}])), /labelPosition must/);
+});
+
+test("animated callout stays pinned through its entire entrance while other cards retain their slide", () => {
+  const target = {x: 700, y: 420, width: 320, height: 200};
+  const {stage, dispose} = mount(() => EvidenceCallout({x: 30, y: 40, start: 2, target, label: "Fixed evidence"}));
+  const root = stage.children[0];
+  assert.equal(root.props.offsetY, 0, "no animated ancestor translation can move the authored rectangle");
+  assert.equal(root.props.x, 30); assert.equal(root.props.y, 40);
+  assert.deepEqual(root.props.opacity, [{time: "0f", value: 0, easing: "easeOut"}, {time: "12f", value: 1}]);
+  for (const localFrame of [0, 1, 6, 12, 90, 179]) {
+    assert.equal(root.props.offsetY, 0, `entrance/hold frame ${localFrame}`);
+    assert.equal(named(stage, "Evidence top edge").props.y + root.props.y + root.props.offsetY, target.y + 40);
+    assert.equal(named(stage, "Evidence right edge").props.x + named(stage, "Evidence right edge").props.width, target.x + target.width);
+  }
+  dispose();
+  const card = mount(() => SourceCard({title: "Record", source: "Caller supplied source"}));
+  assert.deepEqual(card.stage.children[0].props.offsetY, [{time: "0f", value: 24, easing: "easeOut"}, {time: "12f", value: 0}]);
+  card.dispose();
+});
+
+test("callout auto placement tries every side without covering protected context", () => {
+  const target = Object.freeze({x: 800, y: 400, width: 280, height: 180});
+  const blocks = Object.freeze([
+    Object.freeze({x: 800, y: 144, width: 100, height: 100}),
+    Object.freeze({x: 800, y: 700, width: 100, height: 100}),
+    Object.freeze({x: 1500, y: 400, width: 100, height: 100}),
+    Object.freeze({x: 200, y: 400, width: 100, height: 100}),
+  ]);
+  const expected = [[800, 144], [800, 596], [1096, 370], [104, 370]];
+  for (let count = 0; count < 4; count++) {
+    const protectedAreas = Object.freeze(blocks.slice(0, count));
+    const {stage, dispose} = mount(() => EvidenceCallout({target, label: "Visible clue", protectedAreas}));
+    const panel = named(stage, "Evidence label panel").props;
+    assert.deepEqual([panel.x, panel.y], expected[count]);
+    for (const area of protectedAreas) assert.ok(panel.x + panel.width <= area.x || panel.x >= area.x + area.width || panel.y + panel.height <= area.y || panel.y >= area.y + area.height);
+    assert.deepEqual(protectedAreas, blocks.slice(0, count), "authored readonly geometry remains untouched");
+    dispose();
+  }
+  assert.throws(() => mount(() => EvidenceCallout({target, label: "Clue", protectedAreas: blocks})), /needs room.*protected areas/);
+  const tall = mount(() => EvidenceCallout({target: {x: 1500, y: 90, width: 280, height: 900}, label: "Side only"}));
+  assert.equal(named(tall.stage, "Evidence label panel").props.x, 804, "auto also tests left when vertical/right sides cannot fit");
+  tall.dispose();
+});
+
+test("explicit callout positions reject protected context collisions but allow exact boundary contact", () => {
+  const target = {x: 800, y: 400, width: 280, height: 180};
+  const placements = {
+    above: {x: 800, y: 144, width: 680, height: 240}, below: {x: 800, y: 596, width: 680, height: 240},
+    right: {x: 1096, y: 370, width: 680, height: 240}, left: {x: 104, y: 370, width: 680, height: 240},
+  };
+  for (const position of ["above", "below", "right", "left"] as const) {
+    assert.throws(() => mount(() => EvidenceCallout({target, label: "Clue", labelPosition: position, protectedAreas: [placements[position]]})), new RegExp(`labelPosition ${position}.*protected areas`));
+  }
+  const touching = mount(() => EvidenceCallout({target, label: "Clue", labelPosition: "above", protectedAreas: [{x: 1480, y: 144, width: 100, height: 240}]}));
+  assert.equal(named(touching.stage, "Evidence label panel").props.x, 800); touching.dispose();
+});
+
+test("protected callout areas require complete own array indices and finite in-bounds rectangles", () => {
+  const valid = {x: 0, y: 0, width: 100, height: 100};
+  const sparse = new Array(2); sparse[1] = valid;
+  Object.assign(sparse, {extra: valid});
+  const inherited = new Array(1); Object.setPrototypeOf(inherited, {0: valid});
+  const invalid: unknown[] = [null, {}, sparse, inherited, [undefined], [null], Array(65).fill(valid),
+    [{...valid, x: NaN}], [{...valid, y: Infinity}], [{...valid, x: -1}], [{...valid, width: 0}],
+    [{...valid, height: -1}], [{...valid, x: 1850}], [{...valid, y: 1000}]];
+  for (const protectedAreas of invalid) {
+    assert.throws(() => mount(() => Reflect.apply(EvidenceCallout, undefined, [{target: {x: 800, y: 400, width: 280, height: 180}, label: "Note", protectedAreas}])), /protectedAreas/);
+  }
+  assert.throws(() => mount(() => EvidenceCallout({width: 1000, height: 700, target: {x: 200, y: 300, width: 100, height: 100}, label: "Note", protectedAreas: [{x: 1000, y: 0, width: 1, height: 1}]})), /local box/);
+});
+
+test("callout placement follows reactive authored target and protected areas without moving its ancestor", () => {
+  const [target, setTarget] = createSignal({x: 800, y: 400, width: 280, height: 180});
+  const [areas, setAreas] = createSignal<readonly EvidenceTarget[]>([]);
+  const {stage, dispose} = mount(() => EvidenceCallout({label: "Authored clue", get target() { return target(); }, get protectedAreas() { return areas(); }}));
+  assert.equal(named(stage, "Evidence label panel").props.y, 144);
+  setAreas([{x: 800, y: 144, width: 680, height: 240}]);
+  assert.equal(named(stage, "Evidence label panel").props.y, 596);
+  setTarget({x: 600, y: 300, width: 280, height: 100});
+  assert.equal(named(stage, "Evidence top edge").props.x, 600);
+  assert.equal(named(stage, "Evidence top edge").props.y, 300);
+  assert.equal(named(stage, "Evidence label panel").props.y, 416);
+  assert.equal(stage.children[0].props.offsetY, 0);
+  setAreas([]); assert.equal(named(stage, "Evidence label panel").props.y, 44);
+  dispose();
+});
+
+test("fictional dispatch callout leaves its identity and source footer visible", () => {
+  const protectedAreas = [{x: 170, y: 275, width: 980, height: 320}, {x: 170, y: 780, width: 980, height: 130}, {x: 72, y: 1026, width: 1776, height: 30}];
+  const source = mount(() => SourceCard({x: 120, y: 180, width: 1080, height: 740, fontSize: 42, title: "MAIL DISPATCH 014", source: "Fictional dispatch / demo text", detail: "Direct service suspended.\nRedirect mail via Lisbon.", date: "Not a historical record"}));
+  assert.equal(content(named(source.stage, "Source provenance")).replace(/\n/g, " "), "Fictional dispatch / demo text");
+  assert.equal(content(named(source.stage, "Source detail")), "Direct service suspended.\nRedirect mail via Lisbon.");
+  assert.equal(content(named(source.stage, "Source date and URL")), "Not a historical record"); source.dispose();
+  const callout = mount(() => EvidenceCallout({start: 10.2, end: 15, fontSize: 25, target: {x: 160, y: 606, width: 1000, height: 170}, labelPosition: "right", label: "SERVICE SUSPENDED", detail: "Mail is redirected via Lisbon.", source: "Fictional dispatch 014", protectedAreas}));
+  const panel = named(callout.stage, "Evidence label panel").props;
+  assert.deepEqual([panel.x, panel.y], [1176, 571]);
+  for (const area of protectedAreas) assert.ok(panel.x >= area.x + area.width || panel.y >= area.y + area.height || panel.x + panel.width <= area.x || panel.y + panel.height <= area.y);
+  assert.equal(callout.stage.children[0].props.offsetY, 0); callout.dispose();
+});
+
+test("fictional story cards retain their complete authored thought within explicit line budgets", () => {
+  const cards = [
+    () => ChapterCard({x: 0, y: 0, width: 1920, height: 1000, start: 0, end: 3, fontSize: 38, chapter: "FICTIONAL CASE / 01", title: "Why the detour?", subtitle: "A fictional letter bound for London."}),
+    () => LowerThird({x: 120, y: 760, width: 1090, height: 144, start: 3.6, end: 8.7, fontSize: 22, name: "NEW YORK → LISBON → LONDON", role: "Fictional itinerary", source: "Illustration / no historical claim"}),
+    () => Timeline({x: 96, y: 180, width: 1728, height: 730, start: 15, end: 20, fontSize: 35, title: "The detour, in order.", events: [
+      {date: "01 / NEW YORK", title: "Direct link stops.", detail: "Service suspended."},
+      {date: "02 / LISBON", title: "Mail is rerouted.", detail: "The detour point."},
+      {date: "03 / LONDON", title: "Same destination.", detail: "A new path."},
+    ]}),
+    () => QuoteCard({x: 160, y: 190, width: 1600, height: 710, start: 20, end: 24, fontSize: 38, quote: "Direct service stopped.\nLisbon became the detour.", attribution: "Conclusion of the fictional case", source: "Invented dispatch 014 / illustrative itinerary"}),
+  ];
+  for (const card of cards) {
+    const {stage, dispose} = mount(card);
+    assert.ok(all(stage).some(node => node.tag === "Text"));
+    for (const node of all(stage).filter(node => node.tag === "Text")) assert.ok(content(node).trim().length > 0);
+    dispose();
+  }
 });
 
 test("invalid geometry, timing, missing provenance and impossible callout placement fail clearly", () => {

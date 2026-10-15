@@ -148,9 +148,20 @@ must be at least one full hold frame. The last key is `durationFrames − 1`, so
 the last visible frame is fully transparent. Apply `motion.forClip` as usual
 when a media source is trimmed.
 
+Set `minHold` to protect an author-chosen still reading interval. It is a
+positive `Time` rounded to canonical 30 fps frames, with a one-frame default
+that preserves existing behavior. The available hold is the interval from
+the settled entrance key to the exit-start key:
+`durationFrames - 1 - delayFrames - enterFrames - exitFrames`.
+If that interval is shorter than `minHold`, `reveal` rejects rather than
+extending the element or silently shortening its reading time. Choose it
+from the actual text, delivery size and audience; no words-per-second rule
+or reading-time estimate is inferred. `motion.forClip` preserves this hold
+when shifting the keys onto a trimmed source clock.
+
 ```tsx
 <text start={0} end={4} fontSize={72}
-  {...motion.reveal({ duration: 4, direction: "left", distance: 32 })}>
+  {...motion.reveal({ duration: 4, minHold: 2, direction: "left", distance: 32 })}>
   Let the idea land.
 </text>
 ```

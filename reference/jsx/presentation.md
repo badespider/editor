@@ -1,5 +1,9 @@
 # Presentation presets and craft
 
+Use [the editor's editing guidance](./editor-guidance.md) to choose these tools
+for a beat's purpose, protect source context, author reading holds and review
+the delivered result.
+
 The existing native components work with two additional opt-in palettes:
 
 ```tsx

@@ -69,7 +69,7 @@ The kit does not automatically reflow a landscape design. Choose boxes, text len
 </rect>
 ```
 
-Use an explicit box for each subsequent tool too; a portrait quiz can start with `fontSize={28}` and short choices. Review text and diagram labels at the final mobile size.
+Use an explicit box for each subsequent tool too. The portrait example uses base `fontSize={48}`, short headings, and a three-second revealed-answer hold. Check actual text at the intended phone display size; fitting the canvas does not establish mobile readability.
 
 See [the portrait lesson and quiz example](../../examples/13-education-portrait.tsx) for a complete 1080×1920 scene with explicit mobile geometry.
 
@@ -79,18 +79,23 @@ See [the portrait lesson and quiz example](../../examples/13-education-portrait.
 | --- | --- | --- |
 | `LessonCard` | `title`, `body` | `eyebrow`, `footer`. Prose can include paragraph breaks. |
 | `WorkedExample` | `title`, `steps` | 1–4 `{label, expression, explanation?}` steps. `activeStep` is zero-based, default `0`; a reactive value changes emphasis. `revealThroughActive={true}` hides future rows until that step, preserving their positions and reversing correctly. Default `false` keeps all rows visible. Expressions are authored monospace text, not evaluated. |
-| `CodeWalkthrough` | `title`, `lines` | 1–10 literal strings. `highlightedLines` is a complete array of distinct **one-based** line numbers, default empty. Optional `note`. |
+| `CodeWalkthrough` | `title`, `lines` | 1–10 literal strings. `highlightedLines` is a complete array of distinct **one-based** line numbers, default empty. Optional one-based `visibleThroughLine` reveals rows through that line; omitted shows all. Optional `note`. |
 | `QuizCard` | `question`, `choices` | 2–4 nonempty choice strings. Optional zero-based `answerIndex` reveals an “Answer” label and optional `explanation`; omitted/`undefined` hides both. No input handling or automatic grading. |
 
 Array entries must be complete; sparse arrays and out-of-range indices fail validation. These inputs can be reactive, as in the timed quiz example.
 
 `CodeWalkthrough` keeps leading/trailing spaces, tabs, and empty rows in the literal editable text. It uses `theme.monoFamily`. Each array entry is exactly one line: embedded line breaks/control characters and lines that cannot fit are rejected, never auto-wrapped. The conservative width budget treats tabs as four-column tab stops; actual glyph rendering still depends on the chosen font. Code is displayed, never executed or syntax-highlighted automatically.
 
+`visibleThroughLine` accepts an integer from 1 through the complete line count. Future text, numbers, and highlight markers are absent from the native tree; their authored row positions remain reserved. All hidden lines still validate for literal content and fit before rendering, so a later reveal cannot expose an unchecked oversized line. A reactive limit works in both directions. Unchanged semantic selections preserve native entities across clock ticks. Label any supplied output as **authored expected output**, not an observed execution result.
+
 ```tsx
 <CodeWalkthrough title="Read the function" duration={5}
   lines={["def double(value):", "    return 2 * value", "", "result = double(3)"]}
-  highlightedLines={[2]} note="Literal Python text / no execution" />
+  visibleThroughLine={2} highlightedLines={[2]}
+  note="Literal Python text / no execution" />
 ```
+
+See [the coherent force lesson](../../examples/15-editor-guided-lesson.tsx) for prerequisite → relationship → worked calculation → vector → staged code → check. It applies the editor's own story-plan, pacing, visual-focus, and review guidance to one authored problem. The eight-tool example remains a gallery.
 
 ## `EquationCard`
 

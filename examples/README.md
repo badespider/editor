@@ -20,6 +20,8 @@ identity, so re-mounting an example replaces its scene in place.
 | [12-education-kit.tsx](12-education-kit.tsx) | `dapi mount examples/12-education-kit.tsx` | editable math, worked steps, plots, force vectors, network flows, literal code and an authored quiz reveal |
 | [13-education-portrait.tsx](13-education-portrait.tsx) | `dapi mount examples/13-education-portrait.tsx` | 9:16 lesson and quiz cards with explicit mobile layout |
 | [14-curated-looks.tsx](14-curated-looks.tsx) | `dapi mount examples/14-curated-looks.tsx` | large original/processed comparisons of four curated native look presets |
+| [15-editor-guided-lesson.tsx](15-editor-guided-lesson.tsx) | `dapi mount examples/15-editor-guided-lesson.tsx` | one force lesson preserving prerequisite, calculation, units, staged code and supplied proof |
+| [16-editor-looks.tsx](16-editor-looks.tsx) | `dapi mount examples/16-editor-looks.tsx` | four looks compared on the same authored code/diagram fixture at delivery size |
 
 Requirements: `02-genai.tsx` consumes generation credits (results are cached per session);
 `01-basics.tsx`, `06-three.tsx`, and `08-shader-paint.tsx` fetch remote media.

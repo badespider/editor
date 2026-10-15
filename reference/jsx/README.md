@@ -23,6 +23,7 @@ The pipeline is driven by two commands: [`dapi mount`](../mount.md) renders the 
 | [shader-paint.md](./shader-paint.md) | `<shaderPaint>`: a WGSL fragment shader over the media paint below it |
 | [effects.md](./effects.md) | reusable native effects, film looks and editable motion presets |
 | [presentation.md](./presentation.md) | curated themes, complete motion beats and readable documentary/teaching layouts |
+| [editor-guidance.md](./editor-guidance.md) | apply the editor's story, pacing, visual-focus and review skills to the native library |
 | [documentary.md](./documentary.md) | editable documentary cards, timelines, evidence callouts and local geographic route maps |
 | [education.md](./education.md) | lessons, native equations, worked examples, code, quizzes and math/physics/IT diagrams |
 | [media.md](./media.md) | `src` resolution (paths, URLs, asset ids, `AssetRef`) |

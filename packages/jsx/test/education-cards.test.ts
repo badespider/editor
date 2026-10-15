@@ -121,6 +121,46 @@ test("code highlighting uses one-based reactive line numbers and supports ten li
   assert.ok(named(stage, "Code line 10 marker")); dispose();
 });
 
+test("code reveals authored lines without exposing future output or moving the complete layout", () => {
+  const lines = Object.freeze(["def force(m, a):", "    return m * a  ", "", "force(2, 3)", "# AUTHORED EXPECTED: 6 N"]);
+  const baseline = mount(() => CodeWalkthrough({title: "Read, then apply", lines, highlightedLines: [5]}));
+  const fullPositions = lines.map((_, index) => {
+    const line = named(baseline.stage, `Code line ${index + 1}`).props;
+    return [line.x, line.y, line.width, line.height];
+  });
+  assert.ok(named(baseline.stage, "Code line 5"), "omitted limit keeps all legacy lines visible"); baseline.dispose();
+  const [limit, setLimit] = createSignal<number | undefined>(2);
+  const {stage, dispose} = mount(() => CodeWalkthrough({title: "Read, then apply", lines, highlightedLines: [5], get visibleThroughLine() { return limit(); }}));
+  assert.doesNotMatch(content(stage), /AUTHORED EXPECTED/);
+  assert.equal(content(named(stage, "Code line 2")), "    return m * a  ");
+  assert.equal(all(stage).some(node => node.props.name === "Code line 5 marker"), false);
+  for (const value of [4, 5, 1, 3, undefined, 2]) {
+    setLimit(value);
+    const count = value ?? lines.length;
+    assert.equal(all(stage).filter(node => /^Code line \d+$/.test(node.props.name ?? "")).length, count);
+    for (let index = 0; index < count; index++) {
+      const line = named(stage, `Code line ${index + 1}`).props;
+      assert.deepEqual([line.x, line.y, line.width, line.height], fullPositions[index]);
+      assert.ok(Number.isFinite(line.x) && Number.isFinite(line.y) && line.width > 0 && line.height > 0);
+    }
+    if (count < lines.length) assert.doesNotMatch(content(stage), /AUTHORED EXPECTED/);
+  }
+  dispose();
+});
+
+test("code validates hidden lines, indices and full-row fit before a later reveal", () => {
+  for (const visibleThroughLine of [0, -1, 3, 1.5, NaN, Infinity, null, "1"]) {
+    assert.throws(() => mount(untyped(CodeWalkthrough, {title: "Title", lines: ["first", "second"], visibleThroughLine})), /visibleThroughLine/);
+  }
+  assert.throws(() => mount(() => CodeWalkthrough({title: "Title", lines: ["first", "hidden\nline"], visibleThroughLine: 1})), /Code line 2 must be a literal single line/);
+  assert.throws(() => mount(() => CodeWalkthrough({title: "Title", lines: ["first", "x".repeat(200)], visibleThroughLine: 1})), /Code line 2 does not fit/);
+  assert.throws(() => mount(() => CodeWalkthrough({title: "Title", lines: ["first", "\t".repeat(100)], visibleThroughLine: 1})), /Code line 2 does not fit/);
+  const [lines, setLines] = createSignal<readonly string[]>(["first", "second"]);
+  const {dispose} = mount(() => CodeWalkthrough({title: "Changing line count", get lines() { return lines(); }, visibleThroughLine: 2}));
+  assert.throws(() => setLines(["first"]), /visibleThroughLine/);
+  dispose();
+});
+
 test("quiz keeps answers and explanation hidden until the authored index is revealed", () => {
   const [answer, setAnswer] = createSignal<number | undefined>();
   const {stage, dispose} = mount(() => QuizCard({question: "Choose the authored answer.", choices: ["First", "Second"], explanation: "Caller explanation.", get answerIndex() { return answer(); }}));
@@ -139,6 +179,7 @@ test("clock-driven selections preserve native entity identity until the semantic
     (time: () => number) => WorkedExample({title: "Stable steps", steps, get activeStep() { return time() < 10 ? 0 : 1; }}),
     (time: () => number) => WorkedExample({title: "Stable progressive steps", steps, revealThroughActive: true, get activeStep() { return time() < 10 ? 0 : 1; }}),
     (time: () => number) => CodeWalkthrough({title: "Stable code", lines: ["first();", "second();", "third();"], get highlightedLines() { return time() < 10 ? (Math.floor(time()) % 2 ? [2, 1] : [1, 2]) : [3]; }}),
+    (time: () => number) => CodeWalkthrough({title: "Stable staged code", lines: ["first();", "second();", "third();"], get visibleThroughLine() { return time() < 10 ? 1 : 3; }}),
     (time: () => number) => QuizCard({question: "Stable question", choices: ["First", "Second"], get answerIndex() { return time() < 10 ? undefined : 1; }}),
   ];
   for (const example of cases) {

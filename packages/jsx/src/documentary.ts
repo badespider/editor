@@ -24,7 +24,7 @@ export type DocumentaryProps = {
   /** Default 6 seconds. Does not infer reading time from the supplied text. */
   duration?: Time;
   theme?: Partial<DocumentaryTheme>;
-  /** Default true: a short native fade/slide. False makes a static card. */
+  /** Default true: a short native fade/slide; EvidenceCallout fades in place. False is static. */
   animate?: boolean;
   /** Base typography in composition pixels, default 32. */
   fontSize?: number;
@@ -38,8 +38,10 @@ export type TimelineProps = DocumentaryProps & { events: readonly TimelineEvent[
 export type EvidenceTarget = { x: number; y: number; width: number; height: number };
 export type EvidenceCalloutProps = DocumentaryProps & {
   target: EvidenceTarget; label: string; detail?: string; source?: string;
-  /** Auto prefers above, then below. Explicit positions must fit without covering the target. */
+  /** Auto tries above, below, right, left. All positions preserve the target and protected areas. */
   labelPosition?: "auto" | "above" | "below" | "left" | "right";
+  /** Up to 64 complete, caller-authored context/provenance rectangles in callout-local pixels. */
+  protectedAreas?: readonly EvidenceTarget[];
 };
 
 type Layout = { x: number; y: number; width: number; height: number; start: number; end: number; frames: number; font: number; intro: number };
@@ -121,13 +123,13 @@ function label(name: string, value: string, box: Box, font: number, theme: Docum
   const wrapped = wrapDocumentaryText(value, {width: box.width, fontSize: font, maxLines: Math.floor(box.height / (font * 1.35)), label: name});
   return Text({name, ...box, fontFamily: theme.fontFamily, fontSize: font, fontWeight: bold ? 700 : 400, fill: color, start: "0f", end: ft(frames), children: wrapped});
 }
-function component(name: string, props: DocumentaryProps, defaults: Box, build: (l: Layout, t: DocumentaryTheme) => JSX.Element[]): JSX.Element {
+function component(name: string, props: DocumentaryProps, defaults: Box, build: (l: Layout, t: DocumentaryTheme) => JSX.Element[], introMotion: "slide" | "fade" = "slide"): JSX.Element {
   const l = createMemo(() => layout(props, defaults)), t = createMemo(() => palette(props.theme));
   return Group({name,
     get x() { return l().x; }, get y() { return l().y; }, get width() { return l().width; }, get height() { return l().height; },
     get start() { return ft(l().start); }, get end() { return ft(l().end); },
     get opacity() { return props.animate === false || !l().intro ? 1 : motion.fadeIn({duration: ft(l().intro)}).opacity; },
-    get offsetY() { return props.animate === false || !l().intro ? 0 : motion.slideIn({direction: "down", distance: 24, duration: ft(l().intro)}).offsetY; },
+    get offsetY() { return introMotion === "fade" || props.animate === false || !l().intro ? 0 : motion.slideIn({direction: "down", distance: 24, duration: ft(l().intro)}).offsetY; },
     get children() { return build(l(), t()); },
   });
 }
@@ -200,40 +202,44 @@ export function Timeline(props: TimelineProps): JSX.Element {
   });
 }
 
-/** Authored rectangle overlay; coordinates are supplied by the caller, not detected. */
+function evidenceBox(value: EvidenceTarget, name: string, layout: Layout): Box {
+  if (!value || typeof value !== "object" || Array.isArray(value)) throw new TypeError(`${name} must be an authored rectangle`);
+  const box = {x: finite(value.x, `${name}.x`), y: finite(value.y, `${name}.y`), width: positive(value.width, `${name}.width`), height: positive(value.height, `${name}.height`)};
+  if (box.x < 0 || box.y < 0 || box.x + box.width > layout.width || box.y + box.height > layout.height) throw new RangeError(`${name} must fit within the component's local box`);
+  return box;
+}
+function intersect(a: Box, b: Box): boolean {
+  return a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
+}
+
+/** Authored rectangle overlay; its frame stays pinned throughout the fade. No subject detection. */
 export function EvidenceCallout(props: EvidenceCalloutProps): JSX.Element {
   return component("EvidenceCallout", props, {x: 0, y: 0, width: 1920, height: 1080}, (l, t) => {
-    const target = props.target;
-    if (!target || typeof target !== "object") throw new TypeError("EvidenceCallout requires an authored target rectangle");
-    finite(target.x, "target.x"); finite(target.y, "target.y"); positive(target.width, "target.width"); positive(target.height, "target.height");
-    if (target.x < 0 || target.y < 0 || target.x + target.width > l.width || target.y + target.height > l.height) throw new RangeError("Evidence target must fit within the component's local box");
+    const target = evidenceBox(props.target, "Evidence target", l);
+    const areas = props.protectedAreas === undefined ? [] : props.protectedAreas;
+    if (!Array.isArray(areas) || areas.length > 64 || Array.from({length: areas.length}, (_, index) => index).some(index => !Object.hasOwn(areas, index))) throw new RangeError("EvidenceCallout.protectedAreas must be a complete array of at most 64 local rectangles");
+    const protectedAreas = Array.from(areas, (area, index) => evidenceBox(area, `EvidenceCallout.protectedAreas[${index}]`, l));
     const stroke = Math.min(5, target.width / 2, target.height / 2), panelWidth = Math.min(680, l.width), panelHeight = Math.min(240, l.height);
-    let x = Math.min(target.x, l.width - panelWidth);
+    const alignedX = Math.min(target.x, l.width - panelWidth);
     const above = target.y - panelHeight - 16, below = target.y + target.height + 16;
     const position = props.labelPosition ?? "auto";
-    let y: number;
-    switch (position) {
-      case "auto": y = above >= 0 ? above : below + panelHeight <= l.height ? below : -1; break;
-      case "above": y = above; break;
-      case "below": y = below; break;
-      case "right":
-        x = target.x + target.width + 16;
-        y = Math.max(0, Math.min(l.height - panelHeight, target.y + (target.height - panelHeight) / 2));
-        break;
-      case "left":
-        x = target.x - panelWidth - 16;
-        y = Math.max(0, Math.min(l.height - panelHeight, target.y + (target.height - panelHeight) / 2));
-        break;
-      default: throw new RangeError("labelPosition must be auto, above, below, left, or right");
-    }
-    const fits = x >= 0 && y >= 0 && x + panelWidth <= l.width && y + panelHeight <= l.height;
-    const overlaps = x < target.x + target.width && x + panelWidth > target.x && y < target.y + target.height && y + panelHeight > target.y;
-    if (!fits || overlaps) throw new RangeError(`EvidenceCallout needs room for labelPosition ${position} without covering the target; enlarge the box, move the target or choose another position`);
+    if (!["auto", "above", "below", "right", "left"].includes(position)) throw new RangeError("labelPosition must be auto, above, below, left, or right");
+    const sideY = Math.max(0, Math.min(l.height - panelHeight, target.y + (target.height - panelHeight) / 2));
+    const candidates = {
+      above: {x: alignedX, y: above, width: panelWidth, height: panelHeight},
+      below: {x: alignedX, y: below, width: panelWidth, height: panelHeight},
+      right: {x: target.x + target.width + 16, y: sideY, width: panelWidth, height: panelHeight},
+      left: {x: target.x - panelWidth - 16, y: sideY, width: panelWidth, height: panelHeight},
+    };
+    const positions = position === "auto" ? [candidates.above, candidates.below, candidates.right, candidates.left] : [candidates[position]];
+    const panel = positions.find(box => box.x >= 0 && box.y >= 0 && box.x + box.width <= l.width && box.y + box.height <= l.height && !intersect(box, target) && !protectedAreas.some(area => intersect(box, area)));
+    if (!panel) throw new RangeError(`EvidenceCallout needs room for labelPosition ${position} without covering the target or protected areas; enlarge the box, move the target or choose another position`);
+    const {x, y} = panel;
     const nodes = [rect("Evidence top edge", {x: target.x, y: target.y, width: target.width, height: stroke}, t.accent, l.frames), rect("Evidence bottom edge", {x: target.x, y: target.y + target.height - stroke, width: target.width, height: stroke}, t.accent, l.frames), rect("Evidence left edge", {x: target.x, y: target.y, width: stroke, height: target.height}, t.accent, l.frames), rect("Evidence right edge", {x: target.x + target.width - stroke, y: target.y, width: stroke, height: target.height}, t.accent, l.frames), rect("Evidence label panel", {x, y, width: panelWidth, height: panelHeight}, t.background, l.frames)];
     const p = panelWidth * .045, inner = panelWidth - p * 2;
     nodes.push(label("Evidence label", props.label, {x: x + p, y: y + panelHeight * .04, width: inner, height: panelHeight * .41}, l.font * 1.05, t, l.frames, t.accent, true));
     if (props.detail) nodes.push(label("Evidence detail", props.detail, {x: x + p, y: y + panelHeight * .50, width: inner, height: panelHeight * .23}, l.font * .8, t, l.frames));
     if (props.source) nodes.push(label("Evidence source", props.source, {x: x + p, y: y + panelHeight * .80, width: inner, height: panelHeight * .16}, l.font * .65, t, l.frames, t.muted));
     return nodes;
-  });
+  }, "fade");
 }
