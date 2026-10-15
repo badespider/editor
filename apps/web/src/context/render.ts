@@ -3,6 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { createSignal } from "solid-js";
+import { createPendingRenderCancellation } from "./render-cancellation";
 
 import { createEncoder } from "@/components/engine/encode/encoder";
 
@@ -47,16 +48,21 @@ export type RenderSceneOptions = {
   target: NonNullable<EncoderConfig["target"]>;
   /** Encoder settings (resolution, codecs, format, ...). */
   config?: Partial<EncoderConfig>;
+  /** Cancel this render, including cancellation requested during encoder initialization. */
+  signal?: AbortSignal;
 };
 
 export async function renderScene(
   engine: Engine,
-  { scene, target, config }: RenderSceneOptions,
+  { scene, target, config, signal }: RenderSceneOptions,
 ): Promise<ExportResult> {
+  signal?.throwIfAborted();
+  if (overlay()) throw new Error("Another video export is already running.");
   const w = engine.world;
   const duration = w.components.Computed.duration[scene] / w.frameRate;
 
-  cancelActive = undefined;
+  const cancellation = createPendingRenderCancellation(signal);
+  cancelActive = cancellation.cancel;
   setOverlay({ config, duration, progress: 0, remaining: undefined });
   engine.stop();
 
@@ -82,9 +88,10 @@ export async function renderScene(
       },
     });
 
-    cancelActive = encoder.cancel;
+    cancellation.attach(encoder.cancel);
     return await encoder.render();
   } finally {
+    cancellation.dispose();
     cancelActive = undefined;
     setOverlay(null);
     engine.start();

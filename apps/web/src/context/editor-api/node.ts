@@ -365,7 +365,7 @@ export function handleNodeCapture(engine: Accessor<Engine>) {
   };
 }
 
-export function handleNodeRender(engine: Accessor<Engine>) {
+export function handleNodeRender(engine: Accessor<Engine>, signal?: AbortSignal) {
   return async ({ id, output, config }: NodeRenderRequest): Promise<NodeRenderResult> => {
     const e = engine();
     const w = e.world;
@@ -383,6 +383,7 @@ export function handleNodeRender(engine: Accessor<Engine>) {
       scene: sceneEid,
       target,
       config: config as Partial<EncoderConfig>,
+      signal,
     });
 
     if (result.type !== "success") {

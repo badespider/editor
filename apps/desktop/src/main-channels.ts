@@ -13,6 +13,8 @@ import type { LogEntry, ScreenshotResult } from "@diffusionstudio/cli/protocol";
 import type { AnalysisRecord, Job } from "@diffusionstudio/video-understanding/types";
 import type { EditorUnderstandingService, UnderstandingRequest } from "@diffusionstudio/video-understanding/system";
 import type { AgentSession, AgentInspectRequest, AgentTranscriptRequest, AgentObservationRequest } from "@diffusionstudio/video-understanding/agent";
+import type { ReferenceAutoService } from "@diffusionstudio/editing-playbook/reference-auto";
+import type { AutomaticReferenceReceipt } from "./reference-auto-controller";
 
 export const MAIN_WIRE = {
   REQUEST: "main:request",
@@ -49,6 +51,11 @@ export const MAIN_CHANNELS = {
   UNDERSTANDING_DOSSIER: "understanding:dossier",
   UNDERSTANDING_TRANSCRIPT_IMPORT: "understanding:transcript-import",
   UNDERSTANDING_OBSERVE: "understanding:observe",
+  REFERENCE_AUTO_CAPABILITIES: "reference-auto:capabilities",
+  REFERENCE_AUTO_START: "reference-auto:start",
+  REFERENCE_AUTO_STATUS: "reference-auto:status",
+  REFERENCE_AUTO_CANCEL: "reference-auto:cancel",
+  REFERENCE_AUTO_FINISH: "reference-auto:finish",
 
   // Main→Renderer events
   AUTH_CALLBACK: "auth:callback",
@@ -66,6 +73,11 @@ export type DeepLinkChannel =
   | typeof MAIN_CHANNELS.CHECKOUT_CALLBACK;
 
 export type MainRequestMap = {
+  [MAIN_CHANNELS.REFERENCE_AUTO_CAPABILITIES]: { request: void; response: Awaited<ReturnType<ReferenceAutoService['capabilities']>> };
+  [MAIN_CHANNELS.REFERENCE_AUTO_START]: { request: Parameters<ReferenceAutoService['start']>[0]; response: Awaited<ReturnType<ReferenceAutoService['start']>> };
+  [MAIN_CHANNELS.REFERENCE_AUTO_STATUS]: { request: { id: string }; response: Awaited<ReturnType<ReferenceAutoService['status']>> };
+  [MAIN_CHANNELS.REFERENCE_AUTO_CANCEL]: { request: { id: string }; response: Awaited<ReturnType<ReferenceAutoService['cancel']>> };
+  [MAIN_CHANNELS.REFERENCE_AUTO_FINISH]: { request: { id: string; projectId: string; sceneId: number }; response: AutomaticReferenceReceipt };
   [MAIN_CHANNELS.UNDERSTANDING_START]: { request: UnderstandingRequest; response: AgentSession | Job };
   [MAIN_CHANNELS.UNDERSTANDING_INSPECT]: { request: { id: string; request: AgentInspectRequest }; response: Awaited<ReturnType<EditorUnderstandingService['inspect']>> };
   [MAIN_CHANNELS.UNDERSTANDING_DOSSIER]: { request: { id: string; query?: string }; response: Awaited<ReturnType<EditorUnderstandingService['dossier']>> };

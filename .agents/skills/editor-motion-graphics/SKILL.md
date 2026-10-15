@@ -13,10 +13,15 @@ composition. Reuse native components before introducing an external animation to
 
 When the brief includes a reference video, use the
 [Reference workbench](../../../reference/reference-workbench.md) to retain timed
-observations, uncertainty and absolute authoring targets. Inspect local evidence
-before choosing native patterns. A catalog scaffold supplies editable starting
-structure; adapt its content and timing, render it, and compare the exact export
-against the reference at declared offsets. Matching one sampled frame does not
+observations, uncertainty and absolute authoring targets. For an authorized
+automatic adaptation, its desktop drop/select path uses the signed-in Codex
+account and sends sampled frames for remote analysis. It compiles a strict data
+plan into editable native text/shapes and linear keyframes; unsupported media
+needs an honest placeholder. Follow the workbench's scope and cancellation
+contract, then inspect its actual preview and comparison. For manual authoring,
+inspect local evidence before choosing native patterns. A catalog scaffold
+supplies editable starting structure; adapt its content and timing and compare
+the exact export against the reference at declared offsets. Matching one sampled frame does not
 establish equivalent motion or sound.
 
 Choose the [catalog category](../../../reference/motion-catalog.md#choose-by-editing-purpose)

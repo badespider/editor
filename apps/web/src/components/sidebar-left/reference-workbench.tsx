@@ -9,6 +9,7 @@ import { buildMotionModule, motionMoments } from "@diffusionstudio/editing-playb
 import { useEngine } from "@/context/engine";
 import { handleMount } from "@/context/editor-api/mount";
 import { Button } from "../ui/button";
+import { ReferenceAuto } from "./reference-auto";
 import { MAX_REFERENCE_STUDY_BYTES, matchReferenceMedia, newReferenceBeat, parseReferenceStudyText, serializeReferenceStudy, referenceComparisonTimes, referenceComparisonWindow } from "./reference-workbench-state";
 
 type LocalVideo = { file: File; url: string; media: ReferenceMedia | null };
@@ -281,6 +282,7 @@ export function ReferenceWorkbench(props: { active?: boolean }) {
 
   return (
     <section aria-label="Reference workspace" class={`min-h-0 overflow-y-auto p-3 space-y-4 ${expanded() ? "fixed inset-3 z-50 bg-background border border-border rounded-xl shadow-xl" : "flex-1"}`}>
+      <ReferenceAuto />
       <div class="flex items-start justify-between gap-2"><div><h2 class="text-sm font-450">Reference study</h2><p class="text-xs text-muted-foreground mt-1">Inspect a local video, record beats, then build an original native draft.</p></div><Button variant="ghost" onClick={() => setExpanded(value => !value)}>{expanded() ? "Close expanded review" : "Expand review"}</Button></div>
       <p class="text-xs text-muted-foreground">Session only. Download study JSON to keep notes after reload. Local previews are not inserted into the timeline.</p>
       <input ref={referenceInput} type="file" accept="video/*,.mp4,.mov,.m4v,.webm,.mkv" hidden aria-label="Local reference video file" onChange={event => { chooseFile("reference", event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} />
