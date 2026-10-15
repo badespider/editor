@@ -5,9 +5,10 @@ export const formats = ["tutorial", "interview", "story", "montage"] as const;
 export type Format = typeof formats[number];
 export const skillIds = ["editor-story-plan", "editor-pacing", "editor-visual-focus",
   "editor-audio-continuity", "editor-reference-learning", "editor-review", "editor-video-evidence",
-  "editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish"] as const;
+  "editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish",
+  "editor-motion-graphics", "editor-motion-integration"] as const;
 export type SkillId = typeof skillIds[number];
-export const recommendationTasks = ["edit", "package", "evaluate"] as const;
+export const recommendationTasks = ["edit", "package", "evaluate", "compose"] as const;
 export type RecommendationTask = typeof recommendationTasks[number];
 
 export const skills = [
@@ -23,6 +24,8 @@ export const skills = [
   { id: skillIds[9], category: "short-form", purpose: "Choose complete standalone moments through the existing clipping and portrait review workflow." },
   { id: skillIds[10], category: "packaging", purpose: "Create truthful titles, full descriptions, chapters and thumbnail concepts for the exact video and language; never publish." },
   { id: skillIds[11], category: "sound-polish", purpose: "Assess dialogue clarity and conservative sound treatment while preserving ambience and truthful listening coverage." },
+  { id: skillIds[12], category: "motion-graphics", purpose: "Compose readable, purposeful graphics with native editor components, explicit lifetimes and seek-safe timing." },
+  { id: skillIds[13], category: "motion-integration", purpose: "Evaluate a selected external motion capability as a pinned, licensed candidate and adapt only its needed behavior to native export." },
 ].map(skill => ({ ...skill, path: `.agents/skills/${skill.id}/SKILL.md`,
   readArgs: ["playbook", "skill", skill.id], maturity: "starter" as const }));
 
@@ -46,10 +49,24 @@ export const relationships: Array<{ from: SkillId; to: SkillId; type: "requires"
   { from: "editor-sound-polish", to: "editor-audio-continuity", type: "requires", when: "Sound treatment must preserve source clocks, meaning and honest listening coverage." },
   { from: "editor-scene-building", to: "editor-pacing", type: "tension", when: "A cutaway may hide the decisive action or interrupt a useful pause." },
   { from: "editor-youtube-packaging", to: "editor-video-evidence", type: "verify_with", when: "Reuse source-backed records for copy; inspect only unsupported claims, not a mandatory new edit." },
+  { from: "editor-motion-graphics", to: "editor-review", type: "verify_with", when: "Inspect actual native exports at delivery size, including reading holds and both sides of state changes." },
+  { from: "editor-motion-integration", to: "editor-motion-graphics", type: "verify_with", when: "Prefer existing native capabilities and compare the selected adapter on a representative local composition." },
+  { from: "editor-motion-integration", to: "editor-review", type: "verify_with", when: "Candidate source, seek, cleanup and exact-export evidence need review; mechanical checks cannot activate a tool." },
+  { from: "editor-motion-graphics", to: "editor-pacing", type: "tension", when: "Entrance and exit motion consume time the audience needs to read; use footage pacing only when footage is being edited." },
+  { from: "editor-motion-graphics", to: "editor-visual-focus", type: "tension", when: "Emphasis must preserve essential characters, context and source labels; a graphic-only task needs no fabricated footage plan." },
   ...(["editor-story-plan", "editor-pacing", "editor-visual-focus", "editor-audio-continuity",
     "editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-sound-polish"] as const)
     .map(from => ({ from, to: "editor-review" as const, type: "verify_with" as const, when: "Inspect the rendered result, not only the plan." })),
 ];
+
+function requestsMotionIntegration(goal: string): boolean {
+  const requests = /\b(?:integrat(?:e|ing|ion)|adapt(?:er|ing|ation)?|port(?:ing)?)\b(?=[^.!?;\n]{0,100}\b(?:external|third[ -]party|open[ -]source|librar(?:y|ies)|tools?|gsap|anime)\b)|\b(?:external|third[ -]party|open[ -]source|gsap|anime)\b[^.!?;\n]{0,60}\b(?:integration|adapter|port)\b|\b(?:us(?:e|ing)|add|install|bring)\b(?=[^!?;\n]{0,80}\b(?:gsap|anime(?:\.js)?|(?:external|third[ -]party|open[ -]source)[^.!?;\n]{0,40}(?:motion|animation|librar(?:y|ies)|tool))\b)/gi;
+  for (const match of goal.matchAll(requests)) {
+    const prefix = goal.slice(Math.max(0, match.index - 60), match.index);
+    if (!/\b(?:no|not|never|without|avoid|skip|don['’]?t|do\s+not)\b[^.!?;\n]{0,60}$/i.test(prefix)) return true;
+  }
+  return false;
+}
 
 export function recommend(format: Format, goal: string, hasReference = false, task: RecommendationTask = "edit", profile?: StyleProfile | null) {
   const styleProfile = profileForRecommendation(profile, { format, goal, task });
@@ -57,6 +74,9 @@ export function recommend(format: Format, goal: string, hasReference = false, ta
     ["editor-youtube-packaging", "Package the known video and language without requesting a new edit or render."],
   ] : task === "evaluate" ? [
     ["editor-review", "Review existing evidence or engagement experiments; no new edit, render or analytics access is implied."],
+  ] : task === "compose" ? [
+    ["editor-motion-graphics", "Author a native graphic or animation from the brief; source-footage evidence is needed only if footage is actually used."],
+    ["editor-review", "Review seek behavior, reading time and the actual native export."],
   ] : [
     ["editor-video-evidence", "Default footage understanding uses the calling agent and persistent local evidence, not an additional model."],
     ["editor-story-plan", "Ground the edit in audience, purpose and footage."],
@@ -87,9 +107,17 @@ export function recommend(format: Format, goal: string, hasReference = false, ta
     if (/\bdenois(?:e|ing)\b|\bnoise[\s-]+reduction\b|\b(?:dialogue?|speech|audio|sound)\s+(?:clarity|clean[\s-]?up|polish|mix(?:ing)?|cleaner|clearer)\b|\buneven\s+(?:volume|levels?)\b|\b(?:clean|cleaner|clearer)\s+(?:audio|sound|dialogue?|speech)\b/i.test(goal)) {
       selected.set("editor-sound-polish", "Assess specific sound problems and conservative treatment, not automatic processing.");
     }
+    if (/\bmotion[\s-]+graphics?\b|\b(?:animate|animated)\s+(?:a\s+|the\s+)?(?:title|diagram|callout|equation|graphic)\b|\bkinetic\s+typography\b/i.test(goal)) {
+      selected.set("editor-motion-graphics", "Use native motion to explain the selected beat while preserving the underlying source context.");
+    }
+  }
+  if ((task === "compose" || task === "edit") && requestsMotionIntegration(goal)) {
+    selected.set("editor-motion-integration", "The goal explicitly requests an external motion integration; evaluate it as an inert candidate before adapting it.");
   }
   if (hasReference) {
-    selected.set("editor-reference-learning", "Analyse an explicitly supplied reference as candidate knowledge.");
+    selected.set(task === "compose" ? "editor-motion-integration" : "editor-reference-learning", task === "compose"
+      ? "Inspect the supplied motion reference and identify whether it needs any external capability; candidate checks do not install or activate it."
+      : "Analyse an explicitly supplied reference as candidate knowledge.");
     selected.set("editor-review", "Evaluate candidate reference lessons without treating them as automatically learned rules.");
   }
   // Include instruction prerequisites, not automatic tool execution or authority.
@@ -109,6 +137,7 @@ export function recommend(format: Format, goal: string, hasReference = false, ta
     task,
     styleProfile,
     ...(task === "evaluate" ? { experimentWorkflowArgs: ["playbook", "experiment", "workflow"] } : {}),
+    ...(task === "compose" ? { motionWorkflowArgs: ["playbook", "motion", "workflow"] } : {}),
     skills: skills.filter(skill => selected.has(skill.id)).map(skill => ({ ...skill, reason: selected.get(skill.id) })),
     relationships: relationships.filter(edge => selected.has(edge.from) && selected.has(edge.to)),
     providerRequired: false,

@@ -6,3 +6,5 @@ export * from "./schema.ts";
 export * from "./validate.ts";
 export * from "./experiment.ts";
 export * from "./style-profile.ts";
+export * from "./motion-catalog.ts";
+export * from "./motion-candidate-schema.ts";

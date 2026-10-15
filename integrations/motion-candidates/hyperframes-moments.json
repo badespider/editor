@@ -1,0 +1,43 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "id": "hyperframes-moments",
+  "title": "HyperFrames Moments: reference pattern and bounded catalog metadata",
+  "originUrl": "https://x.com/hyperframes_/status/2110072407784616067",
+  "source": {
+    "repositoryUrl": "https://github.com/heygen-com/hyperframes",
+    "revision": "49c49504a44e0352f6877611f5384e7aedcc4e92",
+    "licenseId": "Apache-2.0",
+    "licenseUrl": "https://github.com/heygen-com/hyperframes/blob/49c49504a44e0352f6877611f5384e7aedcc4e92/LICENSE",
+    "notice": "Scope reviewed: packages/core/src/registry/types.ts only (SHA-256 35e53ca28acd370fd3e5fc84e027266fb46ef68dd88d3d2d5b90d4084224d141). No imports, GSAP, media loads or network calls in that file. Root LICENSE SHA-256 4259155fb06f127687ee7b0a8a3682d45132db0f2da26cbc0b7a2d1e796436b8; CREDITS.md SHA-256 a484f3ddebdb8cdde6b3fb4e597e57d953fd5b83bf872701ad9d7c0c5761a39e. Complete pinned tree had no root NOTICE. No code or media copied. This record excludes upstream reference videos, GSAP, fonts, HDR and textures; their rights are not inherited from the root license. Details and exact URLs: reference/motion-sources.md.",
+    "assets": []
+  },
+  "capabilities": [
+    "Reference pattern for original native motion beats indexed by purpose, physical movement, editable timing and explicit reuse intent.",
+    "Inspectable metadata design for catalog identity, per-item license, parameters and previews; one pure upstream tag-to-category helper is eligible for evaluation."
+  ],
+  "adapter": {
+    "kind": "native-component"
+  },
+  "evidence": {
+    "tests": [],
+    "exports": [],
+    "reviews": []
+  },
+  "limits": [
+    "The exact X post links to article 2110068006676275200, Prompting in HyperFrames Studio; recovered article text contains no package/repository list. Related repository findings are separate research.",
+    "Direct X article-body retrieval failed. Body recovered through https://api.fxtwitter.com/hyperframes_/status/2110072407784616067; official X oEmbed confirmed status author/date/link only. Embedded visuals were not inspected and performance claims were not measured.",
+    "Candidate only: no local adapter, copied source, dependencies, media, native export or integration review. Code-copy benefit over the original native catalog remains unproven.",
+    "Only pure catalog metadata is in scope. HyperFrames HTML/install schema is not a native Solid/Canvas2D/WGSL implementation; an adapter requires separate design and testing.",
+    "Upstream CREDITS distinguishes the non-OSI GSAP Standard License and separately licensed software/assets, including textures with unconfirmed origins. No blanket asset or Studio Moments reuse approval is declared."
+  ],
+  "useWhen": [
+    "Evaluating searchable, source-bound metadata for original editor-native Moments.",
+    "Comparing one small metadata helper with the native catalog after a concrete need is shown."
+  ],
+  "avoidWhen": [
+    "A drop-in HyperFrames HTML/GSAP renderer or wholesale catalog/media import is wanted.",
+    "Reference footage or assets need redistribution rights not established by this record.",
+    "A ready, tested native motion integration or proven audience benefit is required."
+  ]
+}

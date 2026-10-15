@@ -80,12 +80,12 @@ test("journal negations suppress both local defaults and vlog skill keyword rout
   }
 });
 
-test("tutorial/interview, package/evaluate and copy-only contexts never inherit a profile", async () => {
+test("tutorial/interview, package/evaluate/compose and copy-only contexts never inherit a profile", async () => {
   for (const format of ["tutorial", "interview"] as const) {
     assert.equal((await localRecommend({ format })).styleProfile, null);
     await assert.rejects(localRecommend({ format, profile: profileId }), /Cannot select profile/);
   }
-  for (const task of ["package", "evaluate"] as const) {
+  for (const task of ["package", "evaluate", "compose"] as const) {
     const result = await localRecommend({ task });
     assert.equal(result.styleProfile, null);
     assert.ok(!result.skills.some(skill => skill.id === "editor-scene-building"));

@@ -11,7 +11,7 @@ import { fixture } from "./fixture.ts";
 
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const idsFor = (goal: string, format: Format = "story") => recommend(format, goal).skills.map(skill => skill.id);
-const creativeIds: SkillId[] = ["editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish"];
+const creativeIds: SkillId[] = ["editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish", "editor-motion-graphics", "editor-motion-integration"];
 
 test("catalog covers declared skill IDs, with unique IDs, paths and CLI read arguments", () => {
   assert.deepEqual(skills.map(skill => skill.id), [...skillIds]);
@@ -74,6 +74,39 @@ test("package-only tasks do not request new editing skills even if copy mentions
 test("explicit reference work still requests candidate learning/review, including copy-only tasks", () => {
   const result = recommend("story", "YouTube title", true, "package");
   assert.deepEqual(new Set(result.skills.map(skill => skill.id)), new Set(["editor-youtube-packaging", "editor-reference-learning", "editor-review"]));
+});
+
+test("compose starts with native graphics and review without a footage prerequisite closure", () => {
+  for (const format of ["tutorial", "interview", "story", "montage"] as const) {
+    const result = recommend(format, "Compose a diagram and readable title", false, "compose");
+    assert.deepEqual(result.skills.map(skill => skill.id), ["editor-review", "editor-motion-graphics"]);
+    assert.equal(result.styleProfile, null);
+    assert.equal(result.providerRequired, false);
+    assert.ok(result.relationships.some(edge => edge.from === "editor-motion-graphics" && edge.to === "editor-review"));
+    assert.ok(!result.skills.some(skill => skill.id === "editor-video-evidence" || skill.id === "editor-story-plan"));
+  }
+});
+
+test("compose routes selected motion references and explicit integrations without classifying them as YouTube footage", () => {
+  for (const goal of ["Integrate an external animation library", "Adapt an open-source motion tool", "Make a GSAP adapter", "Use GSAP for the title", "Use an external animation library"]) {
+    const ids = recommend("tutorial", goal, false, "compose").skills.map(skill => skill.id);
+    assert.ok(ids.includes("editor-motion-integration"), goal);
+    assert.ok(!ids.includes("editor-reference-learning"));
+    assert.ok(!ids.includes("editor-video-evidence"));
+  }
+  const reference = recommend("story", "Use this motion reference", true, "compose");
+  assert.deepEqual(reference.skills.map(skill => skill.id), ["editor-review", "editor-motion-graphics", "editor-motion-integration"]);
+  for (const goal of ["Create a native animated title", "Use the existing motion library", "Compose without integrating an external tool", "Avoid GSAP integration; make a native diagram"]) {
+    assert.ok(!recommend("story", goal, false, "compose").skills.some(skill => skill.id === "editor-motion-integration"), goal);
+  }
+});
+
+test("motion additions preserve ordinary edit, packaging and evaluation routes", () => {
+  assert.ok(idsFor("Add an animated title to the footage").includes("editor-motion-graphics"));
+  assert.ok(idsFor("Integrate an external motion tool").includes("editor-motion-integration"));
+  assert.ok(!idsFor("Trim this footage").includes("editor-motion-integration"));
+  assert.deepEqual(recommend("story", "Describe the external motion integration", false, "package").skills.map(skill => skill.id), ["editor-youtube-packaging"]);
+  assert.deepEqual(recommend("story", "Evaluate the external motion integration", false, "evaluate").skills.map(skill => skill.id), ["editor-review"]);
 });
 
 test("every recommendation contains its transitive requirements and only selected graph endpoints", () => {

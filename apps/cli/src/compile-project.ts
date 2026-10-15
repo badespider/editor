@@ -234,6 +234,16 @@ function resolverPlugin(config: ResolverConfig): Plugin {
           return { path: `${HOST_MODULE_PREFIX}${spec}`, external: true };
         }
 
+        // Catalog modules are already executable in the app. Compiling one for
+        // CLI mount must preserve the same singleton imports, never send them
+        // to the userland CDN or accept an unknown app namespace.
+        if (spec.startsWith(HOST_MODULE_PREFIX)) {
+          if (!HOST_MODULES_RE.test(spec.slice(HOST_MODULE_PREFIX.length))) {
+            throw new Error(`Unknown app-provided module: ${spec}`);
+          }
+          return { path: spec, external: true };
+        }
+
         // Explicit URL imports pass through to the renderer untouched.
         if (/^https?:\/\//.test(spec)) return { external: true };
 

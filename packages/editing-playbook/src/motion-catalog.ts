@@ -1,0 +1,183 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/** Browser-safe, authored native moments. External references never enter this registry automatically. */
+export type MotionMomentFormat = "landscape" | "portrait";
+export type MotionMomentMode = "template" | "sequence" | "inspiration";
+export type MotionMoment = Readonly<{
+  id: string; title: string; purpose: string; role: string;
+  movementTags: readonly string[]; formats: readonly MotionMomentFormat[];
+  defaultDuration: number; guidePath: string; examplePath: string; version: "1.0.0";
+  origin: Readonly<{ kind: "editor-native"; license: "MPL-2.0" }>;
+}>;
+export type MotionBuildOptions = {
+  momentIds: readonly string[]; mode: MotionMomentMode; format: MotionMomentFormat;
+  title?: string; body?: string; source?: string; sceneKey?: string;
+};
+const origin = Object.freeze({ kind: "editor-native", license: "MPL-2.0" } as const);
+const formats = Object.freeze(["landscape", "portrait"] as const);
+function moment(id: string, title: string, purpose: string, role: string, tags: string[], duration: number, guidePath: string, examplePath: string): MotionMoment {
+  return Object.freeze({ id, title, purpose, role, movementTags: Object.freeze(tags), formats, defaultDuration: duration, guidePath, examplePath, version: "1.0.0", origin });
+}
+export const motionMoments: readonly MotionMoment[] = Object.freeze([
+  moment("question-reveal", "Question, then answer", "Hold a question before revealing an authored answer.", "hook", ["fade", "reveal", "reading-hold"], 6, "reference/jsx/animations.md", "examples/10-native-motion.tsx"),
+  moment("evidence-focus", "Source, then focus", "Show source context before marking the relevant passage.", "proof", ["callout", "context", "reading-hold"], 8, "reference/jsx/documentary.md", "examples/11-documentary-story.tsx"),
+  moment("worked-solution", "Work through a solution", "Reveal given information, transformation and check in order.", "explanation", ["staged-reveal", "highlight", "reading-hold"], 9, "reference/jsx/education.md", "examples/15-editor-guided-lesson.tsx"),
+  moment("code-reveal", "Read, call, check", "Reveal literal code before its explicitly authored expected result.", "action", ["staged-reveal", "highlight", "reading-hold"], 8, "reference/jsx/education.md", "examples/15-editor-guided-lesson.tsx"),
+  moment("stat-proof", "Count, then hold", "Demonstrate a seekable illustrative counter with a settled reading hold.", "proof", ["counter", "settle", "reading-hold"], 6, "reference/jsx/animations.md", "examples/03-ticker.tsx"),
+  moment("route-reveal", "Orient with a route", "Reveal an illustrative regional route, then hold the geography.", "orientation", ["route", "draw", "reading-hold"], 7, "reference/jsx/documentary.md", "examples/11-documentary-story.tsx"),
+]);
+function formatValue(value: unknown): MotionMomentFormat {
+  if (value !== "landscape" && value !== "portrait") throw new TypeError("format must be landscape or portrait");
+  return value;
+}
+export function getMotionMoment(id: string): MotionMoment {
+  if (typeof id !== "string") throw new TypeError("moment id must be a string");
+  const found = motionMoments.find(item => item.id === id.replace(/^@/, ""));
+  if (!found) throw new RangeError(`Unknown native motion moment: ${id}`);
+  return found;
+}
+export function searchMotionMoments(query: string, format?: MotionMomentFormat): readonly MotionMoment[] {
+  if (typeof query !== "string" || query.length > 300) throw new TypeError("query must be text of at most 300 characters");
+  if (format !== undefined) formatValue(format);
+  const tokens = query.toLowerCase().replace(/@/g, "").trim().split(/\s+/).filter(Boolean);
+  return Object.freeze(motionMoments.filter(item => (!format || item.formats.includes(format)) && tokens.every(token => `${item.id} ${item.title} ${item.purpose} ${item.role} ${item.movementTags.join(" ")}`.toLowerCase().includes(token))));
+}
+function text(value: unknown, label: string, max: number): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !value.trim() || value.length > max || /[\u0000-\u0008\u000B-\u001F\u007F]/.test(value)) throw new TypeError(`${label} must be nonempty text of at most ${max} characters`);
+  return value.trim().replace(/\r\n?/g, "\n");
+}
+function normalize(options: MotionBuildOptions) {
+  if (!options || typeof options !== "object" || Array.isArray(options)) throw new TypeError("motion options must be an object");
+  const allowed = new Set(["momentIds", "mode", "format", "title", "body", "source", "sceneKey"]);
+  for (const key of Object.keys(options)) if (!allowed.has(key)) throw new TypeError(`Unknown motion option: ${key}`);
+  const { momentIds, mode } = options;
+  if (mode !== "template" && mode !== "sequence" && mode !== "inspiration") throw new TypeError("mode must be template, sequence or inspiration");
+  const format = formatValue(options.format);
+  if (!Array.isArray(momentIds) || momentIds.length < 1 || momentIds.length > 6 || Array.from({length: momentIds.length}, (_, i) => i).some(i => !Object.hasOwn(momentIds, i))) throw new RangeError("momentIds requires 1..6 complete indexed entries");
+  if (mode === "template" && momentIds.length !== 1) throw new RangeError("template mode requires exactly one moment");
+  const selected = momentIds.map(getMotionMoment);
+  if (new Set(selected.map(item => item.id)).size !== selected.length) throw new RangeError("momentIds must be unique");
+  for (const item of selected) if (!item.formats.includes(format)) throw new RangeError(`${item.id} does not support ${format}`);
+  const sceneKey = options.sceneKey ?? `native-motion-${selected.map(item => item.id).join("-")}`;
+  if (typeof sceneKey !== "string" || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,159}$/.test(sceneKey)) throw new TypeError("sceneKey must contain 1..160 ASCII letters, digits, underscores or hyphens");
+  return { selected, mode, format, sceneKey, title: text(options.title, "title", 72), body: text(options.body, "body", 160), source: text(options.source, "source", 96) };
+}
+/** Conservative prose wrapping, without font-dependent measurements or silent truncation. */
+function fit(value: string, width: number, height: number, font: number, label: string): string {
+  const columns = Math.floor(width / (font * 1.1)), maxLines = Math.floor(height / (font * 1.35));
+  const lines: string[] = [];
+  for (const paragraph of value.split("\n")) {
+    let line = "";
+    for (const word of paragraph.trim().split(/\s+/).filter(Boolean)) {
+      const letters = Array.from(word);
+      if (letters.length > columns) throw new RangeError(`${label} contains a word too wide for this layout; shorten it`);
+      if (Array.from(line).length + (line ? 1 : 0) + letters.length > columns) { lines.push(line); line = word; }
+      else line += `${line ? " " : ""}${word}`;
+    }
+    lines.push(line);
+  }
+  if (columns < 1 || lines.length > maxLines) throw new RangeError(`${label} does not fit ${maxLines} readable lines in this layout; shorten it`);
+  return lines.join("\n");
+}
+const defaults: Record<string, {title: string; body: string}> = {
+  "question-reveal": {title: "Why does this matter?", body: "Your answer goes here."},
+  "evidence-focus": {title: "Keep the evidence in context.", body: "Your relevant passage goes here."},
+  "worked-solution": {title: "Solve, then check.", body: "Keep both sides of the equation equal."},
+  "code-reveal": {title: "Read, call, check.", body: "Read the function before its expected result."},
+  "stat-proof": {title: "Let the number settle.", body: "Illustrative count only. Replace with source-backed data."},
+  "route-reveal": {title: "Orient the viewer.", body: "An illustrative route, not a recorded journey."},
+};
+export function buildMotionBrief(options: MotionBuildOptions) {
+  const normalized = normalize(options);
+  let cursor = 0;
+  const moments = normalized.selected.map(descriptor => {
+    const start = cursor; cursor += descriptor.defaultDuration;
+    return Object.freeze({ ...descriptor, start, end: cursor });
+  });
+  return Object.freeze({ schemaVersion: 1 as const, kind: "editor-motion-brief" as const, mode: normalized.mode,
+    format: normalized.format, canvas: Object.freeze(normalized.format === "portrait" ? {width: 1080, height: 1920, fps: 30} : {width: 1920, height: 1080, fps: 30}),
+    sceneKey: normalized.sceneKey, title: normalized.title, body: normalized.body, source: normalized.source ?? "Authored example / source not supplied.",
+    moments: Object.freeze(moments), duration: cursor, referenceOnly: normalized.mode === "inspiration", mountable: normalized.mode !== "inspiration",
+    intent: normalized.mode === "inspiration" ? "Use these native moments as references; adapt the structure and timing to the evidence." : "Editable native scene; review its wording, timing and framing before delivery.",
+  });
+}
+export type MotionBrief = ReturnType<typeof buildMotionBrief>;
+
+/** Returns plain ESM for the existing native SCRIPT mounting/persistence path. No execution occurs here. */
+export function buildMotionModule(options: MotionBuildOptions): string {
+  const n = normalize(options);
+  if (n.mode === "inspiration") throw new TypeError("inspiration is a reference brief; use buildMotionBrief instead of mounting a template");
+  const brief = buildMotionBrief(options), portrait = n.format === "portrait";
+  const width = brief.canvas.width, height = brief.canvas.height, margin = portrait ? 72 : 96, inner = width - margin * 2;
+  const beats = brief.moments.map(item => {
+    const copy = defaults[item.id];
+    const bodyBox = item.id === "evidence-focus" ? (portrait ? {width: 796, height: 200, font: 40} : {width: 660, height: 210, font: 28}) : {width: inner, height: portrait ? 270 : 150, font: portrait ? 44 : 30};
+    return {id: item.id, start: item.start, end: item.end,
+      title: fit(n.title ?? copy.title, inner, portrait ? 300 : 200, portrait ? 64 : 72, `${item.id} title`),
+      body: fit(n.body ?? copy.body, bodyBox.width, bodyBox.height, bodyBox.font, `${item.id} body`),
+      source: fit(brief.source, inner, portrait ? 120 : 70, portrait ? 28 : 20, `${item.id} source`)};
+  });
+  // JSON is the only interpolation boundary: caller wording can never become module syntax.
+  const data = JSON.stringify({width, height, portrait, margin, inner, sceneKey: brief.sceneKey, duration: brief.duration, beats});
+  return `import { Rect, Text, WorkedExample, CodeWalkthrough, EvidenceCallout, MapRoute, motion, useTicker, PRESENTATION_THEMES } from "dapi-host:@diffusionstudio/jsx";
+import { createMemo } from "dapi-host:solid-js";
+const data = ${data};
+export const motionMomentManifest = data;
+export default function Project() {
+  const ticker = useTicker();
+  const p = data.portrait, w = data.width, h = data.height, m = data.margin, inner = data.inner;
+  const theme = PRESENTATION_THEMES.education.classroom;
+  const nodes = [];
+  const clamp = value => Math.max(0, Math.min(1, value));
+  function label(name, value, box, font, start, end, extra = {}) {
+    const props = {name, ...box, start, end, fontSize:font, fontFamily:theme.fontFamily, fill:theme.text, children:value};
+    Object.defineProperties(props, Object.getOwnPropertyDescriptors(extra));
+    return Text(props);
+  }
+  for (const b of data.beats) {
+    const duration = b.end - b.start;
+    nodes.push(Rect({name:b.id + "/background", x:0,y:0,width:w,height:h,fill:theme.background,start:b.start,end:b.end}));
+    nodes.push(label(b.id + "/role", b.id==="code-reveal"?"CODE / NOT EXECUTED":b.id.toUpperCase().replaceAll("-", " "), {x:m,y:p?100:60,width:inner,height:50}, p?24:22,b.start,b.end,{fill:theme.accent,fontWeight:700}));
+    nodes.push(label(b.id + "/title", b.title, {x:m,y:p?190:130,width:inner,height:p?300:200},p?64:72,b.start,b.end,{fontWeight:700,...motion.reveal({duration,minHold:3,direction:"none"})}));
+    nodes.push(label(b.id + "/source", b.source, {x:m,y:p?1760:990,width:inner,height:p?120:70},p?28:20,b.start,b.end,{fill:theme.muted}));
+    if (b.id === "question-reveal") {
+      const answerVisible = createMemo(() => ticker.time() >= b.start + 2.5);
+      nodes.push(label(b.id + "/answer-label", "AUTHORED ANSWER", {x:m,y:p?930:560,width:inner,height:50},p?32:24,b.start,b.end,{fill:theme.accent,get opacity(){return answerVisible()?1:0;}}));
+      nodes.push(label(b.id + "/answer", b.body,{x:m,y:p?1020:650,width:inner,height:p?270:150},p?44:30,b.start,b.end,{get opacity(){return answerVisible()?1:0;}}));
+    } else if (b.id === "evidence-focus") {
+      nodes.push(Rect({name:b.id+"/source-panel",x:m,y:p?550:380,width:inner,height:p?1030:570,fill:theme.surface,start:b.start,end:b.end}));
+      nodes.push(label(b.id+"/context", "SOURCE MATERIAL / AUTHORED PLACEHOLDER",{x:m+24,y:p?580:410,width:inner-48,height:100},p?24:22,b.start,b.end,{fill:theme.muted}));
+      const target = p?{x:122,y:790,width:836,height:240}:{x:146,y:550,width:700,height:250};
+      nodes.push(label(b.id+"/passage",b.body,{x:target.x+20,y:target.y+20,width:target.width-40,height:target.height-40},p?40:28,b.start,b.end));
+      nodes.push(EvidenceCallout({x:0,y:0,width:w,height:h,start:b.start+1,end:b.end,target,label:"FOCUS",detail:p?"Keep context.":"Context stays visible.",labelPosition:p?"below":"right",fontSize:p?40:28,theme:PRESENTATION_THEMES.documentary.paper,protectedAreas:[{x:m,y:p?550:380,width:inner,height:120}]}));
+    } else if (b.id === "worked-solution") {
+      nodes.push(label(b.id+"/context",b.body,{x:m,y:p?490:330,width:inner,height:p?270:150},p?44:30,b.start,b.end));
+      const step = createMemo(() => ticker.time()<b.start+3?0:ticker.time()<b.start+6?1:2);
+      nodes.push(WorkedExample({title:p?"Solve + check":"Given → transform → check",x:m,y:p?780:480,width:inner,height:p?920:480,fontSize:p?40:22,start:b.start,end:b.end,theme,revealThroughActive:true,get activeStep(){return step();},steps:[
+        {label:"Given",expression:"2x + 4 = 10"},
+        {label:"Subtract 4 each side",expression:"2x = 6"},
+        {label:"Divide by 2; check",expression:"x = 3",explanation:"2 × 3 + 4 = 10"}
+      ]}));
+    } else if (b.id === "code-reveal") {
+      nodes.push(label(b.id+"/context",b.body,{x:m,y:p?490:330,width:inner,height:p?270:150},p?44:30,b.start,b.end));
+      const phase = createMemo(() => ticker.time()<b.start+2.5?0:ticker.time()<b.start+5?1:2);
+      const highlights = [[1,2],[4,5],[6]];
+      nodes.push(CodeWalkthrough({title:p?"Read / call":"Literal code / not executed",x:m,y:p?780:480,width:inner,height:p?920:480,fontSize:p?44:22,start:b.start,end:b.end,theme,
+        lines:["def double(x):","    return 2 * x","",p?"y = double(3)":"result = double(3)",p?"print(y)":"print(result)","# EXPECTED: 6"],get visibleThroughLine(){return [2,5,6][phase()];},get highlightedLines(){return highlights[phase()];}}));
+    } else if (b.id === "stat-proof") {
+      const count = createMemo(() => Math.round(100 * clamp((ticker.time()-b.start-0.5)/2.5)));
+      nodes.push(label(b.id+"/disclosure",p?"ILLUSTRATIVE COUNT\\nNOT A MEASUREMENT":"ILLUSTRATIVE COUNT / NOT A MEASUREMENT",{x:m,y:p?550:350,width:inner,height:100},p?32:22,b.start,b.end,{fill:theme.accent}));
+      nodes.push(label(b.id+"/value","",{x:m,y:p?740:450,width:inner,height:320},p?220:200,b.start,b.end,{fontFamily:theme.monoFamily,get children(){return String(count());}}));
+      nodes.push(label(b.id+"/context",b.body,{x:m,y:p?1250:810,width:inner,height:p?270:150},p?44:30,b.start,b.end));
+    } else if (b.id === "route-reveal") {
+      nodes.push(label(b.id+"/context",b.body,{x:m,y:p?490:330,width:inner,height:p?270:150},p?44:30,b.start,b.end));
+      nodes.push(MapRoute({x:m,y:p?800:490,width:inner,height:p?900:470,start:b.start,duration,revealDuration:4,title:"Illustrative route",credits:"Authored route example",bounds:{west:-6,east:12,south:40,north:52},points:[{longitude:2.3522,latitude:48.8566,label:"Paris"},{longitude:4.8357,latitude:45.764,label:"Lyon"},{longitude:5.3698,latitude:43.2965,label:"Marseille"}]}));
+    }
+  }
+  return Rect({name:"Native motion moments",scene:data.sceneKey,width:w,height:h,start:0,end:data.duration,fill:theme.background,children:nodes});
+}
+`;
+}

@@ -1,6 +1,6 @@
 # Local editing playbook
 
-Twelve repo-scoped skills cover seven foundations (video evidence, story planning, pacing, visual focus, audio continuity, reference learning and review) and five creative specializations listed below. The catalog's relationship graph is a small application routing aid, not a native agent dependency loader. All skills begin as **starter guidance**. A successful schema test does not establish improved storytelling. Start footage tasks with [the default agent workflow](agent-workflow.md); `editor-video-evidence` is always recommended for footage plans.
+Fourteen repo-scoped skills cover seven foundations (video evidence, story planning, pacing, visual focus, audio continuity, reference learning and review) and seven creative specializations listed below. The catalog's relationship graph is a small application routing aid, not a native agent dependency loader. All skills begin as **starter guidance**. A successful schema test does not establish improved storytelling. Start footage tasks with [the default agent workflow](agent-workflow.md); `editor-video-evidence` is always recommended for footage plans. For generated motion, use `--task compose` and the [native motion catalog and growth workflow](motion-catalog.md).
 
 Codex tasks opened in this repository can discover `.agents/skills`; other agents can read the same Markdown through files or `playbook skill`. Repo-local discovery does not make them globally installed. See [official skill discovery](https://learn.chatgpt.com/docs/build-skills). Do not copy credentials into skills.
 
@@ -16,13 +16,15 @@ dapi playbook recommend --format story --goal "Edit a multi-day vlog with B-roll
 dapi playbook recommend --task package --goal "SEO for the original English video"
 dapi playbook recommend --task evaluate --goal "Compare vlog and Shorts engagement"
 dapi playbook experiment workflow
+dapi playbook recommend --task compose --goal "Explain the result with native motion"
+dapi playbook motion workflow
 dapi playbook check plan.json
 dapi playbook preview plan.json -o new-preview.mp4
 dapi playbook reference new "https://www.youtube.com/watch?v=ng4v6MHxNFU" -o candidate.json
 dapi playbook reference check candidate.json
 ```
 
-Formats: `tutorial`, `interview`, `story`, `montage`; use `story` for a vlog. `recommend` uses explicit format and simple English keywords, not semantic AI or embeddings. Its default `--task edit` preserves the footage workflow; `--task package` selects copy-only guidance and `--task evaluate` selects review/experiment guidance without requiring a new plan/render. An explicit `--reference` also selects reference learning and its comparison review. Recommendations are advisory: keyword guards handle some explicit exclusions, not every negation, synonym or language. Read returned instructions and choose additional skills when the actual task needs them.
+Formats: `tutorial`, `interview`, `story`, `montage`; use `story` for a vlog. `recommend` uses explicit format and simple English keywords, not semantic AI or embeddings. Its default `--task edit` preserves the footage workflow; `--task package` selects copy-only guidance and `--task evaluate` selects review/experiment guidance without requiring a new plan/render. `--task compose` selects native motion and review without requiring footage; `--reference` on this task adds motion integration guidance and returns the motion workflow arguments. Other reference tasks select reference learning and comparison review. Recommendations are advisory: keyword guards handle some explicit exclusions, not every negation, synonym or language. Read returned instructions and choose additional skills when the actual task needs them.
 
 For vlog/journal edits, the CLI reads this checkout's explicit
 [scoped style profile](style-profiles.md) and returns its instructions inline.
@@ -43,6 +45,8 @@ with voice and natural sound.
 | `editor-short-form` | Standalone context, complete moments and endings in the existing clipping/portrait workflow | Story, pacing and framing |
 | `editor-youtube-packaging` | Exact-version/language titles, full descriptions, chapters and thumbnail concepts | Existing source-backed records; targeted inspection if needed |
 | `editor-sound-polish` | Conservative dialogue/noise/level assessment and treatment, with honest listening limits | Audio continuity |
+| `editor-motion-graphics` | Native purpose-led motion, reusable Moments, narrative and education layouts, actual-export review | Visual focus, pacing and review |
+| `editor-motion-integration` | Bounded external motion evaluation, pinned licenses/assets, native time adapters and catalog growth | Native motion and review |
 
 `skills` and `recommend` include each skill's repository-relative `path` and a
 `readArgs` array such as `["playbook", "skill", "editor-vlog-story"]`. Pass these
@@ -59,7 +63,8 @@ override when reading other skills. The checkout and its linked references must
 be present. An unrelated upstream/global CLI is not upgraded by these files.
 Node integrations can use `readSkill(id, repositoryRoot)` from
 `@diffusionstudio/editing-playbook/skills`; browser-safe catalog/recommendation
-exports remain at the package root. No new desktop UI panel or IPC API is implied.
+exports remain at the package root. Retrieval commands do not open the Moments
+panel or change a project.
 
 These skills describe editing decisions, not newly implemented rendering features.
 The cut-only workflow still cannot overlap B-roll with different dialogue, denoise,

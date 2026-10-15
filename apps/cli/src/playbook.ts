@@ -12,6 +12,7 @@ import { deliverPreparedEdit } from './playbook-delivery';
 import { registerClipCommands } from './clips';
 import { registerExperimentCommands } from './experiments';
 import { registerLayeredCommands } from './layered';
+import { registerMotionCommands } from './motion';
 
 const readJson = async (path: string): Promise<unknown> => JSON.parse(await readFile(resolve(path), "utf8"));
 const print = (value: unknown) => console.log(JSON.stringify(value, null, 2));
@@ -20,10 +21,11 @@ const safe = <Args extends unknown[]>(action: (...args: Args) => Promise<void>) 
 };
 
 export function registerPlaybookCommands(program: Command) {
-  const playbook = program.command("playbook").description("Local evidence-backed plans, prepared edits, actual-editor delivery and review. No AI API calls.");
+  const playbook = program.command("playbook").description("Local evidence-backed plans, native motion composition, prepared edits, actual-editor delivery and review. No AI API calls.");
   registerClipCommands(playbook);
   registerExperimentCommands(playbook);
   registerLayeredCommands(playbook);
+  registerMotionCommands(playbook);
   playbook.command("skills").description("List editing skills and their relationship graph, including the default agent evidence workflow")
     .action(() => print({ schemaVersion: 1, skills, relationships, note: "Paths are relative to the editor repository. Use readArgs to retrieve instructions with playbook skill. Skills remain starter guidance, not learned results." }));
   playbook.command("skill").argument("<id>").option("--repo <directory>", "editor checkout containing .agents/skills; defaults to this CLI build's checkout")
@@ -33,8 +35,8 @@ export function registerPlaybookCommands(program: Command) {
       print(await readSkill(id, options.repo ? resolve(options.repo) : resolve(__dirname, "../../..")));
     }));
   playbook.command("recommend").requiredOption("--goal <text>").option("--format <format>", formats.join(" | "), "tutorial")
-    .option("--task <task>", "edit | package (copy only) | evaluate (existing evidence/comparisons)", "edit")
-    .option("--reference", "include the reference-learning workflow")
+    .option("--task <task>", "edit | package (copy only) | evaluate (existing comparisons) | compose (native motion)", "edit")
+    .option("--reference", "include reference learning, or motion integration for compose tasks")
     .option("--profile <id|none>", "explicit repo-local style profile or disable the default")
     .option("--repo <directory>", "editor checkout containing profiles; defaults to this CLI build's checkout")
     .action(safe(async (options: { goal: string; format: string; task: string; reference?: boolean; profile?: string; repo?: string }) => {
