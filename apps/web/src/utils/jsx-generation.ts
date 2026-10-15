@@ -14,6 +14,7 @@ import { ensureGenerationFolder } from "@/utils/genai";
 import { assert } from "@/utils";
 import { ElectronFileHandle } from "@/lib/electron-file-handle";
 import { trpc } from "@/lib/trpc";
+import { inlineImageFile } from "./inline-image";
 
 import type { AspectRatio, AssetInput, AssetRef, AssetSpecInput } from "@diffusionstudio/jsx";
 import type { EngineWorld } from "@/components/engine";
@@ -26,6 +27,8 @@ const URL_RE = /^https?:\/\//;
  */
 export async function resolveAsset(world: EngineWorld, src: string): Promise<Asset> {
   const value = src.trim();
+
+  if(value.startsWith("data:"))return await loadAsset(world,await inlineImageFile(value));
 
   if (URL_RE.test(value)) {
     return await loadAsset(world, value);

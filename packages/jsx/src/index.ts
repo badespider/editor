@@ -26,6 +26,9 @@ export * from "./education-core";
 export * from "./education-equation";
 export * from "./education-cards";
 export * from "./education-diagrams";
+export * from "./creative-primitives";
+export * from "./data-graphics";
+export * from "./caption-presets";
 export {
   Audio,
   Captions,

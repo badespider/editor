@@ -3,14 +3,14 @@ import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { dirname, extname, resolve } from "node:path";
 import type { Command } from "commander";
 import { z } from "zod";
-import { buildMotionBrief, buildMotionModule, getMotionMoment, motionMoments, searchMotionMoments } from "@diffusionstudio/editing-playbook/motion";
-import type { MotionBuildOptions } from "@diffusionstudio/editing-playbook/motion";
+import { buildMotionBrief, buildMotionModule, getMotionMoment, getMotionContentExample, motionCategories, motionMoments, searchMotionMoments } from "@diffusionstudio/editing-playbook/motion";
+import type { MotionBuildOptions, MotionCategory } from "@diffusionstudio/editing-playbook/motion";
 import { checkMotionCandidate, createMotionCandidate, motionAdapterKinds, motionCandidateSchema, motionTestKinds } from "@diffusionstudio/editing-playbook/motion-candidates";
 
 const formats = ["landscape", "portrait"] as const;
 const modes = ["template", "sequence", "inspiration"] as const;
 const print = (value: unknown) => console.log(JSON.stringify(value, null, 2));
-type BuildOptions = { mode: string; format: string; title?: string; body?: string; source?: string };
+type BuildOptions = { mode: string; format: string; title?: string; body?: string; source?: string;content?:string;theme?:string;motion?:string };
 
 function safe<Args extends unknown[]>(action: (...args: Args) => Promise<void>) {
   return async (...args: Args) => {
@@ -30,7 +30,9 @@ function format(value: string): MotionBuildOptions["format"] {
 function buildOptions(ids: string[], options: BuildOptions, mountable: boolean): MotionBuildOptions {
   const allowed = mountable ? modes.filter(mode => mode !== "inspiration") : modes;
   if (!(allowed as readonly string[]).includes(options.mode)) throw new Error(`Choose mode: ${allowed.join(", ")}${mountable ? "; use brief for inspiration" : ""}`);
-  return { momentIds: ids, mode: options.mode as MotionBuildOptions["mode"], format: format(options.format),
+  if(options.theme!==undefined && !["paper","dark"].includes(options.theme))throw new Error("Choose theme: paper, dark");
+  if(options.motion!==undefined && !["full","reduced"].includes(options.motion))throw new Error("Choose motion: full, reduced");
+  return { momentIds: ids, mode: options.mode as MotionBuildOptions["mode"], format: format(options.format),theme:options.theme as MotionBuildOptions["theme"],motion:options.motion as MotionBuildOptions["motion"],
     ...(options.title === undefined ? {} : { title: options.title }),
     ...(options.body === undefined ? {} : { body: options.body }),
     ...(options.source === undefined ? {} : { source: options.source }) };
@@ -43,11 +45,11 @@ async function writeNew(path: string, content: string): Promise<string> {
   return target;
 }
 
-async function readCandidate(path: string): Promise<unknown> {
+async function readCandidate(path: string, maxBytes=8_000_000): Promise<unknown> {
   const target = resolve(path), info = await stat(target);
-  if (!info.isFile() || info.size > 8_000_000) throw new Error("Candidate must be a local JSON file at most 8 MB");
+  if (!info.isFile() || info.size > maxBytes) throw new Error(`Expected a local JSON file at most ${maxBytes} bytes`);
   const content = await readFile(target);
-  if (content.byteLength > 8_000_000) throw new Error("Candidate must be a local JSON file at most 8 MB");
+  if (content.byteLength > maxBytes) throw new Error(`Expected a local JSON file at most ${maxBytes} bytes`);
   return JSON.parse(content.toString("utf8")) as unknown;
 }
 
@@ -55,23 +57,32 @@ export function registerMotionCommands(playbook: Command) {
   const motion = playbook.command("motion").description("Discover original native Moments, compose editable scenes and check inert integration candidates; local, no AI or downloads");
   motion.command("catalog").argument("[query]", "search native moment names, purposes and movement tags")
     .option("--format <format>", "landscape | portrait; omit to include both")
+    .option("--category <category>", motionCategories.join(" | "))
     .description("Search native Moments; external integration candidates are kept separate")
-    .action(safe(async (query: string | undefined, options: { format?: string }) => {
+    .action(safe(async (query: string | undefined, options: { format?: string;category?:string }) => {
       const selected = options.format === undefined ? undefined : format(options.format);
-      const items = searchMotionMoments(query ?? "", selected);
+      const items = searchMotionMoments(query ?? "", selected,options.category as MotionCategory|undefined);
       print({ schemaVersion: 1, kind: "editor-native-motion-catalog", query: query ?? "", format: selected ?? null, items, count: items.length, externalCalls: 0 });
     }));
   motion.command("show").argument("<id>", "native Moment ID, optionally prefixed with @")
     .description("Read one native Moment's purpose, timing, source origin and example")
     .action(safe(async (id: string) => {
-      print({ schemaVersion: 1, moment: getMotionMoment(id), externalCalls: 0 });
+      const moment=getMotionMoment(id);
+      print({ schemaVersion: 1, moment,exampleContent:{[moment.id]:getMotionContentExample(moment.id)}, externalCalls: 0 });
     }));
+  motion.command("categories").description("List native categories and preset counts").action(()=>print({categories:motionCategories.map(category=>({id:category,count:motionMoments.filter(m=>m.category===category).length})),total:motionMoments.length}));
+  motion.command("example").argument("<id>").requiredOption("-o, --output <settings.json>","new editable data settings")
+    .description("Write authored example values/timings for a preset; does not fetch data or transcribe audio")
+    .action(safe(async(id:string,options:{output:string})=>{const moment=getMotionMoment(id);const content={[moment.id]:getMotionContentExample(moment.id)};const path=await writeNew(options.output,JSON.stringify(content,null,2)+"\n");print({path,content,externalCalls:0});}));
   motion.command("create").argument("<ids...>", "one to six unique native Moment IDs in authored order")
     .option("--mode <mode>", "template | sequence; use template for one scene", "sequence")
     .option("--format <format>", "landscape | portrait", "landscape")
     .option("--title <text>", "caller-authored title")
     .option("--body <text>", "caller-authored explanation")
     .option("--source <text>", "caller-authored source or illustration label")
+    .option("--content <settings.json>","preset data keyed by selected moment ID, at most 128 KiB")
+    .option("--theme <theme>","paper | dark","paper")
+    .option("--motion <motion>","full | reduced (decorative motion)","full")
     .requiredOption("-o, --output <new.js>", "new executable native JavaScript module, never overwritten")
     .description("Compose an editable native module; use --mode template for one scene, sequence for ordered Moments")
     .action(safe(async (ids: string[], options: BuildOptions & { output: string }) => {
@@ -79,6 +90,7 @@ export function registerMotionCommands(playbook: Command) {
       // Fresh files must mount as distinct scenes; reloading one saved module
       // keeps the literal scene key embedded in that file.
       const input = { ...buildOptions(ids, options, true), sceneKey: `moment-${randomUUID()}` };
+      if(options.content) input.content=await readCandidate(options.content,131072) as MotionBuildOptions["content"];
       const module = buildMotionModule(input), brief = buildMotionBrief(input);
       const path = await writeNew(options.output, module);
       print({ schemaVersion: 1, kind: "editor-native-motion-module", path, sha256: createHash("sha256").update(module).digest("hex"), brief,
@@ -90,17 +102,22 @@ export function registerMotionCommands(playbook: Command) {
     .option("--title <text>", "caller-authored title")
     .option("--body <text>", "caller-authored explanation")
     .option("--source <text>", "caller-authored source or illustration label")
+    .option("--content <settings.json>","preset data keyed by selected moment ID, at most 128 KiB")
+    .option("--theme <theme>","paper | dark","paper")
+    .option("--motion <motion>","full | reduced (decorative motion)","full")
     .description("Describe motion intent without creating a module; use --mode template for a single-scene brief")
     .action(safe(async (ids: string[], options: BuildOptions) => {
-      print(buildMotionBrief(buildOptions(ids, options, false)));
+      const input=buildOptions(ids,options,false);
+      if(options.content)input.content=await readCandidate(options.content,131072) as MotionBuildOptions["content"];
+      print(buildMotionBrief(input));
     }));
   motion.command("workflow").description("Read native composition commands, candidate schema and honest review requirements")
     .action(() => print({ schemaVersion: 1, formats, composeModes: ["template", "sequence"], briefModes: modes,
-      defaults: { format: "landscape", createMode: "sequence", briefMode: "inspiration" }, nativeMomentIds: motionMoments.map(moment => moment.id),
+      defaults: { format: "landscape", createMode: "sequence", briefMode: "inspiration",theme:"paper",motion:"full" },categories:motionCategories,nativeMomentIds: motionMoments.map(moment => moment.id),
       commands: ["playbook motion catalog [query] --format portrait", "playbook motion show <id>",
         "playbook motion create <id> --mode template --format landscape --title <text> --body <text> --source <text> -o new.js",
         "playbook motion create <ids...> --mode sequence --format portrait -o new.js", "playbook motion brief <ids...> --mode inspiration",
-        "playbook motion candidate new <https-url> -o candidate.json", "playbook motion candidate check candidate.json"],
+        "playbook motion categories", "playbook motion example <id> -o settings.json", "playbook motion create <id> --mode template --content settings.json --theme dark --motion reduced -o new.js", "playbook motion candidate new <https-url> -o candidate.json", "playbook motion candidate check candidate.json"],
       instructions: ["reference/motion-catalog.md", "reference/motion-sources.md", "reference/jsx/editor-guidance.md", "reference/node/render.md"],
       skillReadArgs: ["editor-motion-graphics", "editor-motion-integration", "editor-review"].map(id => ["playbook", "skill", id]),
       candidateSchema: z.toJSONSchema(motionCandidateSchema), adapterKinds: motionAdapterKinds, requiredCandidateTestKinds: motionTestKinds,

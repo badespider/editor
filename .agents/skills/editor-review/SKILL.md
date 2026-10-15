@@ -1,6 +1,6 @@
 ---
 name: editor-review
-description: Review a Diffusion Studio edit and rendered preview, or record a scoped editing/engagement comparison. Use for substantive footage handoff and testing editing lessons; analytics-only review does not authorize a new edit.
+description: Review a Diffusion Studio edit or native motion composition and its actual export, or record a scoped editing comparison. Use for generated graphics, substantive footage handoff and testing editing lessons; analytics-only review does not authorize a new edit.
 ---
 
 # Inspect the result, not only the instructions
@@ -24,6 +24,32 @@ Record a short finding for each dimension:
 - **Speech:** Are words intact and audio transitions clean? Mark not-applicable only when speech is absent; unknown is not absent.
 - **Readability:** Can the intended viewer read essential text at delivery size and pace? State what was actually checked.
 - **Continuity:** Are changes in place, time, speaker, screen state and sound understandable? Check around every join.
+
+For a native library composition, inspect the category's actual payload rather
+than treating the template name as suitability evidence:
+
+- **Captions:** Compare literal words, punctuation and timing with the exact
+  audio when claiming speech accuracy. Inspect cue/word boundaries, gaps, later
+  cues and the final visible frame. Record authored silent examples as such and
+  uncertain ASR or unavailable listening explicitly. Use the
+  [caption contract](../../../reference/jsx/caption-presets.md); structural word
+  timing alone does not establish speech accuracy.
+- **Charts/data:** Check visible units, domains, baseline, source/disclosure,
+  complete values and declared gaps. Confirm comparisons share the intended
+  scale and illustrative data stays labeled throughout. Distinguish supplied
+  observations from predictions, measurements and causal claims.
+- **Overlays and mobile layouts:** Inspect essential context and provenance at
+  every relevant position, including source/target motion. Check actual
+  phone-size readability and bottom/right interface reserves; authored safe
+  areas are guides, not proof that a face, hand or important result remains clear.
+- **Motion:** Check first readable, held, changed and final states, plus repeated
+  and reverse seeks. Compare restrained/reduced treatment where decorative
+  movement competes with the explanation. Keep captions and required reading
+  intervals aligned when reducing decorative animation.
+
+Name the exact export, dimensions and sampled times in the handoff. An editable
+native node or a passing full decode does not independently prove readable text,
+truthful data, source identity or continuous audiovisual quality.
 
 Do not set `previewInspected` based on an encoder success or schema validation. Record failed checks honestly; a review record is not an automatic editing approval. The checker always keeps `safeToAutoEdit: false`.
 

@@ -26,7 +26,10 @@ The pipeline is driven by two commands: [`dapi mount`](../mount.md) renders the 
 | [editor-guidance.md](./editor-guidance.md) | apply the editor's story, pacing, visual-focus and review skills to the native library |
 | [documentary.md](./documentary.md) | editable documentary cards, timelines, evidence callouts and local geographic route maps |
 | [education.md](./education.md) | lessons, native equations, worked examples, code, quizzes and math/physics/IT diagrams |
-| [media.md](./media.md) | `src` resolution (paths, URLs, asset ids, `AssetRef`) |
+| [creative-primitives.md](./creative-primitives.md) | seeded backgrounds, two-panel layouts, story cards and measured word reveals |
+| [data-graphics.md](./data-graphics.md) | editable signed bars, exact-point trends, metrics, units and source disclosures |
+| [caption-presets.md](./caption-presets.md) | caller-timed clean/boxed/karaoke captions and reusable caption safe areas |
+| [media.md](./media.md) | `src` resolution (paths, URLs, embedded artwork, asset ids, `AssetRef`) |
 | [timing.md](./timing.md) | `start` / `end` / `sourceIn` / `sourceOut`, time formats |
 | [keyframes.md](./keyframes.md) | Keyframe animation and easing |
 | [animations.md](./animations.md) | The `animations` prop: preset in/out animations |

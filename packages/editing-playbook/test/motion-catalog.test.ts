@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { mkdtemp, writeFile, unlink, rmdir } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { resolve, join } from "node:path";
 import { test } from "node:test";
 import { build } from "esbuild";
 import { motionMoments, searchMotionMoments, getMotionMoment, buildMotionBrief, buildMotionModule } from "../src/motion-catalog.ts";
@@ -35,7 +37,10 @@ export function mount(initialTime = 0) {
       builder.onResolve({filter: /^dapi-host:solid-js$/}, () => builder.resolve("solid-js", {resolveDir: repository, kind: "import-statement"}));
     }}],
   });
-  return import(`data:text/javascript;base64,${Buffer.from(result.outputFiles[0].text).toString("base64")}`);
+  const directory=await mkdtemp(join(tmpdir(),"editor-moment-test-"));
+  const file=join(directory,"runtime.mjs");
+  try {await writeFile(file,result.outputFiles[0].text);return await import(pathToFileURL(file).href);}
+  finally {await unlink(file);await rmdir(directory);}
 }
 const options = (ids: string[], format: "landscape" | "portrait" = "landscape", mode: MotionBuildOptions["mode"] = "template"): MotionBuildOptions => ({momentIds: ids, format, mode});
 function named(mount: Mounted, name: string): Node {
@@ -45,8 +50,8 @@ function named(mount: Mounted, name: string): Node {
 function content(node: Node): string { return node.tag === "#text" ? String(node.props.text) : node.children.map(content).join(""); }
 
 test("native registry is immutable, searchable and links actual local guides/examples", () => {
-  assert.equal(motionMoments.length, 6);
-  assert.equal(new Set(motionMoments.map(item => item.id)).size, 6);
+  assert.equal(motionMoments.length, 25);
+  assert.equal(new Set(motionMoments.map(item => item.id)).size, 25);
   for (const item of motionMoments) {
     assert.ok(Object.isFrozen(item)); assert.ok(Object.isFrozen(item.movementTags));
     assert.deepEqual(item.formats, ["landscape", "portrait"]);
@@ -57,7 +62,7 @@ test("native registry is immutable, searchable and links actual local guides/exa
   assert.equal(getMotionMoment("@code-reveal").id, "code-reveal");
   assert.deepEqual(searchMotionMoments("@code-rev", "portrait").map(item => item.id), ["code-reveal"]);
   assert.deepEqual(searchMotionMoments("counter hold").map(item => item.id), ["stat-proof"]);
-  assert.equal(searchMotionMoments("").length, 6);
+  assert.equal(searchMotionMoments("").length, 25);
   assert.throws(() => getMotionMoment("unknown"), /Unknown/);
 });
 
@@ -95,7 +100,7 @@ test("caller text remains data in executable ESM, with only the two host imports
   const payload = '";throw Error("bad");//';
   const source = buildMotionModule({...options(["question-reveal"]), title: payload, sceneKey: "safe-scene"});
   assert.deepEqual(Array.from(source.matchAll(/from "([^"]+)"/g), match => match[1]), ["dapi-host:@diffusionstudio/jsx", "dapi-host:solid-js"]);
-  assert.doesNotMatch(source, /https?:\/\/|Math\.random|Date\.|fetch\(/);
+  assert.doesNotMatch(source, /from ["']https?:\/\/|Math\.random|Date\.|fetch\(/);
   const native = await nativeModule(source), mounted = native.mount();
   assert.equal(content(named(mounted, "question-reveal/title")).replace(/\s+/g, " "), payload);
   assert.equal(mounted.document.stage.children[0].props.scene, "safe-scene");
@@ -104,7 +109,9 @@ test("caller text remains data in executable ESM, with only the two host imports
 
 for (const format of ["landscape", "portrait"] as const) {
   test(`every ${format} template executes actual native components with explicit finite lifetime`, async () => {
+    const failures:string[]=[];
     for (const item of motionMoments) {
+      try {
       const source = buildMotionModule(options([item.id], format));
       const native = await nativeModule(source), mounted = native.mount();
       const root = mounted.document.stage.children[0];
@@ -134,12 +141,14 @@ for (const format of ["landscape", "portrait"] as const) {
         assert.notEqual(mounted.routePath(), "");
       }
       mounted.dispose();
+      } catch(error) { failures.push(`${item.id}: ${(error as Error).message}`); }
     }
+    assert.deepEqual(failures,[]);
   });
 }
 
 test("sequence uses scene time, supports reverse reveals and keeps counter identity between ticks", async () => {
-  const ids = motionMoments.map(item => item.id), brief = buildMotionBrief(options(ids, "landscape", "sequence"));
+  const ids = motionMoments.slice(0,6).map(item => item.id), brief = buildMotionBrief(options(ids, "landscape", "sequence"));
   const native = await nativeModule(buildMotionModule(options(ids, "landscape", "sequence"))), mounted = native.mount();
   assert.equal(mounted.document.stage.children[0].props.end, 44);
   const answer = named(mounted, "question-reveal/answer");

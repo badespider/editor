@@ -18,7 +18,7 @@ assert.deepEqual(composeWorkflow.motionWorkflowArgs, ["playbook", "motion", "wor
 const motionWorkflow = run(composeWorkflow.motionWorkflowArgs);
 assert.ok(motionWorkflow.instructions.includes("reference/motion-catalog.md"));
 for (const args of motionWorkflow.skillReadArgs) assert.ok(run(args).instructions.length > 0);
-assert.equal(run(["playbook", "motion", "catalog"]).count, 6);
+assert.equal(run(["playbook", "motion", "catalog"]).count, 25);
 assert.equal(run(["playbook", "motion", "show", "@code-reveal"]).moment.id, "code-reveal");
 assert.equal(catalog.skills.length, skills.length);
 assert.equal(skills.length, 14);

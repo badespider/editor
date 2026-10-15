@@ -1,11 +1,33 @@
 # Native motion catalog and growth workflow
 
-The **Moments** tab beside Assets contains six original, editable native scenes.
-Search by purpose, movement or `@id`: `question-reveal`, `evidence-focus`,
-`worked-solution`, `code-reveal`, `stat-proof`, `route-reveal`. Each has authored
-16:9 and 9:16 layouts. These are local editor components, not imported
+The **Moments** tab beside Assets contains 25 original, editable native scenes in
+11 categories. Search by purpose, movement or `@id`, and filter by category.
+Each has authored 16:9 and 9:16 layouts. These are local editor components, not imported
 HyperFrames examples. [Source research and license boundaries](motion-sources.md)
 explain the linked post and what remains a candidate.
+
+## Choose by editing purpose
+
+| Category | Useful selection | What the viewer must retain |
+| --- | --- | --- |
+| `backgrounds` | Quiet grid, dots or gradient | Foreground contrast and a clear focal element |
+| `captions` | `caption-clean`, `caption-highlight` | Supplied words, punctuation and cue/word timing; meaning and source context |
+| `charts` | `chart-bars`, `chart-trend` | Units, domains, baseline, exact values/gaps and source/disclosure |
+| `data` | Metric with reference, illustrative counter | What the number measures and its stated comparison |
+| `effects` | Restrained film or duotone artwork | Unprocessed essential text, color distinctions and source labels |
+| `layouts` | Context and focus panels | The relationship between panels; useful reading size in the chosen format |
+| `maps` | Route or shared-scale route comparison | Real geography and credits; authored itinerary versus observed journey |
+| `overlays` | Name, source card, evidence focus | Essential action, target alignment and unobscured provenance |
+| `storytelling` | Question, quote, chapters, turn | One coherent setup and payoff; supplied chronology and attribution |
+| `text-effects` | Stable word reveal or keyword emphasis | The complete thought and its still reading interval |
+| `education` | Worked solution or code reveal | Given information, complete operation and explicitly authored result |
+
+Start with the explanation, then choose a treatment. A richer category does not
+make an unclear beat clearer. Keep decorative backgrounds/effects quiet while
+small code, source text or numeric distinctions matter. Use
+[editor-motion-graphics](../.agents/skills/editor-motion-graphics/SKILL.md) for the
+decision and [editor-review](../.agents/skills/editor-review/SKILL.md) for the
+actual result.
 
 ## Reuse a moment
 
@@ -27,6 +49,13 @@ reactive script drives
 animated properties; change those rules in the generated module and remount a
 new scene when a static property edit would be overwritten by its animation.
 
+The editable content area supplies per-Moment data: caption cues, chart values
+and domains, map routes, panel wording or authored story beats. `paper` and
+`dark` themes preserve separate content and palette. `full` and `reduced` motion
+control decorative animation; reduced motion keeps caption timing and essential
+content reveals intact. Inspect each supported format rather than scaling a
+landscape scene blindly into portrait.
+
 The same catalog is available to agents without sidebar access. After building
 the CLI, replace `dapi` below with `node apps/cli/dist/index.js` if needed:
 
@@ -35,10 +64,15 @@ dapi playbook recommend --task compose --goal "Teach a concept with a worked exa
 dapi playbook skill editor-motion-graphics
 dapi playbook motion workflow
 dapi playbook motion catalog reveal --format portrait
+dapi playbook motion catalog --category captions --format portrait
+dapi playbook motion categories
+dapi playbook motion example chart-bars -o chart-data.json
+dapi playbook motion create chart-bars --mode template --format portrait --content chart-data.json --theme dark -o chart.js
 dapi playbook motion show @evidence-focus
 dapi playbook motion create question-reveal --mode template --format portrait --title "What changed?" -o question.js
 dapi playbook motion create question-reveal evidence-focus stat-proof --mode sequence --format landscape -o proof-sequence.js
 dapi playbook motion brief code-reveal worked-solution --mode inspiration --format portrait
+dapi playbook motion create caption-clean chart-bars --mode sequence --format portrait --content lesson-content.json --theme paper --motion reduced -o lesson.js
 dapi mount proof-sequence.js
 ```
 
@@ -53,11 +87,54 @@ replace demonstration claims, then mount it. `source` is a visible attribution
 line, not a citation validator.
 
 `@diffusionstudio/editing-playbook/motion` exposes `motionMoments`,
-`searchMotionMoments`, `getMotionMoment`, `buildMotionModule` and
-`buildMotionBrief`. Browser and CLI share these functions. Formats are
+`motionCategories`, `searchMotionMoments`, `getMotionMoment`,
+`getMotionContentExample`, `buildMotionModule` and `buildMotionBrief`.
+Browser and CLI share these functions. Formats are
 `landscape|portrait`; modes are `template|sequence|inspiration`. Inspiration is
 reference-only and cannot build a mountable module. Stable IDs and versions are
 references, not an installer or a promise that future revisions look identical.
+
+## Supply content without turning it into code
+
+`--content` reads a local JSON object keyed by selected Moment ID. The sidebar's
+editable content area uses the same shape. Each entry has bounded category
+settings; unknown fields and content for unselected IDs fail. Caller strings
+remain data in generated modules. `getMotionContentExample(id)` returns an
+editable sample payload; replace its example claims and timings before using it
+as evidence.
+
+For the sequence command above, `lesson-content.json` could contain:
+
+```json
+{
+  "caption-clean": {
+    "cues": [{"start": 0.5, "end": 3, "text": "An authored caption."}]
+  },
+  "chart-bars": {
+    "title": "A supplied comparison",
+    "data": [{"label": "Before", "value": 12}, {"label": "After", "value": 24}],
+    "valueDomain": [0, 30],
+    "baseline": 0,
+    "unit": "units",
+    "disclosure": {"kind": "illustrative", "text": "Authored sample data"}
+  }
+}
+```
+
+Caption times are local to that eight-second Moment. `caption-highlight` also
+requires complete literal word tokens with times on that same origin. The
+catalog does not transcribe audio or establish speech accuracy; match supplied
+cues to exact audio before making that claim. Read
+[CaptionTrack](jsx/caption-presets.md) for frame rounding, gaps, overlap and text
+limits. Its `captionSafeLayout` helper returns a protected caption region with
+starting portrait interface reserves; keep subjects, action and source credits
+clear separately.
+
+Charts require explicit increasing domains, units and visible disclosure.
+Preserve signed values and declared trend gaps; use a shared zero baseline for
+bars and shared scales for comparisons. A sourced label records the author's
+reference, while illustrative data must remain identified as illustrative. See
+[data graphics](jsx/data-graphics.md) for the component-specific checks.
 
 ## Grow the catalog in small reviewed steps
 
@@ -124,4 +201,4 @@ dependency, uploads content or publishes a video.
 
 The HyperFrames record deliberately remains `needs_evidence`: the source research
 does not demonstrate that copying its metadata helper benefits this editor. The
-six Moments are original native implementations of useful motion patterns.
+25 Moments are original native implementations of useful motion patterns.
