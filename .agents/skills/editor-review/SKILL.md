@@ -51,6 +51,14 @@ Name the exact export, dimensions and sampled times in the handoff. An editable
 native node or a passing full decode does not independently prove readable text,
 truthful data, source identity or continuous audiovisual quality.
 
+For reference adaptation, use the
+[local comparison bundle](../../../reference/reference-workbench.md) to retain both
+source hashes, explicit start offsets and requested/decoded timestamps. Open the
+paired frames instead of treating bundle creation as inspection. Compare the
+intended property, hold and transition in each source's own coordinate system;
+contain/letterbox presentation preserves aspect ratio and does not imply equal
+geometry. No automatic match score or audience benefit follows from the pairs.
+
 Do not set `previewInspected` based on an encoder success or schema validation. Record failed checks honestly; a review record is not an automatic editing approval. The checker always keeps `safeToAutoEdit: false`.
 
 For skill evaluation, compare a baseline and one candidate on the same brief. Report technical checks separately from subjective preference. Ask the user which works better when taste is decisive. Save preferences only when explicitly approved, with their scope and the feedback source. Do not turn a one-off correction into a universal rule.

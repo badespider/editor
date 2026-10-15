@@ -4,6 +4,39 @@ External references are research inputs. They do not install skills, change the
 native renderer or make third-party media ready to redistribute. Keep proposed
 sources separate from implemented, reviewed native catalog entries.
 
+## Reference-video workflow research
+
+The public HyperFrames recreation guide and `snapshot --against` implementation
+were inspected separately at commit
+[`cea8aa8a7dee9d669e47e4b488213008bbe305cd`](https://github.com/heygen-com/hyperframes/tree/cea8aa8a7dee9d669e47e4b488213008bbe305cd).
+The [guide](https://github.com/heygen-com/hyperframes/blob/cea8aa8a7dee9d669e47e4b488213008bbe305cd/docs/prompting/recreating-references.mdx)
+describes timestamped motion analysis, absolute corrections, frame comparison and
+distilling converged measurements. Its fidelity percentages describe its own
+examples; they are not guarantees for this editor.
+
+The public [snapshot source](https://github.com/heygen-com/hyperframes/blob/cea8aa8a7dee9d669e47e4b488213008bbe305cd/packages/cli/src/commands/snapshot.ts)
+extracts local reference frames and creates labelled comparison pairs. Optional
+AI image descriptions use a separate provider. These files do not demonstrate an
+open-source one-click reconstruction backend for every arbitrary video.
+
+Our [Reference workbench](reference-workbench.md) independently implements the
+useful authoring and comparison loop using this editor's existing evidence
+pipeline, native Moments and renderer. No upstream code, renderer, fonts, textures,
+music or footage were copied into the implementation. No external dependency or
+AI service was added. Public code remains under its Apache-2.0 license; third-party
+licensing in upstream CREDITS remains separate. An unmodified
+[license copy](../integrations/licenses/hyperframes-reference-APACHE-2.0.txt)
+is retained with the [research candidate](../integrations/motion-candidates/hyperframes-reference-workflow.json).
+That external-source record does not activate skills or install code; the native
+feature is implemented separately.
+
+| Pinned research file | SHA-256 |
+| --- | --- |
+| `docs/prompting/recreating-references.mdx` | `c3e80f36d867c34939ef3f911f894069fb52555ab005a5c5fbde7fa05097e34d` |
+| `packages/cli/src/commands/snapshot.ts` | `b249010cf579ad14e83915e46b88f3ead2ad2a73c56cbd992a282bc5182281a5` |
+| `LICENSE` | `4259155fb06f127687ee7b0a8a3682d45132db0f2da26cbc0b7a2d1e796436b8` |
+| `CREDITS.md` | `a484f3ddebdb8cdde6b3fb4e597e57d953fd5b83bf872701ad9d7c0c5761a39e` |
+
 ## The linked post
 
 The supplied [HyperFrames post](https://x.com/hyperframes_/status/2110072407784616067)

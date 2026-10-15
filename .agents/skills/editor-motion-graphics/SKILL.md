@@ -11,6 +11,14 @@ native moment or component whose purpose fits the brief. Use the catalog's
 template/sequence modes to author; inspiration mode is a reference, not a mountable
 composition. Reuse native components before introducing an external animation tool.
 
+When the brief includes a reference video, use the
+[Reference workbench](../../../reference/reference-workbench.md) to retain timed
+observations, uncertainty and absolute authoring targets. Inspect local evidence
+before choosing native patterns. A catalog scaffold supplies editable starting
+structure; adapt its content and timing, render it, and compare the exact export
+against the reference at declared offsets. Matching one sampled frame does not
+establish equivalent motion or sound.
+
 Choose the [catalog category](../../../reference/motion-catalog.md#choose-by-editing-purpose)
 from the beat: captions for supplied words, charts/data for a comparison,
 maps/layouts for relationships, overlays for context, and storytelling/education

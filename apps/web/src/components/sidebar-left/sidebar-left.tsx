@@ -14,9 +14,10 @@ import { getProjectName, setProjectName } from "../engine/db";
 import { createResource } from "solid-js";
 import { cx } from "@/lib/cva";
 import { Moments } from "./moments";
+import { ReferenceWorkbench } from "./reference-workbench";
 
 export function SidebarLeft() {
-  const [panel, setPanel] = createSignal<"assets" | "moments">("assets");
+  const [panel, setPanel] = createSignal<"assets" | "moments" | "reference">("assets");
   return (
     <div class="flex flex-col h-full overflow-hidden">
       <ElectronHeader />
@@ -24,10 +25,14 @@ export function SidebarLeft() {
       <div role="tablist" aria-label="Project resources" class="flex gap-1 px-3 pb-2 border-b border-border">
         <Button role="tab" id="assets-tab" aria-selected={panel() === "assets"} aria-controls="assets-panel" variant={panel() === "assets" ? "secondary" : "ghost"} onClick={() => setPanel("assets")}>Assets</Button>
         <Button role="tab" id="moments-tab" aria-selected={panel() === "moments"} aria-controls="moments-panel" variant={panel() === "moments" ? "secondary" : "ghost"} onClick={() => setPanel("moments")}>Moments</Button>
+        <Button role="tab" id="reference-tab" aria-selected={panel() === "reference"} aria-controls="reference-panel" variant={panel() === "reference" ? "secondary" : "ghost"} onClick={() => setPanel("reference")}>Reference</Button>
       </div>
-      <Show when={panel() === "assets"} fallback={<div role="tabpanel" id="moments-panel" aria-labelledby="moments-tab" class="flex-1 min-h-0 flex flex-col"><Moments /></div>}>
-        <div role="tabpanel" id="assets-panel" aria-labelledby="assets-tab" class="flex-1 min-h-0 flex flex-col"><Assets /></div>
+      <Show when={panel() !== "reference"}>
+        <Show when={panel() === "assets"} fallback={<div role="tabpanel" id="moments-panel" aria-labelledby="moments-tab" class="flex-1 min-h-0 flex flex-col"><Moments /></div>}>
+          <div role="tabpanel" id="assets-panel" aria-labelledby="assets-tab" class="flex-1 min-h-0 flex flex-col"><Assets /></div>
+        </Show>
       </Show>
+      <div role="tabpanel" id="reference-panel" aria-labelledby="reference-tab" class="flex-1 min-h-0 flex-col" style={{ display: panel() === "reference" ? "flex" : "none" }}><ReferenceWorkbench active={panel() === "reference"} /></div>
     </div>
   );
 }

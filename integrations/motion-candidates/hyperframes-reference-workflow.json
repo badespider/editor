@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "status": "candidate",
+  "id": "hyperframes-reference-workflow",
+  "title": "Reference-video analysis and frame-comparison design",
+  "originUrl": "https://hyperframes.heygen.com/prompting/recreating-references",
+  "source": {
+    "repositoryUrl": "https://github.com/heygen-com/hyperframes",
+    "revision": "cea8aa8a7dee9d669e47e4b488213008bbe305cd",
+    "licenseId": "Apache-2.0",
+    "licenseUrl": "https://github.com/heygen-com/hyperframes/blob/cea8aa8a7dee9d669e47e4b488213008bbe305cd/LICENSE",
+    "assets": []
+  },
+  "capabilities": [
+    "Design inspiration: timed observations, absolute corrections, reference-render frame pairs and distilled authoring notes.",
+    "Native workbench implemented independently; no upstream code or assets copied."
+  ],
+  "adapter": {"kind": "prepared-media", "implementationPath": "packages/editing-playbook/src/reference-evidence.ts"},
+  "evidence": {"tests": [], "exports": [], "reviews": []},
+  "limits": [
+    "This record tracks external design research; it does not claim an imported HyperFrames runtime or activate trusted instructions.",
+    "Source and license inspection are documented in reference/motion-sources.md; upstream NOTICE was absent at root in this revision.",
+    "No upstream assets are needed. Third-party GSAP, fonts and unconfirmed textures are excluded.",
+    "Local comparison tools do not infer original layers, automatically reconstruct arbitrary video, score quality or verify spoken content."
+  ],
+  "useWhen": ["Study a user-selected reference and compare an authored native editor export at declared timestamps."],
+  "avoidWhen": ["Recovering the original project or claiming that arbitrary-video recreation or private AI backends are open source."]
+}

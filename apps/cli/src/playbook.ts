@@ -13,6 +13,7 @@ import { registerClipCommands } from './clips';
 import { registerExperimentCommands } from './experiments';
 import { registerLayeredCommands } from './layered';
 import { registerMotionCommands } from './motion';
+import { registerReferenceWorkbenchCommands } from './reference';
 
 const readJson = async (path: string): Promise<unknown> => JSON.parse(await readFile(resolve(path), "utf8"));
 const print = (value: unknown) => console.log(JSON.stringify(value, null, 2));
@@ -89,7 +90,8 @@ export function registerPlaybookCommands(program: Command) {
         print(report); if (!report.technicalPass) process.exitCode = 1;
       } finally { process.removeListener('SIGINT', abort); }
     }));
-  const reference = playbook.command("reference").description("Create/check candidate reference notes; never downloads or activates a skill");
+  const reference = playbook.command("reference").description("Study local reference videos, compare native renders and retain candidate lessons; no AI calls or automatic learning");
+  registerReferenceWorkbenchCommands(reference);
   reference.command("new").argument("<youtube-url>").requiredOption("-o, --output <path>")
     .action(safe(async (url: string, options: { output: string }) => {
       youtubeUrlSchema.parse(url);
