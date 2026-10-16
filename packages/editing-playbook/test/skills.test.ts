@@ -11,7 +11,7 @@ import { fixture } from "./fixture.ts";
 
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const idsFor = (goal: string, format: Format = "story") => recommend(format, goal).skills.map(skill => skill.id);
-const creativeIds: SkillId[] = ["editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish", "editor-motion-graphics", "editor-motion-integration"];
+const creativeIds: SkillId[] = ["editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish", "editor-motion-graphics", "editor-motion-integration", "editor-motion-recipes"];
 
 test("catalog covers declared skill IDs, with unique IDs, paths and CLI read arguments", () => {
   assert.deepEqual(skills.map(skill => skill.id), [...skillIds]);
@@ -107,6 +107,31 @@ test("motion additions preserve ordinary edit, packaging and evaluation routes",
   assert.ok(!idsFor("Trim this footage").includes("editor-motion-integration"));
   assert.deepEqual(recommend("story", "Describe the external motion integration", false, "package").skills.map(skill => skill.id), ["editor-youtube-packaging"]);
   assert.deepEqual(recommend("story", "Evaluate the external motion integration", false, "evaluate").skills.map(skill => skill.id), ["editor-review"]);
+});
+
+test("reusable motion goals select recipes and native guidance without footage prerequisites", () => {
+  for (const goal of ["Build reusable motion skills", "Remix a counter reveal with a chart", "Mix native animation presets", "Create a counter-reveal", "Combine two native presets on one canvas", "Use motion presets", "Mix animations"]) {
+    const result = recommend("story", goal, false, "compose");
+    const ids = result.skills.map(skill => skill.id);
+    for (const id of ["editor-motion-recipes", "editor-motion-graphics", "editor-review"] as const) assert.ok(ids.includes(id), goal);
+    assert.ok(!ids.includes("editor-video-evidence"));
+    assert.ok(!ids.includes("editor-story-plan"));
+    assert.ok(!ids.includes("editor-motion-integration"));
+  }
+  assert.ok(idsFor("Reuse the counter motion in this edit").includes("editor-motion-recipes"));
+  assert.ok(!idsFor("Trim this interview").includes("editor-motion-recipes"));
+  for (const task of ["package", "evaluate"] as const) {
+    assert.ok(!recommend("story", "Describe reusable motion skills", false, task).skills.some(skill => skill.id === "editor-motion-recipes"));
+  }
+});
+
+test("native recipe references request scoped learning while explicit external integrations remain selected", () => {
+  const native = recommend("story", "Generalize this counter motion into reusable skills", true, "compose").skills.map(skill => skill.id);
+  assert.ok(native.includes("editor-reference-learning"));
+  assert.ok(!native.includes("editor-motion-integration"));
+  const external = recommend("story", "Integrate an external animation library for reusable motion presets", true, "compose").skills.map(skill => skill.id);
+  assert.ok(external.includes("editor-motion-recipes"));
+  assert.ok(external.includes("editor-motion-integration"));
 });
 
 test("every recommendation contains its transitive requirements and only selected graph endpoints", () => {

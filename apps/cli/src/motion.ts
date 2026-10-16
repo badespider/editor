@@ -5,6 +5,7 @@ import type { Command } from "commander";
 import { z } from "zod";
 import { buildMotionBrief, buildMotionModule, getMotionMoment, getMotionContentExample, motionCategories, motionMoments, searchMotionMoments } from "@diffusionstudio/editing-playbook/motion";
 import type { MotionBuildOptions, MotionCategory } from "@diffusionstudio/editing-playbook/motion";
+import { buildMotionMixBrief, buildMotionMixModule, getMotionMixExample, mixableMotionMoments, motionMixSchema } from "@diffusionstudio/editing-playbook/motion-mix";
 import { checkMotionCandidate, createMotionCandidate, motionAdapterKinds, motionCandidateSchema, motionTestKinds } from "@diffusionstudio/editing-playbook/motion-candidates";
 
 const formats = ["landscape", "portrait"] as const;
@@ -58,10 +59,11 @@ export function registerMotionCommands(playbook: Command) {
   motion.command("catalog").argument("[query]", "search native moment names, purposes and movement tags")
     .option("--format <format>", "landscape | portrait; omit to include both")
     .option("--category <category>", motionCategories.join(" | "))
+    .option("--mixable", "only entries with bounded native component mix adapters")
     .description("Search native Moments; external integration candidates are kept separate")
-    .action(safe(async (query: string | undefined, options: { format?: string;category?:string }) => {
+    .action(safe(async (query: string | undefined, options: { format?: string;category?:string;mixable?:boolean }) => {
       const selected = options.format === undefined ? undefined : format(options.format);
-      const items = searchMotionMoments(query ?? "", selected,options.category as MotionCategory|undefined);
+      const items = searchMotionMoments(query ?? "", selected,options.category as MotionCategory|undefined).filter(item=>!options.mixable || item.mixable);
       print({ schemaVersion: 1, kind: "editor-native-motion-catalog", query: query ?? "", format: selected ?? null, items, count: items.length, externalCalls: 0 });
     }));
   motion.command("show").argument("<id>", "native Moment ID, optionally prefixed with @")
@@ -71,6 +73,27 @@ export function registerMotionCommands(playbook: Command) {
       print({ schemaVersion: 1, moment,exampleContent:{[moment.id]:getMotionContentExample(moment.id)}, externalCalls: 0 });
     }));
   motion.command("categories").description("List native categories and preset counts").action(()=>print({categories:motionCategories.map(category=>({id:category,count:motionMoments.filter(m=>m.category===category).length})),total:motionMoments.length}));
+  motion.command("mix-example")
+    .option("--format <format>","landscape | portrait","landscape")
+    .requiredOption("-o, --output <recipe.json>","new editable mix recipe JSON, never overwritten")
+    .description("Write an original counter/background/chart/source-card mix example with explicit boxes and times")
+    .action(safe(async(options:{format:string;output:string})=>{
+      const recipe=getMotionMixExample(format(options.format));
+      const path=await writeNew(options.output,JSON.stringify(recipe,null,2)+"\n");
+      print({schemaVersion:1,kind:"editor-native-motion-mix-recipe",path,recipe,externalCalls:0});
+    }));
+  motion.command("mix").argument("<recipe.json>","strict local mix recipe, at most 128 KiB")
+    .requiredOption("-o, --output <new.js>","new native module, never overwritten")
+    .description("Mix curated native components in one editable scene; array order draws bottom to top")
+    .action(safe(async(path:string,options:{output:string})=>{
+      if(extname(options.output).toLowerCase()!==".js")throw new Error("Motion mix output must be a new .js native module");
+      const parsed=motionMixSchema.parse(await readCandidate(path,131072));
+      const input={...parsed,sceneKey:parsed.sceneKey??`motion-mix-${randomUUID()}`};
+      const module=buildMotionMixModule(input),brief=buildMotionMixBrief(input);
+      const output=await writeNew(options.output,module);
+      print({schemaVersion:1,kind:"editor-native-motion-mix-module",path:output,sha256:createHash("sha256").update(module).digest("hex"),brief,externalCalls:0,
+        next:"Mount in a new project, inspect overlapping layers and reading holds, render the native scene, then check reverse seeks and reload."});
+    }));
   motion.command("example").argument("<id>").requiredOption("-o, --output <settings.json>","new editable data settings")
     .description("Write authored example values/timings for a preset; does not fetch data or transcribe audio")
     .action(safe(async(id:string,options:{output:string})=>{const moment=getMotionMoment(id);const content={[moment.id]:getMotionContentExample(moment.id)};const path=await writeNew(options.output,JSON.stringify(content,null,2)+"\n");print({path,content,externalCalls:0});}));
@@ -117,13 +140,15 @@ export function registerMotionCommands(playbook: Command) {
       commands: ["playbook motion catalog [query] --format portrait", "playbook motion show <id>",
         "playbook motion create <id> --mode template --format landscape --title <text> --body <text> --source <text> -o new.js",
         "playbook motion create <ids...> --mode sequence --format portrait -o new.js", "playbook motion brief <ids...> --mode inspiration",
-        "playbook motion categories", "playbook motion example <id> -o settings.json", "playbook motion create <id> --mode template --content settings.json --theme dark --motion reduced -o new.js", "playbook motion candidate new <https-url> -o candidate.json", "playbook motion candidate check candidate.json"],
+        "playbook motion categories", "playbook motion example <id> -o settings.json", "playbook motion create <id> --mode template --content settings.json --theme dark --motion reduced -o new.js", "playbook motion catalog --mixable", "playbook motion mix-example --format portrait -o recipe.json", "playbook motion mix recipe.json -o new.js", "playbook motion candidate new <https-url> -o candidate.json", "playbook motion candidate check candidate.json"],
       instructions: ["reference/motion-catalog.md", "reference/motion-sources.md", "reference/jsx/editor-guidance.md", "reference/node/render.md"],
-      skillReadArgs: ["editor-motion-graphics", "editor-motion-integration", "editor-review"].map(id => ["playbook", "skill", id]),
+      skillReadArgs: ["editor-motion-graphics", "editor-motion-recipes", "editor-motion-integration", "editor-review"].map(id => ["playbook", "skill", id]),
+      mixablePresetIds:mixableMotionMoments().map(item=>item.id),mixRecipeSchema:z.toJSONSchema(motionMixSchema),
       candidateSchema: z.toJSONSchema(motionCandidateSchema), adapterKinds: motionAdapterKinds, requiredCandidateTestKinds: motionTestKinds,
       constraints: ["Template uses exactly one native Moment; sequence uses one to six unique Moments in the supplied order.",
         "Inspiration is an intent brief only and cannot generate a mountable module.",
         "Create writes an exclusive new JavaScript file. It does not mount, render, upload or publish.",
+        "Mix uses 1..24 uniquely keyed native component instances on one bounded canvas; repeated preset IDs are allowed. Only mixable catalog entries have adapters; template scene wrappers are never stacked.",
         "Candidate commands never fetch URLs, install dependencies or execute candidate content.",
         "Candidate checks assess declarations only. They do not authenticate files, licenses, hashes or inspection claims, and never activate a skill.",
         "Review the actual native-editor export for readability, protected context and native editability; encoder success is separate evidence."],

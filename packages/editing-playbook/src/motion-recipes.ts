@@ -5,7 +5,9 @@ export const libraryRecipeCode = `
     const box={x:m,y:p?550:350,width:inner,height:p?1120:600,start:b.start,end:b.end};
     const common={...box,theme,animate:animated,fontSize:p?40:32};
     const docTheme={background:theme.background,surface:theme.surface,text:theme.text,muted:theme.muted,accent:theme.accent,fontFamily:theme.fontFamily};
-    if(b.id.startsWith("background-")) {
+    if(b.id==="counter-reveal") {
+      nodes.push(CounterReveal({...box,...c,key:b.id+"/counter",name:"Editable counter reveal",fontFamily:theme.fontFamily,animate:animated}));
+    } else if(b.id.startsWith("background-")) {
       nodes.push(label(b.id+"/context",b.body,{x:m,y:p?1050:600,width:inner,height:p?300:190},p?44:38,b.start,b.end));
     } else if(b.id.startsWith("caption-")) {
       nodes.push(Rect({name:"Caption demonstration area",x:m,y:p?600:360,width:inner,height:p?720:300,fill:theme.surface,start:b.start,end:b.end}));

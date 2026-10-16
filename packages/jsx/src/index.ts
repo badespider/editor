@@ -29,6 +29,7 @@ export * from "./education-diagrams";
 export * from "./creative-primitives";
 export * from "./data-graphics";
 export * from "./caption-presets";
+export * from "./counter-reveal";
 export {
   Audio,
   Captions,

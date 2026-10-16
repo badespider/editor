@@ -11,13 +11,19 @@ native moment or component whose purpose fits the brief. Use the catalog's
 template/sequence modes to author; inspiration mode is a reference, not a mountable
 composition. Reuse native components before introducing an external animation tool.
 
+For reusable patterns or combinations of existing motions, read
+[editor-motion-recipes](../editor-motion-recipes/SKILL.md). Its bounded mix
+workflow combines transparent native parts on one canvas, with independent
+content, boxes and lifetimes; sequence mode plays scenes in order.
+
 When the brief includes a reference video, use the
 [Reference workbench](../../../reference/reference-workbench.md) to retain timed
 observations, uncertainty and absolute authoring targets. For an authorized
 automatic adaptation, its desktop drop/select path uses the signed-in Codex
 account and sends sampled frames for remote analysis. It compiles a strict data
-plan into editable native text/shapes and linear keyframes; unsupported media
-needs an honest placeholder. Follow the workbench's scope and cancellation
+plan into editable native text/shapes and eased tracks, with source-backed
+camera clips or prepared raster details where appropriate. Keep media distinct
+from reconstructed graphics. Follow the workbench's scope and cancellation
 contract, then inspect its actual preview and comparison. For manual authoring,
 inspect local evidence before choosing native patterns. A catalog scaffold
 supplies editable starting structure; adapt its content and timing and compare

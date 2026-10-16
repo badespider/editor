@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { access, readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { recommend, relationships, skills, validatePlan, validateReference, youtubeUrlSchema } from "../src/index.ts";
+import { recommend, relationships, skillIds, skills, validatePlan, validateReference, youtubeUrlSchema } from "../src/index.ts";
 import { fixture } from "./fixture.ts";
 import { renderPreview } from "../src/preview.ts";
 
@@ -110,8 +110,8 @@ test("a failed inspected preview requests changes, not a nonexistent first inspe
   assert.ok(report.warnings.some(warning => warning.code === "changes_required"));
   assert.ok(!report.warnings.some(warning => warning.code === "preview_review"));
 });
-test("all fourteen real skill files and their linked resources exist", async () => {
-  assert.equal(skills.length, 14);
+test("all declared real skill files and their linked resources exist", async () => {
+  assert.equal(skills.length, skillIds.length);
   for (const skill of skills) {
     const url = new URL(`../../../${skill.path}`, import.meta.url);
     const body = (await readFile(url, "utf8")).replace(/\r\n/g, "\n");

@@ -15,12 +15,41 @@ const background = z.object({seed:z.number().int().min(0).max(2_147_483_647),spa
 const effect = z.object({strength:finite.min(0).max(1),seed:z.number().int().min(0).max(65536)}).strict();
 const caption = z.object({cues:z.array(cue).min(1).max(40)}).strict();
 const kinetic = z.object({text:prose,emphasisWords:z.array(z.number().int().positive()).max(30)}).strict();
+const color = z.string().regex(/^#[\da-f]{6}$/i);
+const dataNumber = finite.min(-1e12).max(1e12);
+const line = short.regex(/^[^\u0000-\u001f\u007f]+$/);
+const dataDomain = z.tuple([dataNumber,dataNumber]).refine(([lo,hi])=>hi-lo>=1e-9,"Data domain must increase by at least 1e-9");
+const bars = z.object({title:line,data:z.array(z.object({label:line.max(64),value:dataNumber,color:color.optional()}).strict()).min(1).max(8),valueDomain:dataDomain,baseline:z.literal(0),unit:line.max(24),disclosure}).strict().superRefine((value,ctx)=>{
+  const [lo,hi]=value.valueDomain;
+  if(lo>0 || hi<0)ctx.addIssue({code:"custom",message:"Bar domain must include its zero baseline"});
+  if(value.data.some(item=>item.value<lo || item.value>hi))ctx.addIssue({code:"custom",message:"Bar values must fit the declared domain"});
+  if(new Set(value.data.map(item=>item.label)).size!==value.data.length)ctx.addIssue({code:"custom",message:"Bar labels must be unique"});
+});
+const time = finite.nonnegative().max(120);
+const counter = z.object({
+  values:z.array(z.union([z.number().int().safe(),z.string().trim().min(1).max(16).regex(/^[A-Za-z0-9$€£¥ .,:%+\-/−]+$/).regex(/[0-9]/)])).min(1).max(48),
+  stepDuration:time.positive().optional(),stepDurations:z.array(time.positive()).max(47).optional(),
+  revealDuration:time.positive().optional(),minHold:time.positive().optional(),direction:z.enum(["up","down"]).optional(),
+  fontSize:finite.min(8).max(2048).optional(),fontWeight:z.union([z.number().int().min(100).max(900),z.enum(["normal","bold"])]).optional(),
+  color:color.optional(),cellGap:finite.min(0).max(256).optional(),rowHeight:finite.min(16).max(4096).optional(),
+  glyphScaleX:finite.min(.1).max(4).optional(),glyphScaleY:finite.min(.1).max(4).optional(),
+  echo:z.union([z.literal(false),z.object({color:color.optional(),opacity:finite.min(0).max(1).optional(),scale:finite.min(.5).max(4).optional(),offsetX:finite.min(-4096).max(4096).optional(),offsetY:finite.min(-4096).max(4096).optional()}).strict()]).optional(),
+}).strict().superRefine((value,ctx)=>{
+  const issue=(message:string)=>ctx.addIssue({code:"custom",message});
+  if(value.stepDuration!==undefined && value.stepDurations!==undefined)issue("Use stepDuration or stepDurations, not both");
+  if(value.stepDurations!==undefined && value.stepDurations.length!==value.values.length-1)issue("stepDurations requires one interval between each supplied value");
+  const intervals=value.stepDurations??Array.from({length:value.values.length-1},()=>value.stepDuration??.2);
+  const reveal=Math.round((value.revealDuration??4/30)*30);
+  if(reveal<1 || intervals.some(interval=>Math.round(interval*30)<reveal))issue("revealDuration must fit every interval at canonical 30 fps");
+  if((value.minHold!==undefined && Math.round(value.minHold*30)<1) || intervals.some(interval=>Math.round(interval*30)<1))issue("Counter timing must occupy at least one canonical frame");
+});
 const schemas: Record<string, z.ZodType> = {
+  "counter-reveal":counter,
   "background-grid":background,"background-dots":background,"background-gradient":background,
   "caption-clean":caption,"caption-highlight":caption,
-  "chart-bars":z.object({title:short,data:z.array(z.object({label:short,value:finite}).strict()).min(1).max(8),valueDomain:domain,baseline:z.literal(0),unit:short,disclosure}).strict(),
+  "chart-bars":bars,
   "chart-trend":z.object({title:short,points:z.array(z.object({x:finite,y:finite}).strict().nullable()).min(2).max(60),xDomain:domain,yDomain:domain,xLabel:short,yLabel:short,xUnit:short,yUnit:short,disclosure}).strict(),
-  "metric-card":z.object({title:short,value:finite,unit:short,comparison:z.object({label:short,value:finite}).strict().optional(),disclosure}).strict(),
+  "metric-card":z.object({title:line,value:dataNumber,unit:line.max(24),comparison:z.object({label:line,value:dataNumber}).strict().optional(),disclosure}).strict(),
   "effect-film":effect,"effect-duotone":effect,
   "layout-compare":z.object({firstTitle:short,firstBody:prose,secondTitle:short,secondBody:prose}).strict(),
   "map-compare":z.object({firstLabel:short,secondLabel:short,first:z.array(point).min(2).max(12),second:z.array(point).min(2).max(12),bounds:z.object({west:finite,east:finite,south:finite,north:finite}).strict()}).strict(),
@@ -39,6 +68,7 @@ const captions = {cues:[
 const backgroundSample = {seed:7,spacing:96,strength:.12};
 const textSample = {text:"Make the important words clear.",emphasisWords:[3,4]};
 const examples: Record<string,Record<string,unknown>> = {
+  "counter-reveal":{values:[100,200,400,800],stepDuration:.2,revealDuration:4/30,minHold:1,direction:"up",color:"#E8682C",echo:{opacity:.12,scale:2.6}},
   "background-grid":backgroundSample,"background-dots":backgroundSample,"background-gradient":backgroundSample,
   "caption-clean":captions,"caption-highlight":captions,
   "chart-bars":{title:"Compare on one scale",data:[{label:"A",value:12},{label:"B",value:24},{label:"C",value:-4}],valueDomain:[-10,30],baseline:0,unit:"units",disclosure:sampleDisclosure},
@@ -74,7 +104,10 @@ export function resolveMotionContent(ids:readonly string[],input:unknown): Motio
       if(values && Object.keys(values).length) throw new RangeError(`${id} uses headline, supporting text and source fields`);
       result[id]={}; continue;
     }
-    result[id]=schemas[id].parse({...getMotionContentExample(id),...(values as object??{})}) as Record<string,unknown>;
+    const merged={...getMotionContentExample(id),...(values as object??{})};
+    // Uneven counter intervals replace its default uniform interval.
+    if(id==="counter-reveal" && values && Object.hasOwn(values,"stepDurations") && !Object.hasOwn(values,"stepDuration"))delete merged.stepDuration;
+    result[id]=schemas[id].parse(merged) as Record<string,unknown>;
   }
   const freeze=(value:unknown):unknown=>{
     if(value && typeof value==="object"){for(const child of Object.values(value))freeze(child);Object.freeze(value);}

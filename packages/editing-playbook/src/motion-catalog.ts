@@ -17,6 +17,8 @@ export type MotionMoment = Readonly<{
   id: string; title: string; purpose: string; role: string;
   movementTags: readonly string[]; formats: readonly MotionMomentFormat[];
   defaultDuration: number; guidePath: string; examplePath: string; version: string; category:MotionCategory;
+  /** Has a bounded native component adapter without the full template scene wrapper. */
+  mixable: boolean;
   origin: Readonly<{ kind: "editor-native"; license: "MPL-2.0" }>;
 }>;
 export type MotionBuildOptions = {
@@ -26,8 +28,8 @@ export type MotionBuildOptions = {
 };
 const origin = Object.freeze({ kind: "editor-native", license: "MPL-2.0" } as const);
 const formats = Object.freeze(["landscape", "portrait"] as const);
-function moment(id: string, title: string, purpose: string, role: string, tags: string[], duration: number, guidePath: string, examplePath: string, category:MotionCategory="storytelling",version="1.0.0"): MotionMoment {
-  return Object.freeze({ id, title, purpose, role, movementTags: Object.freeze(tags), formats, defaultDuration: duration, guidePath, examplePath, version, origin, category });
+function moment(id: string, title: string, purpose: string, role: string, tags: string[], duration: number, guidePath: string, examplePath: string, category:MotionCategory="storytelling",version="1.0.0",mixable=false): MotionMoment {
+  return Object.freeze({ id, title, purpose, role, movementTags: Object.freeze(tags), formats, defaultDuration: duration, guidePath, examplePath, version, origin, category, mixable });
 }
 export const motionMoments: readonly MotionMoment[] = Object.freeze([
   moment("question-reveal", "Question, then answer", "Hold a question before revealing an authored answer.", "hook", ["fade", "reveal", "reading-hold"], 6, "reference/jsx/animations.md", "examples/10-native-motion.tsx"),
@@ -35,21 +37,22 @@ export const motionMoments: readonly MotionMoment[] = Object.freeze([
   moment("worked-solution", "Work through a solution", "Reveal given information, transformation and check in order.", "explanation", ["staged-reveal", "highlight", "reading-hold"], 9, "reference/jsx/education.md", "examples/15-editor-guided-lesson.tsx", "education"),
   moment("code-reveal", "Read, call, check", "Reveal literal code before its explicitly authored expected result.", "action", ["staged-reveal", "highlight", "reading-hold"], 8, "reference/jsx/education.md", "examples/15-editor-guided-lesson.tsx", "education"),
   moment("stat-proof", "Count, then hold", "Demonstrate a seekable illustrative counter with a settled reading hold.", "proof", ["counter", "settle", "reading-hold"], 6, "reference/jsx/animations.md", "examples/03-ticker.tsx", "data"),
+  moment("counter-reveal", "Counter, echo and reveal", "Roll supplied values through clipped native text cells with an optional oversized echo.", "emphasis", ["counter", "echo", "clipped", "reveal", "reading-hold", "mix"], 6, "reference/jsx/counter-reveal.md", "examples/20-motion-recipes.tsx", "text-effects", "1.0.0", true),
   moment("route-reveal", "Orient with a route", "Reveal an illustrative regional route, then hold the geography.", "orientation", ["route", "draw", "reading-hold"], 7, "reference/jsx/documentary.md", "examples/11-documentary-story.tsx", "maps"),
-  moment("background-grid","Quiet grid","A deterministic low-contrast grid behind your content.","setting",["grid","pattern","static"],6,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","backgrounds"),
-  moment("background-dots","Quiet dots","Seeded dots give a scene structure without competing with text.","setting",["dots","pattern","static"],6,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","backgrounds"),
-  moment("background-gradient","Soft gradient","A native gradient field with clear foreground contrast.","setting",["gradient","color","static"],6,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","backgrounds"),
+  moment("background-grid","Quiet grid","A deterministic low-contrast grid behind your content.","setting",["grid","pattern","static"],6,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","backgrounds","1.0.0",true),
+  moment("background-dots","Quiet dots","Seeded dots give a scene structure without competing with text.","setting",["dots","pattern","static"],6,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","backgrounds","1.0.0",true),
+  moment("background-gradient","Soft gradient","A native gradient field with clear foreground contrast.","setting",["gradient","color","static"],6,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","backgrounds","1.0.0",true),
   moment("caption-clean","Clean captions","Display caller-timed lines with comfortable reading holds.","accessibility",["captions","subtitles","timed"],8,"reference/jsx/caption-presets.md","examples/19-caption-presets.tsx","captions"),
   moment("caption-highlight","Word emphasis captions","Highlight only words with supplied timings; no invented transcript.","accessibility",["captions","karaoke","highlight"],8,"reference/jsx/caption-presets.md","examples/19-caption-presets.tsx","captions"),
-  moment("chart-bars","Honest bar comparison","Compare signed values on an explicit shared zero baseline.","comparison",["bars","axis","values"],8,"reference/jsx/data-graphics.md","examples/18-data-graphics.tsx","charts"),
+  moment("chart-bars","Honest bar comparison","Compare signed values on an explicit shared zero baseline.","comparison",["bars","axis","values"],8,"reference/jsx/data-graphics.md","examples/18-data-graphics.tsx","charts","1.0.0",true),
   moment("chart-trend","Trace the supplied data","Connect authored samples, retain explicit gaps and show units.","explanation",["line","trend","axis"],8,"reference/jsx/data-graphics.md","examples/18-data-graphics.tsx","charts"),
-  moment("metric-card","A number with context","Show a supplied value, reference, unit and disclosure together.","proof",["metric","data","comparison"],7,"reference/jsx/data-graphics.md","examples/18-data-graphics.tsx","data"),
+  moment("metric-card","A number with context","Show a supplied value, reference, unit and disclosure together.","proof",["metric","data","comparison"],7,"reference/jsx/data-graphics.md","examples/18-data-graphics.tsx","data","1.0.0",true),
   moment("effect-film","Restrained film treatment","Apply the native documentary look to artwork while keeping labels clear.","atmosphere",["film","grain","grade"],6,"reference/jsx/effects.md","examples/16-editor-looks.tsx","effects"),
   moment("effect-duotone","Graphic duotone","A controlled two-color artwork treatment with untreated text.","atmosphere",["duotone","color","shader"],6,"reference/jsx/effects.md","examples/16-editor-looks.tsx","effects"),
   moment("layout-compare","Context and focus","Compare two editable panels; stack them for mobile.","comparison",["split","panels","responsive"],8,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","layouts"),
   moment("map-compare","Two routes, one map scale","Compare illustrative routes with shared geographic bounds.","orientation",["map","routes","comparison"],8,"reference/jsx/documentary.md","examples/11-documentary-story.tsx","maps"),
   moment("overlay-name","Speaker lower third","Introduce a supplied name and role outside the demonstration area.","orientation",["lower-third","name","overlay"],7,"reference/jsx/documentary.md","examples/11-documentary-story.tsx","overlays"),
-  moment("overlay-source","Source context card","Keep a reference and its context attached to a claim.","provenance",["source","credit","overlay"],8,"reference/jsx/documentary.md","examples/11-documentary-story.tsx","overlays"),
+  moment("overlay-source","Source context card","Keep a reference and its context attached to a claim.","provenance",["source","credit","overlay"],8,"reference/jsx/documentary.md","examples/11-documentary-story.tsx","overlays","1.0.0",true),
   moment("story-quote","Attributed quotation","Hold an authored quote with its speaker and source.","perspective",["quote","attribution","reading-hold"],8,"reference/jsx/documentary.md","examples/11-documentary-story.tsx","storytelling"),
   moment("story-chapters","Question to answer","Track the question, evidence and answer without implying real chronology.","structure",["timeline","chapters","progress"],9,"reference/jsx/documentary.md","examples/11-documentary-story.tsx","storytelling"),
   moment("story-turn","Context, turn, payoff","Three authored beats explain one deliberate story turn.","structure",["story","turn","payoff"],12,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","storytelling"),
@@ -120,6 +123,7 @@ const defaults: Record<string, {title: string; body: string}> = {
   "worked-solution": {title: "Solve, then check.", body: "Keep both sides of the equation equal."},
   "code-reveal": {title: "Read, call, check.", body: "Read the function before its expected result."},
   "stat-proof": {title: "Let the number settle.", body: "Illustrative count only. Replace with source-backed data."},
+  "counter-reveal": {title: "Let the change become clear.", body: "Supplied values, editable cells, a final reading hold."},
   "route-reveal": {title: "Orient the viewer.", body: "An illustrative route, not a recorded journey."},
   "background-grid":{title:"A quiet foundation.",body:"Keep the pattern behind the idea."},
   "background-dots":{title:"Structure without clutter.",body:"Seeded native shapes, with room for your words."},
@@ -174,7 +178,7 @@ export function buildMotionModule(options: MotionBuildOptions): string {
   });
   // JSON is the only interpolation boundary: caller wording can never become module syntax.
   const data = JSON.stringify({width, height, portrait, margin, inner, sceneKey: brief.sceneKey, duration: brief.duration, beats,theme:brief.theme,motion:brief.motion});
-  return `import { Rect, Text, Image, Effects, WorkedExample, CodeWalkthrough, EvidenceCallout, MapRoute, motion, useTicker, PRESENTATION_THEMES, Backdrop, PanelLayout, StoryBeatCard, KineticText, CaptionTrack, DataBars, TrendLine, MetricCard, LowerThird, SourceCard, QuoteCard, Timeline, createLook, duotone, grain } from "dapi-host:@diffusionstudio/jsx";
+  return `import { Rect, Text, Image, Effects, WorkedExample, CodeWalkthrough, EvidenceCallout, MapRoute, motion, useTicker, PRESENTATION_THEMES, Backdrop, PanelLayout, StoryBeatCard, KineticText, CounterReveal, CaptionTrack, DataBars, TrendLine, MetricCard, LowerThird, SourceCard, QuoteCard, Timeline, createLook, duotone, grain } from "dapi-host:@diffusionstudio/jsx";
 import { createMemo } from "dapi-host:solid-js";
 const data = ${data};
 export const motionMomentManifest = data;

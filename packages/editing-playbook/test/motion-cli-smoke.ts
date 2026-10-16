@@ -15,7 +15,7 @@ const directory = await mkdtemp(join(temporaryRoot, "editor-motion-cli-"));
 const checks: string[] = [];
 const guard = join(directory, "forbid-external.cjs");
 const expectedCategories: Record<string, number> = {backgrounds: 3, captions: 2, charts: 2, data: 2, effects: 2,
-  layouts: 1, maps: 2, overlays: 3, storytelling: 4, "text-effects": 2, education: 2};
+  layouts: 1, maps: 2, overlays: 3, storytelling: 4, "text-effects": 3, education: 2};
 let cleanupComplete = false;
 
 try {
@@ -60,10 +60,10 @@ require("node:module").syncBuiltinESMExports();
   };
 
   const categories = run(["categories"]);
-  assert.equal(categories.total, 25); assert.equal(categories.categories.length, 11);
+  assert.equal(categories.total, 26); assert.equal(categories.categories.length, 11);
   assert.deepEqual(Object.fromEntries(categories.categories.map((category: any) => [category.id, category.count])), expectedCategories);
   const catalog = run(["catalog"]);
-  assert.equal(catalog.count, 25); assert.equal(new Set(catalog.items.map((item: any) => item.id)).size, 25);
+  assert.equal(catalog.count, 26); assert.equal(new Set(catalog.items.map((item: any) => item.id)).size, 26);
   for (const item of catalog.items) assert.deepEqual(item.origin, {kind: "editor-native", license: "MPL-2.0"});
   for (const [category, count] of Object.entries(expectedCategories)) {
     const filtered = run(["catalog", "--category", category, "--format", "portrait"]);
@@ -72,9 +72,28 @@ require("node:module").syncBuiltinESMExports();
   assert.equal(run(["catalog", "counter", "--format", "landscape"]).items[0].id, "stat-proof");
   assert.equal(run(["show", "@caption-highlight"]).moment.id, "caption-highlight");
   const workflow = run(["workflow"]);
-  assert.equal(workflow.nativeMomentIds.length, 25); assert.equal(workflow.categories.length, 11);
+  assert.equal(workflow.nativeMomentIds.length, 26); assert.equal(workflow.categories.length, 11);
   assert.deepEqual(workflow.defaults, {format: "landscape", createMode: "sequence", briefMode: "inspiration", theme: "paper", motion: "full"});
   assert.equal(workflow.safeToActivate, false);
+  const composable=run(["catalog","--mixable"]);
+  assert.equal(composable.count,7);assert.ok(composable.items.every((item:any)=>item.mixable));
+  assert.ok(workflow.mixablePresetIds.includes("counter-reveal"));
+
+  const mixRecipePath=join(directory,"mix-example.json"),mixPath=join(directory,"mix.js"),mixSecondPath=join(directory,"mix-second.js");
+  const mixExample=run(["mix-example","--format","portrait","-o",mixRecipePath]);
+  assert.deepEqual(JSON.parse(await readFile(mixRecipePath,"utf8")),mixExample.recipe);
+  const mixed=run(["mix",mixRecipePath,"-o",mixPath]);
+  assert.equal(mixed.kind,"editor-native-motion-mix-module");assert.equal(mixed.brief.instances.length,4);
+  assert.equal(mixed.brief.canvas.width,1080);assert.equal(mixed.brief.duration,8);
+  const mixedSource=await readFile(mixPath,"utf8");
+  assert.equal(mixed.sha256,createHash("sha256").update(mixedSource).digest("hex"));
+  assert.ok(mixedSource.includes("CounterReveal"));assert.ok(mixedSource.includes("clipToBox:true"));
+  assert.notEqual(run(["mix",mixRecipePath,"-o",mixSecondPath]).brief.sceneKey,mixed.brief.sceneKey);
+  run(["mix",mixRecipePath,"-o",mixPath],1);
+  assert.equal(createHash("sha256").update(await readFile(mixPath)).digest("hex"),mixed.sha256);
+  const invalidMix=structuredClone(mixExample.recipe);invalidMix.instances[1].key=invalidMix.instances[0].key;
+  const invalidMixPath=await json("mix-invalid.json",invalidMix),invalidOutput=join(directory,"mix-invalid.js");
+  run(["mix",invalidMixPath,"-o",invalidOutput],1);await absent(invalidOutput);
 
   const examplePath = join(directory, "caption-example.json");
   const example = run(["example", "@caption-highlight", "-o", examplePath]);
@@ -173,7 +192,7 @@ require("node:module").syncBuiltinESMExports();
   await rmdir(actual); cleanupComplete = true;
 }
 
-console.log(JSON.stringify({passed: true, checks: checks.length, categories: 11, moments: 25,
+console.log(JSON.stringify({passed: true, checks: checks.length, categories: 11, moments: 26,
   cliSha256: createHash("sha256").update(await readFile(cli)).digest("hex"),
   externalActionsBlocked: true, appMutated: false, mediaProcessed: false, temporaryArtifactsRemoved: cleanupComplete,
   scope: "CLI discovery, local data validation, generated module parameters and exclusive files; no actual-editor render or speech accuracy claim."}, null, 2));

@@ -37,5 +37,17 @@ test("theme and reduced motion remain declared intent and caption timing is pres
   assert.equal(brief.theme,"dark");assert.equal(brief.motion,"reduced");
   assert.deepEqual(brief.content["caption-highlight"].cues,getMotionContentExample("caption-highlight").cues);
   assert.equal(brief.duration,15);
-  assert.equal(motionMoments.length,25);
+  assert.equal(motionMoments.length,26);
+});
+test("bar content preserves supplied native colors and rejects impossible scales or ambiguous labels",()=>{
+  const create=(content:Record<string,unknown>)=>buildMotionBrief({momentIds:["chart-bars"],mode:"template",format:"landscape",content:{"chart-bars":content}});
+  const brief=create({data:[{label:"Sample",value:4,color:"#57D6C7"}],valueDomain:[0,8]});
+  assert.deepEqual(brief.content["chart-bars"].data,[{label:"Sample",value:4,color:"#57D6C7"}]);
+  for(const invalid of [
+    {data:[{label:"A",value:4,color:"orange"}]},
+    {data:[{label:"A",value:4},{label:"A",value:8}]},
+    {data:[{label:"A",value:4}],valueDomain:[0,1]},
+    {valueDomain:[2,8]},
+    {valueDomain:[0,1e-12]},
+  ])assert.throws(()=>create(invalid));
 });

@@ -1,6 +1,6 @@
 # Native motion catalog and growth workflow
 
-The **Moments** tab beside Assets contains 25 original, editable native scenes in
+The **Moments** tab beside Assets contains original, editable native scenes in
 11 categories. Search by purpose, movement or `@id`, and filter by category.
 Each has authored 16:9 and 9:16 layouts. These are local editor components, not imported
 HyperFrames examples. [Source research and license boundaries](motion-sources.md)
@@ -93,6 +93,14 @@ Browser and CLI share these functions. Formats are
 `landscape|portrait`; modes are `template|sequence|inspiration`. Inspiration is
 reference-only and cannot build a mountable module. Stable IDs and versions are
 references, not an installer or a promise that future revisions look identical.
+
+For simultaneous components on one canvas, read [motion recipes](motion-recipes.md)
+and `editor-motion-recipes`. `motion catalog --mixable` lists bounded adapters;
+`motion mix-example --format portrait -o recipe.json` and
+`motion mix recipe.json -o mix.js` create an editable mixture. Sequence mode
+instead plays scenes in order. The first reusable `counter-reveal` pattern
+exposes supplied values, fixed clipped cells, variable timing and optional echoes
+through [CounterReveal](jsx/counter-reveal.md).
 
 ## Supply content without turning it into code
 

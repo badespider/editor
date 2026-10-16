@@ -1,47 +1,14 @@
 import assert from "node:assert/strict";
 import { existsSync } from "node:fs";
-import { mkdtemp, writeFile, unlink, rmdir } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { fileURLToPath, pathToFileURL } from "node:url";
-import { resolve, join } from "node:path";
+import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { test } from "node:test";
-import { build } from "esbuild";
+import { nativeModule } from "./native-motion-host.ts";
+import type { Mounted, NativeNode as Node } from "./native-motion-host.ts";
 import { motionMoments, searchMotionMoments, getMotionMoment, buildMotionBrief, buildMotionModule } from "../src/motion-catalog.ts";
 import type { MotionBuildOptions } from "../src/motion-catalog.ts";
 
 const repository = fileURLToPath(new URL("../../../", import.meta.url));
-const jsx = resolve(repository, "packages/jsx/src/index.ts");
-type Node = { tag: string; props: Record<string, unknown>; children: Node[]; parent?: Node };
-type Mounted = { document: {stage: Node}; nodes(): Node[]; setTime(time: number): void; created(): number; routePath(): string; dispose(): void };
-async function nativeModule(source: string): Promise<{mount(time?: number): Mounted}> {
-  // Bundle the actual public host runtime and Solid once: the generated module receives exactly
-  // the same host namespace as the editor. No substitute component implementations are used.
-  const result = await build({
-    stdin: {contents: `import Project from "test-generated";
-import { renderProject } from ${JSON.stringify(jsx)};
-import { createSignal } from "solid-js";
-export function mount(initialTime = 0) {
- const [clock,setClock]=createSignal({time:initialTime,frame:initialTime*30,delta:0,playing:false});
- let count=0,route="",path=[];
- const context={font:"20px Arial",strokeStyle:"",save(){},restore(){},fillRect(){},beginPath(){path=[];},rect(){},clip(){},moveTo(x,y){path.push([x,y]);},lineTo(x,y){path.push([x,y]);},closePath(){},fill(){},arc(){},fillText(){},measureText(text){return{width:Array.from(text).length*(parseFloat(this.font.match(/[\\d.]+px/)?.[0])||20)*.55};},stroke(){if(this.strokeStyle==="#D35B2E")route=JSON.stringify(path);}};
- const stage={tag:"stage",props:{},children:[]};
- const document={stage,tick:clock,createElement(tag){count++;return{tag,props:{},children:[]};},createTextNode(text){count++;return{tag:"#text",props:{text},children:[]};},replaceText(node,text){node.props.text=text;},isTextNode(node){return node.tag==="#text";},setProperty(node,key,value){node.props[key]=value;},insertNode(parent,node,anchor){if(node.parent)node.parent.children.splice(node.parent.children.indexOf(node),1);const at=anchor?parent.children.indexOf(anchor):-1;parent.children.splice(at<0?parent.children.length:at,0,node);node.parent=parent;},removeNode(parent,node){parent.children.splice(parent.children.indexOf(node),1);node.parent=undefined;},getParentNode(node){return node.parent;},getFirstChild(node){return node.children[0];},getNextSibling(node){return node.parent?.children[node.parent.children.indexOf(node)+1];},applyRef(node,ref){ref({width:0,height:0,getContext(){return context;}});}};
- const dispose=renderProject(Project,document);
- return{document,dispose,created:()=>count,routePath:()=>route,nodes(){const nodes=[];function walk(node){nodes.push(node);node.children.forEach(walk);}walk(stage);return nodes;},setTime(time){const prior=clock().time;setClock({time,frame:Math.floor(time*30),delta:time-prior,playing:false});}};
-}`, resolveDir: repository, loader: "js"},
-    bundle: true, write: false, format: "esm", platform: "node", conditions: ["browser"], logLevel: "silent",
-    plugins: [{name: "native-moment-host", setup(builder) {
-      builder.onResolve({filter: /^test-generated$/}, () => ({path: "generated", namespace: "moment"}));
-      builder.onLoad({filter: /.*/, namespace: "moment"}, () => ({contents: source, loader: "js", resolveDir: repository}));
-      builder.onResolve({filter: /^dapi-host:@diffusionstudio\/jsx$/}, () => ({path: jsx}));
-      builder.onResolve({filter: /^dapi-host:solid-js$/}, () => builder.resolve("solid-js", {resolveDir: repository, kind: "import-statement"}));
-    }}],
-  });
-  const directory=await mkdtemp(join(tmpdir(),"editor-moment-test-"));
-  const file=join(directory,"runtime.mjs");
-  try {await writeFile(file,result.outputFiles[0].text);return await import(pathToFileURL(file).href);}
-  finally {await unlink(file);await rmdir(directory);}
-}
 const options = (ids: string[], format: "landscape" | "portrait" = "landscape", mode: MotionBuildOptions["mode"] = "template"): MotionBuildOptions => ({momentIds: ids, format, mode});
 function named(mount: Mounted, name: string): Node {
   const node = mount.nodes().find(node => node.props.name === name);
@@ -50,8 +17,8 @@ function named(mount: Mounted, name: string): Node {
 function content(node: Node): string { return node.tag === "#text" ? String(node.props.text) : node.children.map(content).join(""); }
 
 test("native registry is immutable, searchable and links actual local guides/examples", () => {
-  assert.equal(motionMoments.length, 25);
-  assert.equal(new Set(motionMoments.map(item => item.id)).size, 25);
+  assert.equal(motionMoments.length, 26);
+  assert.equal(new Set(motionMoments.map(item => item.id)).size, 26);
   for (const item of motionMoments) {
     assert.ok(Object.isFrozen(item)); assert.ok(Object.isFrozen(item.movementTags));
     assert.deepEqual(item.formats, ["landscape", "portrait"]);
@@ -61,8 +28,8 @@ test("native registry is immutable, searchable and links actual local guides/exa
   }
   assert.equal(getMotionMoment("@code-reveal").id, "code-reveal");
   assert.deepEqual(searchMotionMoments("@code-rev", "portrait").map(item => item.id), ["code-reveal"]);
-  assert.deepEqual(searchMotionMoments("counter hold").map(item => item.id), ["stat-proof"]);
-  assert.equal(searchMotionMoments("").length, 25);
+  assert.deepEqual(searchMotionMoments("counter hold").map(item => item.id), ["stat-proof", "counter-reveal"]);
+  assert.equal(searchMotionMoments("").length, 26);
   assert.throws(() => getMotionMoment("unknown"), /Unknown/);
 });
 
@@ -148,7 +115,7 @@ for (const format of ["landscape", "portrait"] as const) {
 }
 
 test("sequence uses scene time, supports reverse reveals and keeps counter identity between ticks", async () => {
-  const ids = motionMoments.slice(0,6).map(item => item.id), brief = buildMotionBrief(options(ids, "landscape", "sequence"));
+  const ids = ["question-reveal","evidence-focus","worked-solution","code-reveal","stat-proof","route-reveal"], brief = buildMotionBrief(options(ids, "landscape", "sequence"));
   const native = await nativeModule(buildMotionModule(options(ids, "landscape", "sequence"))), mounted = native.mount();
   assert.equal(mounted.document.stage.children[0].props.end, 44);
   const answer = named(mounted, "question-reveal/answer");

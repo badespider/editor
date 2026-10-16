@@ -6,7 +6,7 @@ export type Format = typeof formats[number];
 export const skillIds = ["editor-story-plan", "editor-pacing", "editor-visual-focus",
   "editor-audio-continuity", "editor-reference-learning", "editor-review", "editor-video-evidence",
   "editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish",
-  "editor-motion-graphics", "editor-motion-integration"] as const;
+  "editor-motion-graphics", "editor-motion-integration", "editor-motion-recipes"] as const;
 export type SkillId = typeof skillIds[number];
 export const recommendationTasks = ["edit", "package", "evaluate", "compose"] as const;
 export type RecommendationTask = typeof recommendationTasks[number];
@@ -26,6 +26,7 @@ export const skills = [
   { id: skillIds[11], category: "sound-polish", purpose: "Assess dialogue clarity and conservative sound treatment while preserving ambience and truthful listening coverage." },
   { id: skillIds[12], category: "motion-graphics", purpose: "Compose readable, purposeful graphics with native editor components, explicit lifetimes and seek-safe timing." },
   { id: skillIds[13], category: "motion-integration", purpose: "Evaluate a selected external motion capability as a pinned, licensed candidate and adapt only its needed behavior to native export." },
+  { id: skillIds[14], category: "motion-recipes", purpose: "Generalize reviewed motion into parameterized native patterns and remix compatible parts on one canvas." },
 ].map(skill => ({ ...skill, path: `.agents/skills/${skill.id}/SKILL.md`,
   readArgs: ["playbook", "skill", skill.id], maturity: "starter" as const }));
 
@@ -52,6 +53,8 @@ export const relationships: Array<{ from: SkillId; to: SkillId; type: "requires"
   { from: "editor-motion-graphics", to: "editor-review", type: "verify_with", when: "Inspect actual native exports at delivery size, including reading holds and both sides of state changes." },
   { from: "editor-motion-integration", to: "editor-motion-graphics", type: "verify_with", when: "Prefer existing native capabilities and compare the selected adapter on a representative local composition." },
   { from: "editor-motion-integration", to: "editor-review", type: "verify_with", when: "Candidate source, seek, cleanup and exact-export evidence need review; mechanical checks cannot activate a tool." },
+  { from: "editor-motion-recipes", to: "editor-motion-graphics", type: "requires", when: "Reuse native component, content, layout and timing contracts when combining or generalizing patterns." },
+  { from: "editor-motion-recipes", to: "editor-review", type: "verify_with", when: "Inspect the exact reusable pattern and its remix, including literal content, native layers and forward/reverse seeks." },
   { from: "editor-motion-graphics", to: "editor-pacing", type: "tension", when: "Entrance and exit motion consume time the audience needs to read; use footage pacing only when footage is being edited." },
   { from: "editor-motion-graphics", to: "editor-visual-focus", type: "tension", when: "Emphasis must preserve essential characters, context and source labels; a graphic-only task needs no fabricated footage plan." },
   ...(["editor-story-plan", "editor-pacing", "editor-visual-focus", "editor-audio-continuity",
@@ -114,8 +117,14 @@ export function recommend(format: Format, goal: string, hasReference = false, ta
   if ((task === "compose" || task === "edit") && requestsMotionIntegration(goal)) {
     selected.set("editor-motion-integration", "The goal explicitly requests an external motion integration; evaluate it as an inert candidate before adapting it.");
   }
+  if ((task === "compose" || task === "edit") &&
+      ((/\b(?:motion|animat(?:e|ed|ions?)|graphics?|counter|echo|reveal|typography|charts?|presets?)\b/i.test(goal) &&
+        /\b(?:reus(?:e|able|ing)|remix|mix(?:ing)?|combin(?:e|ing|ation)|recipes?|presets?|skills?)\b/i.test(goal)) || /\bcounter[ -]reveal\b/i.test(goal))) {
+    selected.set("editor-motion-recipes", "Choose reusable native patterns, expose their parameters and mix compatible instances with explicit boxes and clocks.");
+  }
   if (hasReference) {
-    selected.set(task === "compose" ? "editor-motion-integration" : "editor-reference-learning", task === "compose"
+    const integrationReference = task === "compose" && !selected.has("editor-motion-recipes");
+    selected.set(integrationReference ? "editor-motion-integration" : "editor-reference-learning", integrationReference
       ? "Inspect the supplied motion reference and identify whether it needs any external capability; candidate checks do not install or activate it."
       : "Analyse an explicitly supplied reference as candidate knowledge.");
     selected.set("editor-review", "Evaluate candidate reference lessons without treating them as automatically learned rules.");
