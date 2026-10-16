@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { resolveMotionContent } from "./motion-content.ts";
+import { resolveMotionContent, validateMotionContentTiming } from "./motion-content.ts";
 import type { MotionContent } from "./motion-content.ts";
 import { libraryRecipeCode } from "./motion-recipes.ts";
 export { getMotionContentExample } from "./motion-content.ts";
@@ -38,6 +38,9 @@ export const motionMoments: readonly MotionMoment[] = Object.freeze([
   moment("code-reveal", "Read, call, check", "Reveal literal code before its explicitly authored expected result.", "action", ["staged-reveal", "highlight", "reading-hold"], 8, "reference/jsx/education.md", "examples/15-editor-guided-lesson.tsx", "education"),
   moment("stat-proof", "Count, then hold", "Demonstrate a seekable illustrative counter with a settled reading hold.", "proof", ["counter", "settle", "reading-hold"], 6, "reference/jsx/animations.md", "examples/03-ticker.tsx", "data"),
   moment("counter-reveal", "Counter, echo and reveal", "Roll supplied values through clipped native text cells with an optional oversized echo.", "emphasis", ["counter", "echo", "clipped", "reveal", "reading-hold", "mix"], 6, "reference/jsx/counter-reveal.md", "examples/20-motion-recipes.tsx", "text-effects", "1.0.0", true),
+  moment("milestone-badge", "A milestone, then its context", "Pop an authored value into a native circle before revealing its short explanation.", "emphasis", ["milestone", "badge", "pop", "label", "mix"], 6, "reference/jsx/milestone-badge.md", "examples/21-reference-motion-mix.tsx", "data", "1.0.0", true),
+  moment("assemble-title", "Gather a title into focus", "Assemble separate editable glyphs, resolve their blur, then reveal an authored subtitle.", "orientation", ["title", "glyph", "assembly", "blur", "mix"], 6, "reference/jsx/assemble-title.md", "examples/21-reference-motion-mix.tsx", "text-effects", "1.0.0", true),
+  moment("concept-link", "Connect a term to its meaning", "Reveal a term circle, grow its connector, then open its supplied definition card.", "explanation", ["concept", "definition", "connector", "circle", "mix"], 6, "reference/jsx/concept-link.md", "examples/21-reference-motion-mix.tsx", "education", "1.0.0", true),
   moment("route-reveal", "Orient with a route", "Reveal an illustrative regional route, then hold the geography.", "orientation", ["route", "draw", "reading-hold"], 7, "reference/jsx/documentary.md", "examples/11-documentary-story.tsx", "maps"),
   moment("background-grid","Quiet grid","A deterministic low-contrast grid behind your content.","setting",["grid","pattern","static"],6,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","backgrounds","1.0.0",true),
   moment("background-dots","Quiet dots","Seeded dots give a scene structure without competing with text.","setting",["dots","pattern","static"],6,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","backgrounds","1.0.0",true),
@@ -94,6 +97,7 @@ function normalize(options: MotionBuildOptions) {
   const content = resolveMotionContent(selected.map(item=>item.id),options.content);
   if(options.theme!==undefined && options.theme!=="paper" && options.theme!=="dark") throw new TypeError("theme must be paper or dark");
   if(options.motion!==undefined && options.motion!=="full" && options.motion!=="reduced") throw new TypeError("motion must be full or reduced");
+  for(const item of selected)validateMotionContentTiming(item.id,content[item.id],item.defaultDuration,options.motion!=="reduced");
   if (new Set(selected.map(item => item.id)).size !== selected.length) throw new RangeError("momentIds must be unique");
   for (const item of selected) if (!item.formats.includes(format)) throw new RangeError(`${item.id} does not support ${format}`);
   const sceneKey = options.sceneKey ?? `native-motion-${selected.map(item => item.id).join("-")}`;
@@ -124,6 +128,9 @@ const defaults: Record<string, {title: string; body: string}> = {
   "code-reveal": {title: "Read, call, check.", body: "Read the function before its expected result."},
   "stat-proof": {title: "Let the number settle.", body: "Illustrative count only. Replace with source-backed data."},
   "counter-reveal": {title: "Let the change become clear.", body: "Supplied values, editable cells, a final reading hold."},
+  "milestone-badge": {title: "Give the number its context.", body: "An authored illustrative value and its explanation."},
+  "assemble-title": {title: "Let the idea come together.", body: "Separate native glyphs form one readable thought."},
+  "concept-link": {title: "Show the connection.", body: "One supplied term and its authored meaning."},
   "route-reveal": {title: "Orient the viewer.", body: "An illustrative route, not a recorded journey."},
   "background-grid":{title:"A quiet foundation.",body:"Keep the pattern behind the idea."},
   "background-dots":{title:"Structure without clutter.",body:"Seeded native shapes, with room for your words."},
@@ -178,7 +185,7 @@ export function buildMotionModule(options: MotionBuildOptions): string {
   });
   // JSON is the only interpolation boundary: caller wording can never become module syntax.
   const data = JSON.stringify({width, height, portrait, margin, inner, sceneKey: brief.sceneKey, duration: brief.duration, beats,theme:brief.theme,motion:brief.motion});
-  return `import { Rect, Text, Image, Effects, WorkedExample, CodeWalkthrough, EvidenceCallout, MapRoute, motion, useTicker, PRESENTATION_THEMES, Backdrop, PanelLayout, StoryBeatCard, KineticText, CounterReveal, CaptionTrack, DataBars, TrendLine, MetricCard, LowerThird, SourceCard, QuoteCard, Timeline, createLook, duotone, grain } from "dapi-host:@diffusionstudio/jsx";
+  return `import { Rect, Text, Image, Effects, WorkedExample, CodeWalkthrough, EvidenceCallout, MapRoute, motion, useTicker, PRESENTATION_THEMES, Backdrop, PanelLayout, StoryBeatCard, KineticText, CounterReveal, MilestoneBadge, AssembleTitle, ConceptLink, CaptionTrack, DataBars, TrendLine, MetricCard, LowerThird, SourceCard, QuoteCard, Timeline, createLook, duotone, grain } from "dapi-host:@diffusionstudio/jsx";
 import { createMemo } from "dapi-host:solid-js";
 const data = ${data};
 export const motionMomentManifest = data;

@@ -4,13 +4,14 @@ import { buildMotionMixBrief, buildMotionMixModule, getMotionMixExample, mixable
 import { motionMoments, buildMotionModule, getMotionContentExample } from "../src/motion-catalog.ts";
 import { nativeModule } from "./native-motion-host.ts";
 import type { NativeNode } from "./native-motion-host.ts";
+import type { MotionMixInput } from "../src/motion-mix.ts";
 
 function descendants(node:NativeNode):NativeNode[]{return [node,...node.children.flatMap(descendants)];}
 function literal(node:NativeNode):string{return node.tag==="#text"?String(node.props.text):node.children.map(literal).join("");}
 
 test("mix discovery reuses curated catalog metadata and preserves independent editable examples",()=>{
   assert.deepEqual(mixableMotionMoments().map(item=>item.id),motionMoments.filter(item=>item.mixable).map(item=>item.id));
-  assert.equal(mixableMotionMoments().length,7);
+  assert.equal(mixableMotionMoments().length,10);
   assert.ok(mixableMotionMoments().some(item=>item.id==="counter-reveal"));
   const first=getMotionMixExample(),second=getMotionMixExample();
   first.instances[0].box.width=100;
@@ -109,4 +110,81 @@ test("counter settings support uneven authored intervals and code-looking text r
   finally{mounted.dispose();}
   const template=await nativeModule(buildMotionModule({momentIds:["counter-reveal"],format:"portrait",mode:"template",content:{"counter-reveal":getMotionContentExample("counter-reveal")}}));
   const templateMount=template.mount();templateMount.dispose();
+});
+
+function newPatterns(format:"landscape"|"portrait"):MotionMixInput {
+  const portrait=format==="portrait";
+  return {schemaVersion:1,format,duration:8,fontFamily:"Arial",theme:"dark",instances:[
+    {key:"title",presetId:"assemble-title",start:0,end:8,box:portrait?{x:72,y:60,width:936,height:360}:{x:96,y:60,width:1728,height:300},content:{text:"BUILD IDEAS",subtitle:"Original editable example."}},
+    {key:"milestone",presetId:"milestone-badge",start:.5,end:8,box:portrait?{x:72,y:480,width:936,height:360}:{x:96,y:450,width:780,height:400},content:{value:"4",label:"Useful patterns",labelFontSize:30,color:"#F2BC58",fontFamily:"Georgia"}},
+    {key:"meaning",presetId:"concept-link",start:1,end:8,box:portrait?{x:72,y:940,width:936,height:550}:{x:1030,y:400,width:800,height:600},content:{term:"STATE",definition:"Keep useful work ready for its next use.",direction:portrait?"down":"right",nodeSize:128,fontSize:24}},
+    {key:"count",presetId:"counter-reveal",start:2,end:8,box:portrait?{x:72,y:1560,width:936,height:280}:{x:96,y:850,width:780,height:160},content:{values:[1,2,4,8],echo:false}},
+  ]};
+}
+
+for(const format of ["landscape","portrait"] as const){
+  test(`${format} new reference-derived patterns mix through actual native components and independent clocks`,async()=>{
+    const input=newPatterns(format),brief=buildMotionMixBrief(input);
+    assert.deepEqual(brief.skillReadArgs.slice(-3).map(args=>args[2]),["editor-title-assembly","editor-milestone-badge","editor-concept-link"]);
+    for(const id of ["milestone-badge","assemble-title","concept-link"])assert.ok(brief.instructions.includes(`reference/jsx/${id}.md`));
+    const native=await nativeModule(buildMotionMixModule(input)),mounted=native.mount();
+    try{
+      const root=mounted.document.stage.children[0];
+      assert.deepEqual(root.children.map(node=>node.props.key),input.instances.map(item=>item.key));
+      root.children.forEach((wrapper,index)=>{
+        assert.equal(wrapper.props.start,`${Math.round(input.instances[index].start*30)}f`);
+        assert.equal(wrapper.children[0].props.start,"0f");
+        assert.equal(wrapper.props.clipToBox,true);assert.equal(wrapper.props.fill,undefined);
+      });
+      const nodes=mounted.nodes();
+      assert.ok(nodes.some(node=>node.props.name==="Milestone circle"));
+      assert.ok(nodes.some(node=>node.props.name==="Concept connector"));
+      assert.ok(nodes.some(node=>node.props.name==="Assembly glyph 1"));
+      assert.ok(nodes.some(node=>node.props.name==="Milestone value" && node.props.fontFamily==="Georgia"));
+      assert.equal(literal(root.children[0]).replace(/\s+/g," "),"BUILDIDEASOriginal editable example.");
+      assert.ok(literal(root.children[1]).replace(/\s+/g," ").includes("Useful patterns"));
+      assert.ok(literal(root.children[2]).replace(/\s+/g," ").includes("Keep useful work ready for its next use."));
+      const identities=nodes.slice(),created=mounted.created();
+      for(const time of [7.9,0,1.2,6,.1,4,0])mounted.setTime(time);
+      assert.equal(mounted.created(),created);assert.deepEqual(mounted.nodes(),identities);
+      assert.ok(!nodes.some(node=>["Image","Video","Surface","Html"].includes(node.tag)),"new patterns keep editable native geometry and text");
+    }finally{mounted.dispose();}
+  });
+}
+
+test("new pattern lifetimes, staged order and literal parameters fail before creating a bad module",async()=>{
+  const input=newPatterns("portrait");
+  const change=(index:number,content:Record<string,unknown>)=>{const copy=structuredClone(input);copy.instances[index].content=content;return copy;};
+  for(const invalid of [
+    change(0,{text:"TEST",glyphDuration:2,revealDuration:1}),
+    change(0,{text:"TEST",revealDuration:7,minHold:2}),
+    change(0,{text:"TEST",blur:"yes"}),
+    change(0,{text:"TEST",subtitle:"One\nline"}),
+    change(1,{value:"4",label:"A badge",popDuration:.02}),
+    change(1,{value:"4",label:"A badge",labelDelay:7,minHold:2}),
+    change(1,{value:"4",label:"A badge",src:"https://invalid.example"}),
+    change(2,{term:"STATE",definition:"A supplied definition",nodeDuration:.01}),
+    change(2,{term:"STATE",definition:"A supplied definition",linkDelay:.1}),
+    change(2,{term:"STATE",definition:"A supplied definition",cardDelay:.2}),
+    change(2,{term:"STATE",definition:"A supplied definition",cardDelay:6,minHold:2}),
+    change(2,{term:"STATE",definition:"A supplied definition",lineColor:"red"}),
+    change(2,{term:"STATE",definition:"A supplied definition",nodeSize:500}),
+  ])assert.throws(()=>buildMotionMixModule(invalid));
+  const literalInput=change(0,{text:'";throw Error("bad");//',subtitle:"Caller wording remains literal."});
+  const native=await nativeModule(buildMotionMixModule(literalInput)),mounted=native.mount();
+  try{assert.equal(literal(mounted.document.stage.children[0].children[0]).replace(/\s+/g,""),'";throwError("bad");//Callerwordingremainsliteral.');}
+  finally{mounted.dispose();}
+});
+
+test("explicit null removes a default subtitle while empty text remains invalid",async()=>{
+  const input=newPatterns("portrait");input.instances=input.instances.slice(0,1);
+  input.instances[0].content={text:"NEW PATTERNS",subtitle:null,fontSize:24,revealDuration:.3,glyphDuration:.3,blur:false,scatter:0};
+  assert.equal(buildMotionMixBrief(input).instances[0].content.subtitle,null);
+  const modules=[buildMotionMixModule(input),buildMotionModule({momentIds:["assemble-title"],mode:"template",format:"portrait",content:{"assemble-title":input.instances[0].content}})];
+  for(const source of modules){
+    const native=await nativeModule(source),mounted=native.mount();
+    try{assert.ok(mounted.nodes().some(node=>node.props.name==="Assembly glyph 1"));assert.ok(!mounted.nodes().some(node=>node.props.name==="Assembly subtitle"));}
+    finally{mounted.dispose();}
+  }
+  input.instances[0].content.subtitle="";assert.throws(()=>buildMotionMixModule(input));
 });

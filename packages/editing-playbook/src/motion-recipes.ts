@@ -7,6 +7,13 @@ export const libraryRecipeCode = `
     const docTheme={background:theme.background,surface:theme.surface,text:theme.text,muted:theme.muted,accent:theme.accent,fontFamily:theme.fontFamily};
     if(b.id==="counter-reveal") {
       nodes.push(CounterReveal({...box,...c,key:b.id+"/counter",name:"Editable counter reveal",fontFamily:theme.fontFamily,animate:animated}));
+    } else if(b.id==="milestone-badge") {
+      nodes.push(MilestoneBadge({...box,...c,key:b.id+"/badge",name:"Editable milestone badge",fontFamily:c.fontFamily??theme.fontFamily,animate:animated}));
+    } else if(b.id==="assemble-title") {
+      const assembly={...c};if(assembly.subtitle===null)delete assembly.subtitle;
+      nodes.push(AssembleTitle({...box,y:p?650:430,height:p?650:420,color:theme.text,subtitleColor:theme.muted,...assembly,key:b.id+"/assembly",name:"Editable assembled title",fontFamily:c.fontFamily??theme.fontFamily,animate:animated}));
+    } else if(b.id==="concept-link") {
+      nodes.push(ConceptLink({...box,...c,key:b.id+"/concept",name:"Editable concept link",fontFamily:c.fontFamily??theme.fontFamily,animate:animated}));
     } else if(b.id.startsWith("background-")) {
       nodes.push(label(b.id+"/context",b.body,{x:m,y:p?1050:600,width:inner,height:p?300:190},p?44:38,b.start,b.end));
     } else if(b.id.startsWith("caption-")) {

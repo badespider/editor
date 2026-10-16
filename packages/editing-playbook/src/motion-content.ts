@@ -26,6 +26,31 @@ const bars = z.object({title:line,data:z.array(z.object({label:line.max(64),valu
   if(new Set(value.data.map(item=>item.label)).size!==value.data.length)ctx.addIssue({code:"custom",message:"Bar labels must be unique"});
 });
 const time = finite.nonnegative().max(120);
+const singleLine=z.string().trim().min(1).regex(/^[^\u0000-\u001f\u007f]+$/);
+const fontFamily=singleLine.max(120);
+const canonicalPositive=time.positive().refine(value=>Math.round(value*30)>=1,"Time must occupy at least one canonical frame");
+const milestone=z.object({
+  value:singleLine.max(16),label:singleLine.max(80),labelSide:z.enum(["left","right","below"]).optional(),
+  popDuration:canonicalPositive.refine(value=>Math.round(value*30)>=2,"Pop needs at least two frames").optional(),labelDelay:time.optional(),minHold:canonicalPositive.optional(),
+  fontFamily:fontFamily.optional(),fontSize:finite.min(8).max(512).optional(),labelFontSize:finite.min(8).max(256).optional(),
+  color:color.optional(),textColor:color.optional(),backgroundColor:color.optional(),
+}).strict();
+const ascii=z.string().trim().min(1).regex(/^[\x20-\x7e]+$/);
+const assembly=z.object({
+  text:ascii.max(48),subtitle:ascii.max(96).nullable().optional(),fontFamily:ascii.max(120).optional(),
+  revealDuration:canonicalPositive.optional(),glyphDuration:canonicalPositive.optional(),subtitleDelay:time.optional(),minHold:canonicalPositive.optional(),
+  fontSize:finite.min(8).max(256).optional(),fontWeight:z.number().int().min(100).max(900).multipleOf(100).optional(),
+  color:color.optional(),subtitleColor:color.optional(),scatter:finite.min(0).max(1).optional(),blur:z.boolean().optional(),
+}).strict().superRefine((value,ctx)=>{
+  if(Math.round((value.glyphDuration??.4)*30)>Math.round((value.revealDuration??1.2)*30))ctx.addIssue({code:"custom",message:"glyphDuration must fit revealDuration"});
+});
+const concept=z.object({
+  term:singleLine.max(20),definition:singleLine.max(100),direction:z.enum(["down","right"]).optional(),
+  nodeSize:finite.min(48).max(2375.68).optional(),cardWidth:finite.min(64).max(4096).optional(),
+  nodeDuration:canonicalPositive.optional(),linkDelay:time.optional(),cardDelay:time.optional(),revealDuration:canonicalPositive.optional(),minHold:canonicalPositive.optional(),
+  fontFamily:fontFamily.optional(),fontSize:finite.min(8).max(256).optional(),
+  accent:color.optional(),textColor:color.optional(),surfaceColor:color.optional(),lineColor:color.optional(),
+}).strict();
 const counter = z.object({
   values:z.array(z.union([z.number().int().safe(),z.string().trim().min(1).max(16).regex(/^[A-Za-z0-9$€£¥ .,:%+\-/−]+$/).regex(/[0-9]/)])).min(1).max(48),
   stepDuration:time.positive().optional(),stepDurations:z.array(time.positive()).max(47).optional(),
@@ -44,6 +69,7 @@ const counter = z.object({
   if((value.minHold!==undefined && Math.round(value.minHold*30)<1) || intervals.some(interval=>Math.round(interval*30)<1))issue("Counter timing must occupy at least one canonical frame");
 });
 const schemas: Record<string, z.ZodType> = {
+  "milestone-badge":milestone,"assemble-title":assembly,"concept-link":concept,
   "counter-reveal":counter,
   "background-grid":background,"background-dots":background,"background-gradient":background,
   "caption-clean":caption,"caption-highlight":caption,
@@ -68,6 +94,9 @@ const captions = {cues:[
 const backgroundSample = {seed:7,spacing:96,strength:.12};
 const textSample = {text:"Make the important words clear.",emphasisWords:[3,4]};
 const examples: Record<string,Record<string,unknown>> = {
+  "milestone-badge":{value:"8",label:"Practice rounds",labelSide:"right",popDuration:.4,labelDelay:4/30,minHold:2,labelFontSize:32,color:"#57D6C7",textColor:"#101C2B"},
+  "assemble-title":{text:"MAKE IT CLEAR",subtitle:"One idea, built together.",revealDuration:1.2,glyphDuration:.4,subtitleDelay:.1,minHold:2,scatter:.5,blur:true},
+  "concept-link":{term:"CACHE",definition:"Reuse work you already computed.",direction:"down",nodeDuration:10/30,linkDelay:.4,cardDelay:.8,revealDuration:10/30,minHold:1,accent:"#F08A18",textColor:"#161B22",lineColor:"#58616B"},
   "counter-reveal":{values:[100,200,400,800],stepDuration:.2,revealDuration:4/30,minHold:1,direction:"up",color:"#E8682C",echo:{opacity:.12,scale:2.6}},
   "background-grid":backgroundSample,"background-dots":backgroundSample,"background-gradient":backgroundSample,
   "caption-clean":captions,"caption-highlight":captions,
@@ -90,6 +119,24 @@ export function getMotionContentExample(id:string): Record<string,unknown> {
   return structuredClone(examples[id.replace(/^@/,"")] ?? {});
 }
 export type MotionContent = Readonly<Record<string,Readonly<Record<string,unknown>>>>;
+
+/** Validate selected choreography against its local lifetime, before creating a module. */
+export function validateMotionContentTiming(id:string,content:Readonly<Record<string,unknown>>,duration:number,animate=true):void {
+  const frames=Math.round(duration*30),f=(key:string,fallback:number)=>Math.round(((content[key] as number|undefined)??fallback)*30);
+  let settled:number,hold:number;
+  if(id==="milestone-badge"){
+    settled=animate?Math.max(f("popDuration",.4),f("labelDelay",4/30)+6):0;hold=f("minHold",2);
+  }else if(id==="assemble-title"){
+    const reveal=f("revealDuration",1.2);
+    settled=content.subtitle?reveal+f("subtitleDelay",.1)+6:reveal;hold=f("minHold",2);
+  }else if(id==="concept-link"){
+    const node=f("nodeDuration",10/30),link=f("linkDelay",.4),card=f("cardDelay",.8),reveal=f("revealDuration",10/30);
+    if(animate && node<3)throw new RangeError("concept-link nodeDuration needs at least three frames for its pop");
+    if(link<(animate?node:0) || card<link+(animate?reveal:0))throw new RangeError("concept-link must settle its node, reveal its connector, then open its definition");
+    settled=card+(animate?reveal:0);hold=f("minHold",1);
+  }else return;
+  if(settled+hold>frames)throw new RangeError(`${id} stages and final reading hold do not fit its lifetime`);
+}
 
 /** Strict, bounded parameters; only selected IDs are accepted, and input stays JSON data. */
 export function resolveMotionContent(ids:readonly string[],input:unknown): MotionContent {

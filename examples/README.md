@@ -23,6 +23,7 @@ identity, so re-mounting an example replaces its scene in place.
 | [15-editor-guided-lesson.tsx](15-editor-guided-lesson.tsx) | `dapi mount examples/15-editor-guided-lesson.tsx` | one force lesson preserving prerequisite, calculation, units, staged code and supplied proof |
 | [16-editor-looks.tsx](16-editor-looks.tsx) | `dapi mount examples/16-editor-looks.tsx` | four looks compared on the same authored code/diagram fixture at delivery size |
 | [20-motion-recipes.tsx](20-motion-recipes.tsx) | `dapi mount examples/20-motion-recipes.tsx` | two independently timed reusable counters combined with a native background, chart and source label; portrait export available |
+| [21-reference-motion-mix.tsx](21-reference-motion-mix.tsx) | `dapi mount examples/21-reference-motion-mix.tsx` | gathering letters, a dot-to-circle milestone, two concept links and the counter combined in a silent editable composition; portrait export available |
 
 Requirements: `02-genai.tsx` consumes generation credits (results are cached per session);
 `01-basics.tsx`, `06-three.tsx`, and `08-shader-paint.tsx` fetch remote media.

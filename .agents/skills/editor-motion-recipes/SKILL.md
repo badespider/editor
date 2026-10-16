@@ -17,6 +17,11 @@ For a counter, echo or clipped numeral reveal, read
 [CounterReveal](../../../reference/jsx/counter-reveal.md).
 Start from its parameter contract rather than copying a rendered study's layers.
 
+For gathering letters, read [title assembly](../editor-title-assembly/SKILL.md).
+For a growing value/date circle, read [milestone badges](../editor-milestone-badge/SKILL.md).
+For a term connected to a revealed definition, read [concept links](../editor-concept-link/SKILL.md).
+Each has native parameters and a scoped source study; choose by the current beat.
+
 Keep content, motion and appearance separate: supplied values and wording;
 step/reveal/hold timing; font metrics and colors; placement in the scene.
 Preserve the reference when recreation is requested. Change those choices

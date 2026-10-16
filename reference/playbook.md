@@ -48,6 +48,9 @@ with voice and natural sound.
 | `editor-motion-graphics` | Native purpose-led motion, reusable Moments, narrative and education layouts, actual-export review | Visual focus, pacing and review |
 | `editor-motion-integration` | Bounded external motion evaluation, pinned licenses/assets, native time adapters and catalog growth | Native motion and review |
 | `editor-motion-recipes` | Reusable native patterns, counter reveals and simultaneous component mixes with new content/timing/layout | Native motion, reference learning when supplied, and exact-export review |
+| `editor-title-assembly` | Short gathering-letter headlines with native blur, fixed final glyph layout and a staged subtitle | Motion recipes and exact-export review |
+| `editor-milestone-badge` | Supplied milestone value in a dot-to-circle badge with an outward context reveal | Motion recipes and source/unit context where needed |
+| `editor-concept-link` | Term circle, anchored connector growth and a revealed definition tag | Motion recipes and authored relationship/context |
 
 `skills` and `recommend` include each skill's repository-relative `path` and a
 `readArgs` array such as `["playbook", "skill", "editor-vlog-story"]`. Pass these

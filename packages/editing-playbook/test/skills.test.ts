@@ -11,7 +11,7 @@ import { fixture } from "./fixture.ts";
 
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
 const idsFor = (goal: string, format: Format = "story") => recommend(format, goal).skills.map(skill => skill.id);
-const creativeIds: SkillId[] = ["editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish", "editor-motion-graphics", "editor-motion-integration", "editor-motion-recipes"];
+const creativeIds: SkillId[] = ["editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish", "editor-motion-graphics", "editor-motion-integration", "editor-motion-recipes", "editor-title-assembly", "editor-milestone-badge", "editor-concept-link"];
 
 test("catalog covers declared skill IDs, with unique IDs, paths and CLI read arguments", () => {
   assert.deepEqual(skills.map(skill => skill.id), [...skillIds]);
@@ -132,6 +132,25 @@ test("native recipe references request scoped learning while explicit external i
   const external = recommend("story", "Integrate an external animation library for reusable motion presets", true, "compose").skills.map(skill => skill.id);
   assert.ok(external.includes("editor-motion-recipes"));
   assert.ok(external.includes("editor-motion-integration"));
+});
+
+test("specific motion patterns route to their reusable skill with native prerequisites, including reference work", () => {
+  for (const [goal, expected] of [
+    ["AssembleTitle", "editor-title-assembly"],
+    ["Make letters gather into a title", "editor-title-assembly"],
+    ["Make a gathering-letter title", "editor-title-assembly"],
+    ["Create a milestone badge", "editor-milestone-badge"],
+    ["Make a value badge", "editor-milestone-badge"],
+    ["Use ConceptLink", "editor-concept-link"],
+    ["Animate a term-to-definition callout", "editor-concept-link"],
+  ] as const) {
+    const ids = recommend("story", goal, true, "compose").skills.map(skill=>skill.id);
+    for (const id of [expected,"editor-motion-recipes","editor-motion-graphics","editor-reference-learning","editor-review"] as const) assert.ok(ids.includes(id), `${goal}: ${id}`);
+    assert.ok(!ids.includes("editor-video-evidence"));
+    assert.ok(!ids.includes("editor-motion-integration"));
+    for (const task of ["package","evaluate"] as const) assert.ok(!recommend("story",goal,false,task).skills.some(skill=>skill.id===expected));
+  }
+  assert.ok(!recommend("story","Create an ordinary title",false,"compose").skills.some(skill=>skill.id==="editor-title-assembly"));
 });
 
 test("every recommendation contains its transitive requirements and only selected graph endpoints", () => {

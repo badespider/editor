@@ -102,6 +102,12 @@ instead plays scenes in order. The first reusable `counter-reveal` pattern
 exposes supplied values, fixed clipped cells, variable timing and optional echoes
 through [CounterReveal](jsx/counter-reveal.md).
 
+`assemble-title`, `milestone-badge` and `concept-link` add three independently
+editable patterns with dedicated skills. Their
+[source study and scope](reference-motion-patterns.md) retain observed phases and
+known approximations; [the mixed example](../examples/21-reference-motion-mix.tsx)
+combines them with the counter using fresh illustrative content.
+
 ## Supply content without turning it into code
 
 `--content` reads a local JSON object keyed by selected Moment ID. The sidebar's

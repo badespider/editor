@@ -14,8 +14,8 @@ const temporaryRoot = await realpath(tmpdir());
 const directory = await mkdtemp(join(temporaryRoot, "editor-motion-cli-"));
 const checks: string[] = [];
 const guard = join(directory, "forbid-external.cjs");
-const expectedCategories: Record<string, number> = {backgrounds: 3, captions: 2, charts: 2, data: 2, effects: 2,
-  layouts: 1, maps: 2, overlays: 3, storytelling: 4, "text-effects": 3, education: 2};
+const expectedCategories: Record<string, number> = {backgrounds: 3, captions: 2, charts: 2, data: 3, effects: 2,
+  layouts: 1, maps: 2, overlays: 3, storytelling: 4, "text-effects": 4, education: 3};
 let cleanupComplete = false;
 
 try {
@@ -60,10 +60,10 @@ require("node:module").syncBuiltinESMExports();
   };
 
   const categories = run(["categories"]);
-  assert.equal(categories.total, 26); assert.equal(categories.categories.length, 11);
+  assert.equal(categories.total, 29); assert.equal(categories.categories.length, 11);
   assert.deepEqual(Object.fromEntries(categories.categories.map((category: any) => [category.id, category.count])), expectedCategories);
   const catalog = run(["catalog"]);
-  assert.equal(catalog.count, 26); assert.equal(new Set(catalog.items.map((item: any) => item.id)).size, 26);
+  assert.equal(catalog.count, 29); assert.equal(new Set(catalog.items.map((item: any) => item.id)).size, 29);
   for (const item of catalog.items) assert.deepEqual(item.origin, {kind: "editor-native", license: "MPL-2.0"});
   for (const [category, count] of Object.entries(expectedCategories)) {
     const filtered = run(["catalog", "--category", category, "--format", "portrait"]);
@@ -72,11 +72,11 @@ require("node:module").syncBuiltinESMExports();
   assert.equal(run(["catalog", "counter", "--format", "landscape"]).items[0].id, "stat-proof");
   assert.equal(run(["show", "@caption-highlight"]).moment.id, "caption-highlight");
   const workflow = run(["workflow"]);
-  assert.equal(workflow.nativeMomentIds.length, 26); assert.equal(workflow.categories.length, 11);
+  assert.equal(workflow.nativeMomentIds.length, 29); assert.equal(workflow.categories.length, 11);
   assert.deepEqual(workflow.defaults, {format: "landscape", createMode: "sequence", briefMode: "inspiration", theme: "paper", motion: "full"});
   assert.equal(workflow.safeToActivate, false);
   const composable=run(["catalog","--mixable"]);
-  assert.equal(composable.count,7);assert.ok(composable.items.every((item:any)=>item.mixable));
+  assert.equal(composable.count,10);assert.ok(composable.items.every((item:any)=>item.mixable));
   assert.ok(workflow.mixablePresetIds.includes("counter-reveal"));
 
   const mixRecipePath=join(directory,"mix-example.json"),mixPath=join(directory,"mix.js"),mixSecondPath=join(directory,"mix-second.js");
@@ -192,7 +192,7 @@ require("node:module").syncBuiltinESMExports();
   await rmdir(actual); cleanupComplete = true;
 }
 
-console.log(JSON.stringify({passed: true, checks: checks.length, categories: 11, moments: 26,
+console.log(JSON.stringify({passed: true, checks: checks.length, categories: 11, moments: 29,
   cliSha256: createHash("sha256").update(await readFile(cli)).digest("hex"),
   externalActionsBlocked: true, appMutated: false, mediaProcessed: false, temporaryArtifactsRemoved: cleanupComplete,
   scope: "CLI discovery, local data validation, generated module parameters and exclusive files; no actual-editor render or speech accuracy claim."}, null, 2));

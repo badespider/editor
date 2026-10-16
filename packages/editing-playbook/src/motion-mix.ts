@@ -4,7 +4,7 @@
 
 import { z } from "zod";
 import { getMotionMoment, motionMoments } from "./motion-catalog.ts";
-import { getMotionContentExample, resolveMotionContent } from "./motion-content.ts";
+import { getMotionContentExample, resolveMotionContent, validateMotionContentTiming } from "./motion-content.ts";
 
 const finite = z.number().finite();
 const key = z.string().regex(/^[A-Za-z][A-Za-z0-9_-]{0,63}$/);
@@ -49,6 +49,15 @@ function normalize(input:unknown){
     if(item.box.x+item.box.width>canvas.width || item.box.y+item.box.height>canvas.height)throw new RangeError(`${item.key} box must fit inside the ${parsed.format} canvas`);
     if((descriptor.id==="chart-bars" || descriptor.id==="metric-card") && (item.box.width<480 || item.box.height<480))throw new RangeError(`${item.key} data graphic requires width and height at least 480`);
     const content=resolveMotionContent([descriptor.id],item.content===undefined?undefined:{[descriptor.id]:item.content})[descriptor.id];
+    validateMotionContentTiming(descriptor.id,content,(endFrames-startFrames)/30,parsed.motion!=="reduced");
+    if(descriptor.id==="milestone-badge" && (item.box.width<128 || item.box.height<128))throw new RangeError(`${item.key} milestone badge requires dimensions at least 128`);
+    if(descriptor.id==="assemble-title" && (item.box.width<160 || item.box.height<120))throw new RangeError(`${item.key} assembled title requires width at least 160 and height at least 120`);
+    if(descriptor.id==="concept-link"){
+      if(item.box.width<160 || item.box.height<160)throw new RangeError(`${item.key} concept link requires dimensions at least 160`);
+      if(content.nodeSize!==undefined && (content.nodeSize as number)>Math.min(item.box.width,item.box.height)*.58)throw new RangeError(`${item.key} term circle exceeds its box budget`);
+      const node=content.nodeSize as number|undefined??Math.max(48,Math.min(item.box.width*.24,item.box.height*.38,160));
+      if(content.cardWidth!==undefined && (content.cardWidth as number)>item.box.width-Math.max(6,node*.06)*2)throw new RangeError(`${item.key} definition card width exceeds its box`);
+    }
     if(descriptor.id==="counter-reveal"){
       const values=content.values as readonly (string|number)[];
       const intervals=(content.stepDurations as readonly number[]|undefined)??Array.from({length:values.length-1},()=>content.stepDuration as number|undefined??.2);
@@ -79,10 +88,12 @@ function normalize(input:unknown){
 /** Describes the exact bounded native composition. No app, model, source upload or code runs. */
 export function buildMotionMixBrief(input:unknown){
   const normalized=normalize(input);
+  const specializedSkills:Record<string,string>={"milestone-badge":"editor-milestone-badge","assemble-title":"editor-title-assembly","concept-link":"editor-concept-link"};
+  const skillIds=[...new Set(["editor-motion-recipes","editor-motion-graphics","editor-review",...normalized.instances.flatMap(item=>specializedSkills[item.presetId]?[specializedSkills[item.presetId]]:[])])];
   return freeze({...normalized,kind:"editor-native-motion-mix" as const,mountable:true as const,externalCalls:0 as const,
     stackOrder:"instances are drawn bottom to top in array order" as const,
-    instructions:["reference/motion-recipes.md","reference/jsx/counter-reveal.md","reference/motion-catalog.md"],
-    skillReadArgs:["editor-motion-recipes","editor-motion-graphics","editor-review"].map(id=>["playbook","skill",id]),
+    instructions:[...new Set(["reference/motion-recipes.md","reference/motion-catalog.md",...normalized.instances.map(item=>getMotionMoment(item.presetId).guidePath)])],
+    skillReadArgs:skillIds.map(id=>["playbook","skill",id]),
     limitations:["Boxes clip their native component; overlapping foreground layers can obscure earlier content.",
       "Supplied numbers, sources and claims remain caller-authored; schema validation does not verify them.",
       "Render, inspect at delivery size, and check offset/reverse seeks and reload before delivery."]});
@@ -93,7 +104,7 @@ export type MotionMixBrief=ReturnType<typeof buildMotionMixBrief>;
 export function buildMotionMixModule(input:unknown):string {
   const brief=buildMotionMixBrief(input);
   const data=JSON.stringify(brief);
-  return `import { Rect, CounterReveal, Backdrop, SourceCard, DataBars, MetricCard, PRESENTATION_THEMES } from "dapi-host:@diffusionstudio/jsx";
+  return `import { Rect, CounterReveal, MilestoneBadge, AssembleTitle, ConceptLink, Backdrop, SourceCard, DataBars, MetricCard, PRESENTATION_THEMES } from "dapi-host:@diffusionstudio/jsx";
 const data = ${data};
 export const motionMixManifest = data;
 export default function Project() {
@@ -109,6 +120,16 @@ export default function Project() {
    if(item.fontSize!==undefined && c.fontSize===undefined)counter.fontSize=item.fontSize;
    if(c.fontSize===undefined && item.fontSize===undefined)delete counter.fontSize;
    child=CounterReveal(counter);
+  } else if(["milestone-badge","assemble-title","concept-link"].includes(item.presetId)){
+   const native={x:0,y:0,width:item.box.width,height:item.box.height,start:props.start,end:props.end,animate:props.animate,...c,key:item.key+"-component",name:item.key+" / "+item.presetId,fontFamily:c.fontFamily??data.fontFamily};
+   if(item.fontSize!==undefined && c.fontSize===undefined)native.fontSize=item.fontSize;
+   if(item.presetId==="assemble-title"){
+    if(native.subtitle===null)delete native.subtitle;
+    if(c.color===undefined)native.color=theme.text;
+    if(c.subtitleColor===undefined)native.subtitleColor=theme.muted;
+    child=AssembleTitle(native);
+   } else if(item.presetId==="milestone-badge")child=MilestoneBadge(native);
+   else child=ConceptLink(native);
   } else if(item.presetId.startsWith("background-"))child=Backdrop({...props,...c,kind:item.presetId.slice(11)});
   else if(item.presetId==="overlay-source")child=SourceCard({...props,...c,theme:docTheme});
   else if(item.presetId==="chart-bars")child=DataBars({...props,...c});

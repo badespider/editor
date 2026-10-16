@@ -30,6 +30,9 @@ export * from "./creative-primitives";
 export * from "./data-graphics";
 export * from "./caption-presets";
 export * from "./counter-reveal";
+export * from "./assemble-title";
+export * from "./milestone-badge";
+export * from "./concept-link";
 export {
   Audio,
   Captions,

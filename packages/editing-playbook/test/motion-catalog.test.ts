@@ -17,8 +17,8 @@ function named(mount: Mounted, name: string): Node {
 function content(node: Node): string { return node.tag === "#text" ? String(node.props.text) : node.children.map(content).join(""); }
 
 test("native registry is immutable, searchable and links actual local guides/examples", () => {
-  assert.equal(motionMoments.length, 26);
-  assert.equal(new Set(motionMoments.map(item => item.id)).size, 26);
+  assert.equal(motionMoments.length, 29);
+  assert.equal(new Set(motionMoments.map(item => item.id)).size, 29);
   for (const item of motionMoments) {
     assert.ok(Object.isFrozen(item)); assert.ok(Object.isFrozen(item.movementTags));
     assert.deepEqual(item.formats, ["landscape", "portrait"]);
@@ -29,7 +29,7 @@ test("native registry is immutable, searchable and links actual local guides/exa
   assert.equal(getMotionMoment("@code-reveal").id, "code-reveal");
   assert.deepEqual(searchMotionMoments("@code-rev", "portrait").map(item => item.id), ["code-reveal"]);
   assert.deepEqual(searchMotionMoments("counter hold").map(item => item.id), ["stat-proof", "counter-reveal"]);
-  assert.equal(searchMotionMoments("").length, 26);
+  assert.equal(searchMotionMoments("").length, 29);
   assert.throws(() => getMotionMoment("unknown"), /Unknown/);
 });
 

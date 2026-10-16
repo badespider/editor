@@ -35,6 +35,9 @@ The shared catalog currently exposes these bounded mix adapters:
 | Pattern | Editable behavior |
 | --- | --- |
 | `counter-reveal` | Supplied numeric tokens, fixed clipped cells, variable step timing, echo and glyph proportions |
+| `assemble-title` | Individually editable letters gather from native blur and offsets; separately timed subtitle |
+| `milestone-badge` | Supplied value in a growing circle with an outward context-label reveal |
+| `concept-link` | A term circle, anchored growing connector and horizontally revealed definition tag |
 | `background-grid`, `background-dots`, `background-gradient` | Deterministic supporting backgrounds |
 | `chart-bars` | Supplied values, shared domain, baseline, units and disclosure |
 | `metric-card` | A stated value, units, comparison and disclosure |
@@ -122,6 +125,15 @@ For direct native authoring, read [CounterReveal](jsx/counter-reveal.md) and
 [the runnable composition](../examples/20-motion-recipes.tsx). CounterReveal's
 literal values, cell masks, foreground/echo text and native tracks remain
 separately editable after mounting.
+
+The additional [reference motion patterns](reference-motion-patterns.md) each
+have a dedicated skill and native component contract. Their
+[mixed example](../examples/21-reference-motion-mix.tsx) combines gathering
+letters, a milestone badge, repeated concept links and the existing counter.
+Recipe content normally merges with each Moment's demonstration defaults;
+`assemble-title` accepts `subtitle: null` to explicitly omit that example subtitle.
+Its native JSX prop remains an optional string. Load a chosen title font before
+mounting, then inspect its actual glyph placement.
 
 ## Grow from an approved reference
 
