@@ -9,6 +9,7 @@ import type { MotionCategory, MotionContent, MotionMomentFormat, MotionMomentMod
 import { useEngine } from "@/context/engine";
 import { handleMount } from "@/context/editor-api/mount";
 import { Button } from "../ui/button";
+import { LearnedMotionLibrary } from "./learned-motion-library";
 
 const fieldClass = "w-full rounded-md border border-border-input bg-background px-2 py-1.5 text-xs focus-ring";
 
@@ -74,7 +75,7 @@ export function Moments() {
   };
   return (
     <div class="flex-1 min-h-0 overflow-y-auto p-3 space-y-3">
-      <div><h2 class="text-sm font-450">Motion library</h2><p class="text-xs text-muted-foreground mt-1">{motionMoments.length} reusable presets for stories, graphics and lessons.</p></div>
+      <div><h2 class="text-sm font-450">Motion library</h2><p class="text-xs text-muted-foreground mt-1">{motionMoments.length} built-in presets plus your learned motion patterns.</p></div>
       <label class="block text-xs space-y-1">Search moments
         <input class={fieldClass} type="search" maxLength={300} placeholder="@evidence-focus, code, reveal…" value={query()} onInput={event => setQuery(event.currentTarget.value)} />
       </label>
@@ -85,6 +86,7 @@ export function Moments() {
       </div>
       <label class="block text-xs space-y-1">Theme<select id="moment-theme" class={fieldClass} value={theme()} onChange={event=>setTheme(event.currentTarget.value as "paper"|"dark")}><option value="paper">Paper</option><option value="dark">Dark studio</option></select></label>
       <label class="flex items-center gap-2 text-xs"><input type="checkbox" checked={reduceMotion()} onChange={event=>setReduceMotion(event.currentTarget.checked)}/>Reduce decorative motion</label>
+      <LearnedMotionLibrary query={query()} format={format()} />
       <p class="text-xs text-muted-foreground"><Show when={mode() === "inspiration"} fallback={mode() === "sequence" ? "Choose beats, then arrange their order below." : "Keep a moment’s structure and timing; add your own words."}>Collect movement and pacing references for a new composition.</Show></p>
       <div class="space-y-2" aria-label="Available moments">
         <For each={results()}>{moment => <button type="button" aria-pressed={selected().includes(moment.id)} class="w-full text-left rounded-lg border border-border p-3 hover:bg-accent focus-ring aria-pressed:border-primary aria-pressed:bg-secondary" onClick={() => choose(moment.id)}>

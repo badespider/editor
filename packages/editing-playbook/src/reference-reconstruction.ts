@@ -82,7 +82,7 @@ export type ReconstructionBinding = { id: string; path: string; sha256: string; 
 export type ReconstructionCompilerOptions = { sceneKey: string; bindings: ReconstructionBinding[]; audio: { sourceIn: number; sourceOut: number } | null };
 
 /** Only the application supplies paths; model-authored strings never become imports, code or URLs. */
-export function buildReconstructionModule(input: unknown, options: ReconstructionCompilerOptions): string {
+function compileReconstructionData(input: unknown, options: ReconstructionCompilerOptions) {
   const plan = reconstructionPlanSchema.parse(input);
   const settings = z.object({ sceneKey: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,159}$/), bindings: z.array(z.object({ id: assetId, path: z.string().min(1).max(32768).regex(/^[^\u0000-\u001f\u007f]*$/), sha256: z.string().regex(/^[a-f0-9]{64}$/), kind: z.enum(['source-video', 'frame-crop', 'texture-tile']), width: finite.int().positive().max(32768), height: finite.int().positive().max(32768), duration: finite.positive().max(7200).optional() }).strict()).max(17), audio: z.object({ sourceIn: finite.nonnegative().max(7200), sourceOut: finite.positive().max(7200) }).strict().nullable() }).strict().parse(options);
   const bindings = new Map(settings.bindings.map(binding => [binding.id, binding]));
@@ -122,7 +122,30 @@ export function buildReconstructionModule(input: unknown, options: Reconstructio
     return { type: item.type, props };
   });
   const data = { ...settings, title: plan.title, width: plan.width, height: plan.height, duration: frame(plan.duration) / 30, background: plan.background, sourcePath: bindings.get('reference-source')?.path ?? null, layers };
-  const literal = JSON.stringify(data).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+  return data;
+}
+
+const reconstructionLiteral = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
+
+/** Compile native primitive data as a clipped, sourceless component factory.
+ * The caller supplies the trusted Rect/Text imports and a parent clock.
+ * No model-authored expression or executable source is accepted. */
+export function buildReconstructionComponentFactory(input: unknown, key: string): string {
+  const plan = reconstructionPlanSchema.parse(input);
+  if (plan.assetRequests.length || plan.layers.some(layer => layer.type === 'image' || layer.type === 'video')) throw new Error('Reusable native components cannot contain media');
+  const data = compileReconstructionData(plan, { sceneKey: key, bindings: [], audio: null });
+  return `function(){
+ const data=${reconstructionLiteral(data)};
+ const background=Rect({key:data.sceneKey+"-background",name:"Component background",start:"0f",end:String(Math.round(data.duration*30))+"f",x:0,y:0,width:data.width,height:data.height,fill:data.background});
+ const layers=data.layers.map(layer=>{const props={...layer.props,key:data.sceneKey+"-"+layer.props.key};return layer.type==="text"?Text(props):Rect(props);});
+ return Rect({key:data.sceneKey,name:data.title,start:"0f",end:String(Math.round(data.duration*30))+"f",x:0,y:0,width:data.width,height:data.height,clipToBox:true,children:[background,...layers]});
+}`;
+}
+
+/** Only the application supplies paths; model-authored strings never become imports, code or URLs. */
+export function buildReconstructionModule(input: unknown, options: ReconstructionCompilerOptions): string {
+  const data = compileReconstructionData(input, options);
+  const literal = reconstructionLiteral(data);
   return `import { Rect, Text, Image, Video, Audio } from "dapi-host:@diffusionstudio/jsx";
 const data = ${literal};
 export const reconstructionManifest = data;

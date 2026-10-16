@@ -15,6 +15,8 @@ import type { EditorUnderstandingService, UnderstandingRequest } from "@diffusio
 import type { AgentSession, AgentInspectRequest, AgentTranscriptRequest, AgentObservationRequest } from "@diffusionstudio/video-understanding/agent";
 import type { ReferenceAutoService } from "@diffusionstudio/editing-playbook/reference-auto";
 import type { ReferenceRecreationService } from "@diffusionstudio/editing-playbook/reference-recreation";
+import type { MotionLearningService } from "@diffusionstudio/editing-playbook/motion-learning";
+import type { MotionLibrary } from "@diffusionstudio/editing-playbook/motion-library";
 import type { AutomaticReferenceReceipt } from "./reference-auto-controller";
 
 export const MAIN_WIRE = {
@@ -62,6 +64,14 @@ export const MAIN_CHANNELS = {
   REFERENCE_RECREATE_STATUS: "reference-recreate:status",
   REFERENCE_RECREATE_CANCEL: "reference-recreate:cancel",
   REFERENCE_RECREATE_RENDERED: "reference-recreate:rendered",
+  REFERENCE_LEARN_CAPABILITIES: "reference-learn:capabilities",
+  REFERENCE_LEARN_START: "reference-learn:start",
+  REFERENCE_LEARN_STATUS: "reference-learn:status",
+  REFERENCE_LEARN_CANCEL: "reference-learn:cancel",
+  REFERENCE_LEARN_RENDERED: "reference-learn:rendered",
+  MOTION_LIBRARY_LIST: "motion-library:list",
+  MOTION_LIBRARY_READ: "motion-library:read",
+  MOTION_LIBRARY_REMOVE: "motion-library:remove",
 
   // Main→Renderer events
   AUTH_CALLBACK: "auth:callback",
@@ -79,6 +89,14 @@ export type DeepLinkChannel =
   | typeof MAIN_CHANNELS.CHECKOUT_CALLBACK;
 
 export type MainRequestMap = {
+  [MAIN_CHANNELS.REFERENCE_LEARN_CAPABILITIES]: { request: void; response: Awaited<ReturnType<MotionLearningService['capabilities']>> };
+  [MAIN_CHANNELS.REFERENCE_LEARN_START]: { request: Parameters<MotionLearningService['start']>[0]; response: Awaited<ReturnType<MotionLearningService['start']>> };
+  [MAIN_CHANNELS.REFERENCE_LEARN_STATUS]: { request: {id:string}; response: Awaited<ReturnType<MotionLearningService['status']>> };
+  [MAIN_CHANNELS.REFERENCE_LEARN_CANCEL]: { request: {id:string}; response: Awaited<ReturnType<MotionLearningService['cancel']>> };
+  [MAIN_CHANNELS.REFERENCE_LEARN_RENDERED]: { request: Parameters<MotionLearningService['rendered']>[0]; response: Awaited<ReturnType<MotionLearningService['rendered']>> };
+  [MAIN_CHANNELS.MOTION_LIBRARY_LIST]: { request: void; response: Awaited<ReturnType<MotionLibrary['list']>> };
+  [MAIN_CHANNELS.MOTION_LIBRARY_READ]: { request: {id:string}; response: Awaited<ReturnType<MotionLibrary['read']>> };
+  [MAIN_CHANNELS.MOTION_LIBRARY_REMOVE]: { request: {id:string}; response: Awaited<ReturnType<MotionLibrary['remove']>> };
   [MAIN_CHANNELS.REFERENCE_RECREATE_CAPABILITIES]: { request: void; response: Awaited<ReturnType<ReferenceRecreationService['capabilities']>> };
   [MAIN_CHANNELS.REFERENCE_RECREATE_START]: { request: Parameters<ReferenceRecreationService['start']>[0]; response: Awaited<ReturnType<ReferenceRecreationService['start']>> };
   [MAIN_CHANNELS.REFERENCE_RECREATE_STATUS]: { request: { id: string }; response: Awaited<ReturnType<ReferenceRecreationService['status']>> };

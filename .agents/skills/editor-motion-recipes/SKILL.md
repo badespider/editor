@@ -10,6 +10,15 @@ Use the existing Moments catalog as the executable library. This skill supplies
 the agent's decisions; native components and validated recipe settings supply
 the editable result.
 
+For an authorized automatic drop-to-library request, follow
+[automatic motion learning](../../../reference/motion-learning.md). The desktop
+Reference tab discovers bounded source windows, builds native data components,
+renders two changed-content variants and automatically adds passing drafts to
+the separate persistent user library. Search `playbook motion library list`,
+then `library read <id>` for its complete generated guidance and parameter data.
+Use `library create` or `library mix` to reuse it. These are machine-reviewed
+options with human review pending, not new universal editing preferences.
+
 ## Reuse or mix an existing pattern
 
 Search `playbook motion catalog`, then read the chosen entry's guide and example.

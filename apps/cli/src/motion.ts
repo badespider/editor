@@ -7,6 +7,7 @@ import { buildMotionBrief, buildMotionModule, getMotionMoment, getMotionContentE
 import type { MotionBuildOptions, MotionCategory } from "@diffusionstudio/editing-playbook/motion";
 import { buildMotionMixBrief, buildMotionMixModule, getMotionMixExample, mixableMotionMoments, motionMixSchema } from "@diffusionstudio/editing-playbook/motion-mix";
 import { checkMotionCandidate, createMotionCandidate, motionAdapterKinds, motionCandidateSchema, motionTestKinds } from "@diffusionstudio/editing-playbook/motion-candidates";
+import { registerMotionLibraryCommands } from './motion-library';
 
 const formats = ["landscape", "portrait"] as const;
 const modes = ["template", "sequence", "inspiration"] as const;
@@ -56,6 +57,7 @@ async function readCandidate(path: string, maxBytes=8_000_000): Promise<unknown>
 
 export function registerMotionCommands(playbook: Command) {
   const motion = playbook.command("motion").description("Discover original native Moments, compose editable scenes and check inert integration candidates; local, no AI or downloads");
+  registerMotionLibraryCommands(motion);
   motion.command("catalog").argument("[query]", "search native moment names, purposes and movement tags")
     .option("--format <format>", "landscape | portrait; omit to include both")
     .option("--category <category>", motionCategories.join(" | "))

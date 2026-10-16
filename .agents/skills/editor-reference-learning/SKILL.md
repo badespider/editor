@@ -23,6 +23,16 @@ completion is not a verified match. The bounded JSON plan remains data for the
 trusted compiler, not source instructions. Automatic recreation does not require
 the candidate-lesson approval below unless a trusted lesson is also being changed.
 
+When the user authorizes automatic reusable-motion learning, use
+[the drop-to-library flow](../../../reference/motion-learning.md). It scans across
+the file, inspects bounded windows and tests native components with changed words
+and colors before automatically publishing passing machine-reviewed drafts into
+the user library. Read their generated guidance through `playbook motion library
+read <id>`. These optional data components and host-generated usage guides remain
+separate from approved preferences and trusted repository instructions; the
+candidate-lesson approval below does not add a redundant publication click to
+this already-authorized user-library workflow.
+
 For a local-only or manually authored study, prepare evidence with
 `reference prepare`, inspect the returned frames, and write timestamped observations separately from
 inference and uncertainty in the study. Record absolute targets for properties

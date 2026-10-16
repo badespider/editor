@@ -18,6 +18,7 @@ import type { LogEntry } from "@diffusionstudio/cli/protocol";
 import { EditorUnderstandingService } from "@diffusionstudio/video-understanding/system";
 import { ReferenceAutoController } from "./reference-auto-controller";
 import { ReferenceRecreationService } from "@diffusionstudio/editing-playbook/reference-recreation";
+import { MotionLearningService } from "@diffusionstudio/editing-playbook/motion-learning";
 
 const DEV_URL = "http://localhost:5173";
 const AUTH_PROTOCOL = "diffusion";
@@ -28,11 +29,12 @@ app.setName("Diffusion Studio");
 const understanding = new EditorUnderstandingService();
 const automaticReference = new ReferenceAutoController();
 const referenceRecreation = new ReferenceRecreationService();
+const motionLearning = new MotionLearningService();
 let referenceShutdownFinished = false;
 app.on("before-quit", event => {
   if (referenceShutdownFinished) return;
   event.preventDefault();
-  void Promise.allSettled([automaticReference.shutdown(), referenceRecreation.shutdown()]).finally(() => { referenceShutdownFinished = true; app.quit(); });
+  void Promise.allSettled([automaticReference.shutdown(), referenceRecreation.shutdown(), motionLearning.shutdown()]).finally(() => { referenceShutdownFinished = true; app.quit(); });
 });
 app.commandLine.appendSwitch("enable-blink-features", "CanvasDrawElement");
 app.commandLine.appendSwitch("enable-features", "SharedArrayBuffer");
@@ -268,6 +270,14 @@ if (app.requestSingleInstanceLock()) {
   mainBridge.handle(MAIN_CHANNELS.REFERENCE_RECREATE_STATUS, ({ id }) => referenceRecreation.status(id));
   mainBridge.handle(MAIN_CHANNELS.REFERENCE_RECREATE_CANCEL, ({ id }) => referenceRecreation.cancel(id));
   mainBridge.handle(MAIN_CHANNELS.REFERENCE_RECREATE_RENDERED, data => referenceRecreation.rendered(data));
+  mainBridge.handle(MAIN_CHANNELS.REFERENCE_LEARN_CAPABILITIES, () => motionLearning.capabilities());
+  mainBridge.handle(MAIN_CHANNELS.REFERENCE_LEARN_START, data => motionLearning.start(data));
+  mainBridge.handle(MAIN_CHANNELS.REFERENCE_LEARN_STATUS, ({id}) => motionLearning.status(id));
+  mainBridge.handle(MAIN_CHANNELS.REFERENCE_LEARN_CANCEL, ({id}) => motionLearning.cancel(id));
+  mainBridge.handle(MAIN_CHANNELS.REFERENCE_LEARN_RENDERED, data => motionLearning.rendered(data));
+  mainBridge.handle(MAIN_CHANNELS.MOTION_LIBRARY_LIST, () => motionLearning.library.list());
+  mainBridge.handle(MAIN_CHANNELS.MOTION_LIBRARY_READ, ({id}) => motionLearning.library.read(id));
+  mainBridge.handle(MAIN_CHANNELS.MOTION_LIBRARY_REMOVE, ({id}) => motionLearning.library.remove(id));
   mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_START, data => understanding.understand(data));
   mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_INSPECT, ({ id, request }) => understanding.inspect(id, request));
   mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_DOSSIER, ({ id, query }) => understanding.dossier(id, query));

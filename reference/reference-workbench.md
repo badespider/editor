@@ -1,6 +1,11 @@
 # Study a reference and compare the native result
 
-The **Reference** tab offers two paths. **Reference → editable recreation**
+The **Reference** tab defaults to **Learn motions to library**, which scans a
+whole local video and tests reusable native parts before automatically adding
+passing drafts to the user library. Read [automatic motion learning](motion-learning.md)
+for its scope, account calls, generated skills and reuse commands.
+
+Choose **Recreate one scene** to use the existing **editable recreation** path. It
 uses the signed-in Codex account to reconstruct a selected source interval,
 render native layers and correct observed differences from sampled comparisons.
 The manual workbench below it supports local playback,
@@ -22,7 +27,7 @@ Codex sign-in status; **Check availability** checks again. API-key authenticatio
 is not used.
 The manual workbench remains available when the automatic path is unavailable.
 
-1. Set **Source start (seconds)**, **Source end (seconds)** and **Goal before
+1. Choose **Recreate one scene**, then set **Source start (seconds)**, **Source end (seconds)** and **Goal before
    dropping video**, then drop one local video onto the automatic dropzone or
    use **Choose video and start**. Selection starts the job immediately. The
    selected interval must be positive and at most 120 seconds; the default UI
