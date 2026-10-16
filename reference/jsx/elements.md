@@ -42,6 +42,8 @@ All visual elements accept:
 | `width`, `height` | `Animatable<number>` | parent size | Box size, px. |
 | `rotation` | `Animatable<number>` | `0` | Rotation in degrees. |
 | `scale` | `Animatable<number>` | `1` | Uniform scale around the element's center; finite and non-negative. |
+| `scaleX`, `scaleY` | `number` | `1` | Static horizontal/vertical multipliers around the same center. Finite and non-negative; multiply the current uniform `scale` factor. |
+| `clipToBox` | `boolean` | `false` | Clip the node's own drawing and its descendants to its current local box and corner radius. Animated `width`/`height` update the clip; rotation and scaling transform it with the node. |
 | `opacity` | `Animatable<number>` | `1` | `0`-`1`. |
 | `cornerRadius` | `Animatable<number>` | `0` | Uniform corner radius, px. |
 | `start`, `end`, `sourceIn`, `sourceOut` | `Time` | see [timing.md](./timing.md) | Temporal placement. |
@@ -49,6 +51,14 @@ All visual elements accept:
 | `animations` | `AnimationSpec[]` | none | Preset in/out animations over the clip's head and tail (see [animations.md](./animations.md)). |
 
 `Animatable` props also take a keyframe list; see [keyframes.md](./keyframes.md).
+
+Use `scaleX` to change glyph proportions; changing text `width` changes its layout
+box, and `letterSpacing` changes the gaps between glyphs. The static axis values
+remain native editable properties while a uniform scale track plays. `clipToBox`
+is a persisted tag on the existing node and covers its own text or paint as well
+as children; it does not create mask entities. Capture bounds exclude overflow
+behind that clip. Existing child-only scene clipping and explicit masks retain
+their separate behavior.
 
 ## One property table
 

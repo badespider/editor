@@ -59,6 +59,10 @@ export const Effect = {
 // MaskCache[targetEid] is derived by childCacheSystem from IsMask + ChildOf queries.
 export const IsMask = {};
 
+// Clips this geometry's own drawing and descendants to its current local box.
+// Unlike ClipsContent, this also applies before text/paint rendering.
+export const ClipToBox = {};
+
 // Tag for shadow sub-entities (distinguishes from other Effect sub-entities in ChildOf queries).
 export const Shadow = {};
 

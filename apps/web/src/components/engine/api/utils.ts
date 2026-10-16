@@ -451,13 +451,10 @@ export function resetAnimatedValues(world: EngineWorld, eid: number | null) {
   c.Computed.stopOpacity[eid] = c.ColorStop.opacity[eid] ?? 1;
   c.Computed.chars[eid] = c.Chars[eid] ?? '';
 
-  if (hasComponent(world, eid, c.UniformScale)) {
-    c.Computed.scaleX[eid] = c.UniformScale[eid] ?? 1;
-    c.Computed.scaleY[eid] = c.UniformScale[eid] ?? 1;
-  } else {
-    c.Computed.scaleX[eid] = c.Scale.x[eid] ?? 1;
-    c.Computed.scaleY[eid] = c.Scale.y[eid] ?? 1;
-  }
+  const uniform = hasComponent(world, eid, c.UniformScale) ? c.UniformScale[eid] ?? 1 : 1;
+  const hasScale = hasComponent(world, eid, c.Scale);
+  c.Computed.scaleX[eid] = (hasScale ? c.Scale.x[eid] ?? 1 : 1) * uniform;
+  c.Computed.scaleY[eid] = (hasScale ? c.Scale.y[eid] ?? 1 : 1) * uniform;
 }
 
 export { propagateSize, resolveConstraintOffsets } from "./resize";

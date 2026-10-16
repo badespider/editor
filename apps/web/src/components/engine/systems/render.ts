@@ -821,6 +821,16 @@ export function renderNode(world: EngineWorld, eid: number): void {
 		c.LocalTransform.f[eid],
 	);
 
+	if (hasComponent(world, eid, c.ClipToBox)) {
+		// Fresh local path, before the node's own paints/text and children.
+		// Current computed dimensions make animated reveals seek-safe.
+		ctx.save();
+		ctx.translate(c.Computed.originX[eid] ?? 0, c.Computed.originY[eid] ?? 0);
+		drawRectPath(world, eid);
+		ctx.restore();
+		ctx.clip();
+	}
+
 	for (const maskEid of world.components.Cache.masks[eid]) {
 		if (c.Computed.visibility[maskEid] === 0) continue;
 		ctx.save();

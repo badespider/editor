@@ -99,6 +99,14 @@ export function observeWorld(world: EngineWorld) {
     utils.persistEntity(world, eid);
   });
 
+  observe(world, "add", c.ClipToBox, (eid) => {
+    utils.persistEntity(world, eid);
+  });
+
+  observe(world, "remove", c.ClipToBox, (eid) => {
+    utils.persistEntity(world, eid);
+  });
+
   observe(world, "remove", c.IsMask, (eid) => {
     utils.persistEntity(world, eid);
   });
@@ -173,21 +181,31 @@ export function observeWorld(world: EngineWorld) {
     if (rotation !== undefined) syncKeyframeTrack(world, eid, 'rotation');
   });
 
+  const refreshScale = (eid: number) => {
+    const uniform = hasComponent(world, eid, c.UniformScale) ? c.UniformScale[eid] ?? 1 : 1;
+    const hasScale = hasComponent(world, eid, c.Scale);
+    c.Computed.scaleX[eid] = (hasScale ? c.Scale.x[eid] ?? 1 : 1) * uniform;
+    c.Computed.scaleY[eid] = (hasScale ? c.Scale.y[eid] ?? 1 : 1) * uniform;
+    utils.persistEntity(world, eid);
+  };
+  // Undo removes component membership without clearing bitecs' backing arrays.
+  // Refresh static nodes too: the motion system skips nodes without tracks.
+  for (const component of [c.Scale, c.UniformScale]) {
+    observe(world, "add", component, refreshScale);
+    observe(world, "remove", component, refreshScale);
+  }
+
   observe(world, "set", c.Scale, (eid, { x, y }) => {
     c.Scale.x[eid] = x ?? c.Scale.x[eid] ?? 1;
     c.Scale.y[eid] = y ?? c.Scale.y[eid] ?? 1;
-    c.Computed.scaleX[eid] = c.Scale.x[eid];
-    c.Computed.scaleY[eid] = c.Scale.y[eid];
-    utils.persistEntity(world, eid);
+    refreshScale(eid);
     if (x !== undefined) syncKeyframeTrack(world, eid, 'scale.x');
     if (y !== undefined) syncKeyframeTrack(world, eid, 'scale.y');
   });
 
   observe(world, "set", c.UniformScale, (eid, scale) => {
     c.UniformScale[eid] = scale ?? c.UniformScale[eid] ?? 1;
-    c.Computed.scaleX[eid] = c.UniformScale[eid];
-    c.Computed.scaleY[eid] = c.UniformScale[eid];
-    utils.persistEntity(world, eid);
+    refreshScale(eid);
     if (scale !== undefined) syncKeyframeTrack(world, eid, 'scale');
   });
 

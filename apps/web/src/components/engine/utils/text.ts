@@ -164,7 +164,8 @@ function shapeTokens(world: EngineWorld, eid: number): void {
 
   // When Size is assigned, use Computed for positioning; otherwise set it from text dimensions
   const hasSizeComponent = hasComponent(world, eid, Size);
-  if (!hasSizeComponent || !Computed.width[eid] || !Computed.height[eid]) {
+  const explicitClipBox = hasSizeComponent && hasComponent(world, eid, world.components.ClipToBox);
+  if (!hasSizeComponent || !explicitClipBox && (!Computed.width[eid] || !Computed.height[eid])) {
     Computed.width[eid] = Math.ceil(maxLineWidth);
     Computed.height[eid] = Math.ceil(totalHeight);
   }

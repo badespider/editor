@@ -20,17 +20,23 @@ import type { Engine } from "@/components/engine";
 /**
  * `dapi mount` — evaluates a compiled project module and renders it directly into the ECS world
  */
-export function handleMount(engine: Accessor<Engine>) {
+export function handleMount(engine: Accessor<Engine>, signal?: AbortSignal) {
   return async ({ code }: MountRequest): Promise<void> => {
     const e = engine();
     const world = e.world;
     const c = world.components;
+    const assertActive = () => {
+      signal?.throwIfAborted();
+      assert(!e.disposed, "The editor was closed before this mount completed");
+    };
     let dispose = () => { };
     let registered = false;
 
     try {
+      assertActive();
       // Evaluate — top-level code (including top-level await) runs here.
       const module = await importProjectModule(code);
+      assertActive();
       const project = module.default as () => unknown;
       assert(typeof project === "function", "The project module must default-export a Solid component");
 
@@ -38,6 +44,7 @@ export function handleMount(engine: Accessor<Engine>) {
       // world (export, capture, reload) can re-run it in adopt mode. `mountId`
       // ties every entity of this mount together for that re-run.
       const scriptAsset = await createScriptAsset(world, code);
+      assertActive();
       const mountId = nanoid();
 
       const document = new WorldDocument(world, {
@@ -67,6 +74,10 @@ export function handleMount(engine: Accessor<Engine>) {
       } finally {
         world.history.commitTransaction();
       }
+
+      // Project cleanup can run while media/fonts are being resolved. Never
+      // register a graph after the engine's live mounts were disposed.
+      assertActive();
 
       // A mount always stays live: its reactive graph keeps driving the
       // entities until a later mount claims a root key or the app closes.

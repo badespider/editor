@@ -21,6 +21,7 @@ export interface DBEntity {
 		verticalAlign?: number;
 	};
 	IsMask?: {};
+	ClipToBox?: {};
 	Shadow?: {};
 	Stroke?: {};
 	Name?: string;

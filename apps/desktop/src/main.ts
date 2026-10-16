@@ -17,6 +17,7 @@ import type { DeepLinkChannel } from "./main-channels";
 import type { LogEntry } from "@diffusionstudio/cli/protocol";
 import { EditorUnderstandingService } from "@diffusionstudio/video-understanding/system";
 import { ReferenceAutoController } from "./reference-auto-controller";
+import { ReferenceRecreationService } from "@diffusionstudio/editing-playbook/reference-recreation";
 
 const DEV_URL = "http://localhost:5173";
 const AUTH_PROTOCOL = "diffusion";
@@ -26,11 +27,12 @@ const MACOS_BACKDROP = { blur: 80, red: 0.07, green: 0.07, blue: 0.07, alpha: 0.
 app.setName("Diffusion Studio");
 const understanding = new EditorUnderstandingService();
 const automaticReference = new ReferenceAutoController();
+const referenceRecreation = new ReferenceRecreationService();
 let referenceShutdownFinished = false;
 app.on("before-quit", event => {
   if (referenceShutdownFinished) return;
   event.preventDefault();
-  void automaticReference.shutdown().finally(() => { referenceShutdownFinished = true; app.quit(); });
+  void Promise.allSettled([automaticReference.shutdown(), referenceRecreation.shutdown()]).finally(() => { referenceShutdownFinished = true; app.quit(); });
 });
 app.commandLine.appendSwitch("enable-blink-features", "CanvasDrawElement");
 app.commandLine.appendSwitch("enable-features", "SharedArrayBuffer");
@@ -261,6 +263,11 @@ if (app.requestSingleInstanceLock()) {
   mainBridge.handle(MAIN_CHANNELS.REFERENCE_AUTO_STATUS, ({ id }) => automaticReference.service.status(id));
   mainBridge.handle(MAIN_CHANNELS.REFERENCE_AUTO_CANCEL, ({ id }) => automaticReference.cancel(id));
   mainBridge.handle(MAIN_CHANNELS.REFERENCE_AUTO_FINISH, data => automaticReference.finish(data));
+  mainBridge.handle(MAIN_CHANNELS.REFERENCE_RECREATE_CAPABILITIES, () => referenceRecreation.capabilities());
+  mainBridge.handle(MAIN_CHANNELS.REFERENCE_RECREATE_START, data => referenceRecreation.start(data));
+  mainBridge.handle(MAIN_CHANNELS.REFERENCE_RECREATE_STATUS, ({ id }) => referenceRecreation.status(id));
+  mainBridge.handle(MAIN_CHANNELS.REFERENCE_RECREATE_CANCEL, ({ id }) => referenceRecreation.cancel(id));
+  mainBridge.handle(MAIN_CHANNELS.REFERENCE_RECREATE_RENDERED, data => referenceRecreation.rendered(data));
   mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_START, data => understanding.understand(data));
   mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_INSPECT, ({ id, request }) => understanding.inspect(id, request));
   mainBridge.handle(MAIN_CHANNELS.UNDERSTANDING_DOSSIER, ({ id, query }) => understanding.dossier(id, query));

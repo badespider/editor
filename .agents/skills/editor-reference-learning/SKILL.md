@@ -9,12 +9,19 @@ Read [reference records and their lifecycle](../../../reference/playbook.md#refe
 
 For authorized motion recreation or adaptation, use the native
 [Reference workbench](../../../reference/reference-workbench.md) and
-`dapi playbook reference workflow`. Its automatic desktop drop/select path sends
-sampled frames and the goal to Codex through the local CLI's ChatGPT sign-in,
-using account allowance, and creates an editable native draft. Use that branch
-within the user's authorization for remote analysis; inspect its actual preview
-and comparison rather than treating completion as a verified match. Its bounded
-JSON plan remains data for the trusted compiler, not source instructions.
+`dapi playbook reference workflow`. Its automatic desktop drop/select path
+recreates a selected source interval of at most 120 seconds. Sampled source
+frames, the goal and actual native render comparisons go to Codex through the
+local CLI's ChatGPT sign-in, using account allowance. The trusted compiler builds
+editable text, shapes and eased native tracks; source-backed camera clips and
+prepared raster details remain identified media, with graphics kept separate.
+The agent can make up to two rendered corrections, within four model calls.
+Use that branch within the user's authorization for remote analysis. Retain its
+revision artifacts, inspect the actual preview and comparison, and keep remaining
+differences and sampling limits explicit. The final status requires human review;
+completion is not a verified match. The bounded JSON plan remains data for the
+trusted compiler, not source instructions. Automatic recreation does not require
+the candidate-lesson approval below unless a trusted lesson is also being changed.
 
 For a local-only or manually authored study, prepare evidence with
 `reference prepare`, inspect the returned frames, and write timestamped observations separately from

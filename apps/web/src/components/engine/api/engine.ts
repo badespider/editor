@@ -31,11 +31,12 @@ export function createEngine(id: string) {
 	const [initialized, setInitialized] = createSignal(false);
 
 	let running = false;
+	let disposed = false;
 	let rafId: number | null = null;
 	let stats: Stats | null = null;
 
 	async function init(el: HTMLCanvasElement) {
-		if (world.canvas) return;
+		if (disposed || world.canvas) return;
 
 		world.canvas = el;
 		world.ctx = el.getContext('2d');
@@ -43,7 +44,9 @@ export function createEngine(id: string) {
 		keyboard.init();
 
 		await restoreWorld(world);
+		if (disposed) return;
 		await realizeMounts(world);
+		if (disposed) { world.liveMounts.disposeAll(); return; }
 
 		const c = world.components;
 		// Auto-select the first scene as the active timeline
@@ -55,6 +58,7 @@ export function createEngine(id: string) {
 		// Mount FPS stats panel if in development mode
 		if (import.meta.env.DEV) {
 			const { default: Stats } = await import('stats.js');
+			if (disposed) return;
 			stats = new Stats();
 			stats.showPanel(0); // 0 = FPS
 			stats.dom.style.position = 'absolute';
@@ -70,7 +74,7 @@ export function createEngine(id: string) {
 	}
 
 	function tick(timestamp: number): void {
-		if (!running || !world.ctx || !world.canvas) return;
+		if (disposed || !running || !world.ctx || !world.canvas) return;
 
 		stats?.begin();
 
@@ -91,7 +95,7 @@ export function createEngine(id: string) {
 	}
 
 	function start(): void {
-		if (running) return;
+		if (disposed || running) return;
 		running = true;
 		rafId = requestAnimationFrame(tick);
 	}
@@ -105,6 +109,8 @@ export function createEngine(id: string) {
 	}
 
 	function dispose(): void {
+		if (disposed) return;
+		disposed = true;
 		stop();
 		world.liveMounts.disposeAll();
 		keyboard.dispose();
@@ -141,6 +147,7 @@ export function createEngine(id: string) {
 	}
 
 	function resize(): void {
+		if (disposed) return;
 		applyResize();
 
 		// ResizeObserver fires after layout, before paint. Without a synchronous
@@ -163,6 +170,7 @@ export function createEngine(id: string) {
 		resize,
 		initialized,
 		get running() { return running; },
+		get disposed() { return disposed; },
 		get world() { return world; },
 		get camera() { return camera; },
 	};

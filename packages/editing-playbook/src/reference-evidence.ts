@@ -59,7 +59,7 @@ export function escapeReferenceHtml(value: string) {
 }
 
 async function localVideo(path: string) {
-  if (/^[a-z][a-z\d+.-]*:/i.test(path) && !/^[a-z]:[\\/]/i.test(path) || /^(?:\\\\|\/\/)/.test(path)) {
+  if (/^[a-z][a-z\d+.-]*:/i.test(path) && !/^[a-z]:[\\/]/i.test(path) || /^[\\/]{2}/.test(path)) {
     throw new Error('A regular local video file is required; URLs and network shares are unsupported.');
   }
   const absolute = await realpath(resolve(path)), info = await stat(absolute);
@@ -79,6 +79,9 @@ async function localVideo(path: string) {
   if (!knownContainer) throw new Error('Unsupported local video container; playlists, images and arbitrary documents are not accepted.');
   return absolute;
 }
+
+/** Shared local-only container gate for source-bound reference pipeline tools. */
+export { localVideo as resolveLocalReferenceVideo };
 
 async function unchanged(session: AgentSession, signal?: AbortSignal) {
   signal?.throwIfAborted();

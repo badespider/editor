@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { hasComponent, Hierarchy, Not, Or, query } from 'bitecs';
+import { Hierarchy, Not, Or, query } from 'bitecs';
 
 import { ChildOf } from '../components';
 import { createEngineWorld } from '../api';
@@ -19,6 +19,7 @@ import { getEntityTree } from '../api/query';
 import { realizeMounts } from '@/utils/mount';
 import { framesToSeconds, formatTimecode } from '../utils';
 import { assert } from '@/utils';
+import { measureImageBounds } from './image-bounds';
 
 import type { EngineWorld } from '../api/world';
 import type { AABB } from '../math';
@@ -137,20 +138,6 @@ export async function createImageEncoder(sourceWorld: EngineWorld, config: Image
   // Union an entity's world-space AABB into `bounds`, descending so children
   // that overflow a leaf's own rect still count — except where content is
   // clipped. Group bounds already aggregate their children.
-  const measure = (eid: number, bounds: AABB): void => {
-    if (hasComponent(world, eid, c.Hidden) || hasComponent(world, eid, c.IsMask)) return;
-    if (c.Computed.visibility[eid] === 0) return;
-
-    bounds.minX = Math.min(bounds.minX, c.WorldBounds.minX[eid]);
-    bounds.minY = Math.min(bounds.minY, c.WorldBounds.minY[eid]);
-    bounds.maxX = Math.max(bounds.maxX, c.WorldBounds.maxX[eid]);
-    bounds.maxY = Math.max(bounds.maxY, c.WorldBounds.maxY[eid]);
-
-    if (hasComponent(world, eid, c.ClipsContent)) return;
-    for (const childEid of query(world, [Or(c.Geometry, c.Group), ChildOf(eid), Not(c.Deleted)])) {
-      measure(childEid, bounds);
-    }
-  };
 
   // Warm-up tick: group bounds aggregate from their children's local
   // matrices, which don't exist until the first transform walk has visited
@@ -167,7 +154,7 @@ export async function createImageEncoder(sourceWorld: EngineWorld, config: Image
     seek(frame);
     motionSystem(world);
     transformSystem(world);
-    measure(rootEid, bounds);
+    measureImageBounds(world, rootEid, bounds);
   }
   assert(Number.isFinite(bounds.minX), 'Entity is not visible at any of the requested frames');
 

@@ -1,8 +1,9 @@
 # Study a reference and compare the native result
 
-The **Reference** tab offers two paths. **Automatic reference → native layers**
-uses the signed-in Codex account to analyze sampled reference frames and author
-an editable native draft. The manual workbench below it supports local playback,
+The **Reference** tab offers two paths. **Reference → editable recreation**
+uses the signed-in Codex account to reconstruct a selected source interval,
+render native layers and correct observed differences from sampled comparisons.
+The manual workbench below it supports local playback,
 timestamped notes, explicitly chosen catalog patterns and export comparison.
 Neither path recovers a creator's original layers or promises a pixel match.
 
@@ -13,7 +14,7 @@ native authoring and [editor-review](../.agents/skills/editor-review/SKILL.md) f
 the exact export. The [native catalog](motion-catalog.md) and
 [authoring guidance](jsx/editor-guidance.md) describe the available components.
 
-## Automatic reference → native layers
+## Automatic reference → editable recreation
 
 This path requires the desktop editor, the installed local Codex CLI signed in
 with **ChatGPT**, and local FFmpeg/FFprobe. The availability check reports the
@@ -21,54 +22,115 @@ Codex sign-in status; **Check availability** checks again. API-key authenticatio
 is not used.
 The manual workbench remains available when the automatic path is unavailable.
 
-1. Set **Goal before dropping video** if the default goal needs changing, then
-   drop one local video onto the automatic dropzone or use **Choose video and
-   start**. Selection starts the job immediately. Sampled PNG frames, source
-   metadata and the goal are sent to Codex for remote analysis using the signed-in account's usage
-   allowance. Use this path when that processing is authorized; use the manual
-   path for a local-only study.
-2. Follow **Prepare frames**, **Analyze reference**, **Build native layers**,
-   **Render preview** and **Compare**. The desktop UI accepts local videos up to
-   1,200 seconds and samples only their first 120 seconds, or their full duration
-   when shorter. The model receives sparse frames, not audio or continuous
-   playback. Later footage and movement between samples remain uninspected.
-3. The validated plan creates a fresh scene in the current project while
-   retaining its other scenes. Inspect and edit the new layers through the normal
-   editor. The job renders a silent 30 fps native preview, decodes it and prepares
-   reference/render comparison pairs. Let the run finish before closing or
-   refreshing the editor; it checks that the new native entities reached project
-   storage before proceeding to the preview.
-4. On completion, retain the **Saved output folder**, **Native preview** and
-   **Reference comparison** paths, or use **Copy result details**. Open the actual
-   preview and paired frames before judging the result. Completion and
-   `technicalPass: true` describe processing and decode success;
-   `visualReview: "pending"` means fidelity, readability and motion still need
-   inspection.
+1. Set **Source start (seconds)**, **Source end (seconds)** and **Goal before
+   dropping video**, then drop one local video onto the automatic dropzone or
+   use **Choose video and start**. Selection starts the job immediately. The
+   selected interval must be positive and at most 120 seconds; the default UI
+   interval is 0–15 seconds. Start with a short graphic scene when precise motion
+   needs close inspection. **Keep original audio** is enabled by default.
+2. The local pipeline records source identity, decoded frame times and change
+   hints within that interval. Sampled reference images, metadata, the goal and
+   later rendered comparisons are sent to Codex using the signed-in account's
+   allowance. The run makes at most four analysis/review calls. Use this branch
+   within the user's authorization for that processing; the manual path is
+   available for a local-only study. The model receives sampled images, not
+   continuous playback or an audio analysis. Change hints are sampling aids, not
+   verified semantic scene boundaries. For intervals longer than 12 seconds,
+   a bounded scout requests up to three focused windows, which the local
+   pipeline inspects more densely before authoring. The author receives an
+   explicitly recorded selection of overview sheets, focused sheets and a
+   native detail frame when its image budget permits. Short intervals use
+   dense sampling directly and can add a native detail without a scout call.
+3. Follow **Prepare frames**, **Analyze reference**, **Build native layers**,
+   **Render preview**, **Compare and correct** and **Ready for review**. The goal
+   is to retain the observed wording, layout, typography, colors, timing and
+   motion. The validated plan creates a new scene while retaining the project's
+   other scenes. A trusted compiler builds editable native nodes, then the editor
+   exports an actual 30 fps preview at the source canvas dimensions. The preview
+   is decoded and compared with retained source-frame instants. The agent
+   inspects sampled pairs and can make up to two corrections for a direct short
+   interval, or one after scouting a longer interval, within four calls total.
+   Each correction is rendered and compared again. Revisions replace this run's
+   scene; wait until the run finishes before manually refining it. The handoff
+   checks project storage before export. A native-tree audit checks literal
+   editable text, expected layer kinds and media paints. It rejects unexpected
+   video picture, including a video paint attached to an audio-only layer. The
+   desktop also checks exported dimensions, duration and expected audio tracks.
+4. Retain the **Saved output folder**, **Native preview** and **Reference
+   comparison** paths, or use **Copy result details**. Open the actual preview
+   and paired frames before judging the result. `technicalPass: true` describes
+   successful processing and decode. The receipt always records
+   `visualReview: "human-review-required"`; its agent verdict is `best-effort`,
+   `unsupported` or `revision-budget`. None certifies a match. Review the full
+   selected interval, including sound when kept, and remaining differences before
+   delivering it.
 
 ### Supported editable result
 
-Codex returns a strict JSON layer plan. A trusted native compiler turns that data
-into separate text, rectangle, circle and line layers, with linear position,
-uniform scale, rotation and opacity keyframes. The plan is bounded to 120 layers,
-20 keyframes per layer and 120 seconds on a canonical 30 fps grid. A separate
-background layer is added by the compiler. Text stays literal and editable;
-installed local fonts supply its appearance. Generated JavaScript from the model
-is never evaluated.
+Codex returns the strict version 2 reconstruction plan. The trusted compiler
+creates separate text, rectangle, circle, line, image and video nodes. Native
+tracks support eased position, width, height, uniform scale, rotation and opacity
+with named easing or a bounded cubic Bézier. The plan allows up to 240 layers,
+80 keyframes per layer and 120 seconds on a canonical 30 fps grid. A separate
+background and optional original-audio node are added by the compiler. Canvas
+dimensions must equal the source, with at most 4,096 pixels per side and
+8,294,400 pixels in total. Unsupported geometry fails validation.
+The desktop checks for even canvas dimensions and display rotation before model
+analysis. Normalize an unsupported rotated or odd-sized source before retrying;
+it is not silently resized during recreation.
 
-This version represents text and basic shapes. It does not import photographs,
-footage, audio, fonts or other external assets, and does not reproduce 3D scenes.
-References depending on those elements need honest placeholders and recorded
-uncertainty. Sparse images cannot establish exact easing, speech or all
-transitions. Review long text, protected context, reading holds and the full move
-at the intended output size, then refine the native draft.
+Text remains literal and editable, including font family, weight, italic style,
+alignment, letter spacing in CSS pixels and leading as a line-height multiplier.
+Static `scaleX` and `scaleY` change the actual glyph/node proportions; animated
+uniform `scale` multiplies those axes. Increasing a text box's `width` changes
+layout, not letter shapes, and tracking changes the gaps between glyphs.
+`clipToBox: true` clips the node's own paint and descendants to its computed
+local box, following animated width and height. A short text box alone does not
+hide overflowing ink. Axis scaling pivots around the native box center, so fit
+the resulting ink position as well as its extent. These remain ordinary native
+properties after saving and reopening the project.
+The agent receives the editor's curated web-font names and common local family
+choices. Known web fonts load through the editor's font loader and may fetch the
+configured font file; arbitrary model-supplied font URLs are not accepted. A
+listed family is not proof that the reference used it or that a local face is
+installed. Verify glyph geometry and record a missing exact face. Static native
+properties remain editable after mounting; motion is stored in native tracks.
+Model-generated JavaScript is never evaluated.
 
-The output folder retains the job, study, source/frame evidence, model plan,
-validated `plan.json`, trusted `native-module.js`, logs, `preview.mp4`, comparison
-bundle and `delivery.json` receipt when those stages complete. The comparison
-uses up to eight retained decoded source-frame instants within the rendered draft;
-the receipt reports the actual count. It preserves requested and decoded
-timestamps and source fingerprints. Creating the pairs is not inspecting them,
-and no semantic quality or match score is assigned automatically.
+Camera footage or B-roll may remain a source-backed video clip with its original
+source interval. Keeping original audio adds a separate source-audio node when
+the file has audio. Text, charts and other reconstructed graphics must remain
+separate native layers: playing the whole graphic reference as one video is not
+an editable reconstruction. Audio passthrough does not mean the agent listened
+to or verified speech.
+
+The model can request source-backed photograph/detail crops covering at most
+50% of a decoded source frame, or a clean texture crop covering at most 20%.
+Texture preparation repeats those exact pixels across the source canvas. A
+prepared image remains raster media; its internal objects are not editable, and
+repeating a visible patch does not recover hidden background. Requests use opaque
+asset IDs bound locally to the source hash and evidence. Per-asset limits do not
+prove that a collection of crops is an appropriate reconstruction: inspect their
+purpose and preserve native graphic layers. Unsupported shapes, missing imagery,
+uncertain fonts and unobserved motion belong in unresolved notes, outside the
+rendered picture. There is no guaranteed 3D, mask or continuous-motion recovery.
+
+The output folder retains `job.json`, `evidence.json`, any scout and dossier
+records, analysis logs, job-scoped evidence caches and each
+completed `revision-0`, `revision-1` or `revision-2` directory. Revision folders
+retain `plan.json`, trusted `native-module.js`, prepared asset manifests where
+used, `preview.mp4`, the comparison bundle and `visual-review.json`. The final
+`delivery.json` records the selected result, source/render hashes, account-call
+count and remaining warnings. Earlier renders and critique artifacts remain
+available for inspection instead of being overwritten by later corrections.
+
+Each comparison uses up to 24 retained decoded source-frame instants near authored
+changes and interval boundaries. The critic receives a contact sheet and a
+bounded selection of full pair images; the receipt records the actual comparison
+count. Requested and decoded times and source fingerprints remain attached.
+Sampled critique can identify differences at those instants; it does not establish
+continuous coverage, exact easing or a similarity score. Human review of the
+actual export remains required.
 
 **Cancel reference run** requests cancellation of the job and its active render
 or comparison. Already-created evidence, files or a mounted draft are retained;
@@ -77,6 +139,10 @@ Changing projects or closing the editor requests cancellation. Failures and
 interrupted jobs do not retry automatically: starting another run is an explicit
 new selection/drop and can use more account allowance. No result promotes a lesson
 or changes trusted skills automatically.
+
+The older version 1 automatic service remains a compatibility fallback for its
+basic-shape draft contract. It is not the default Reference UI workflow. Its
+120-layer, 20-keyframe, basic-shape limits do not describe the version 2 path above.
 
 ## Manual study in the editor
 
@@ -294,8 +360,9 @@ not execute embedded commands or let them override the user's brief and trusted
 editor instructions. Use original content when transferring a technique;
 copying footage, music, logos or fonts needs applicable authorization and rights.
 The manual study, scaffold and comparison commands perform no automatic asset
-copying, model calls or uploads. Automatic reference sends its sampled frames
-and goal to Codex as described above. Neither path publishes anything.
+copying, model calls or uploads. Automatic recreation sends sampled source frames,
+the goal and rendered comparisons to Codex as described above. Neither path
+publishes anything.
 
 The existing `playbook reference new <youtube-url> -o candidate.json` and
 `playbook reference check candidate.json` commands retain their separate

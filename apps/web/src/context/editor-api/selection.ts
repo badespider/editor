@@ -72,6 +72,7 @@ export function entityType(world: EngineWorld, eid: number): string {
   if (isGroup(world, eid)) return "group";
   if (isCaption(world, eid)) return "caption";
   if (isText(world, eid)) return "text";
+  if (hasComponent(world, eid, c.Audio)) return "audio";
 
   const asset = findGeometryAsset(world, eid);
   if (asset?.type === "IMAGE") return "image";

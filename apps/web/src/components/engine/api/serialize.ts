@@ -77,6 +77,9 @@ export function serializeEntity(world: EngineWorld, eid: number): DBEntity {
 	if (hasComponent(world, eid, c.IsMask)) {
 		record.IsMask = {};
 	}
+	if (hasComponent(world, eid, c.ClipToBox)) {
+		record.ClipToBox = {};
+	}
 	if (hasComponent(world, eid, c.Position)) {
 		record.Position = { x: c.Position.x[eid], y: c.Position.y[eid] };
 	}
@@ -304,6 +307,9 @@ export function deserializeEntity(world: EngineWorld, eid: number, e: Partial<DB
 	}
 	if (e.IsMask !== undefined) {
 		addComponent(world, eid, c.IsMask);
+	}
+	if (e.ClipToBox !== undefined) {
+		addComponent(world, eid, c.ClipToBox);
 	}
 	if (e.Position !== undefined) {
 		setComponent(world, eid, c.Position, e.Position);

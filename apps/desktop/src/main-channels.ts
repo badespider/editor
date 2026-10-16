@@ -14,6 +14,7 @@ import type { AnalysisRecord, Job } from "@diffusionstudio/video-understanding/t
 import type { EditorUnderstandingService, UnderstandingRequest } from "@diffusionstudio/video-understanding/system";
 import type { AgentSession, AgentInspectRequest, AgentTranscriptRequest, AgentObservationRequest } from "@diffusionstudio/video-understanding/agent";
 import type { ReferenceAutoService } from "@diffusionstudio/editing-playbook/reference-auto";
+import type { ReferenceRecreationService } from "@diffusionstudio/editing-playbook/reference-recreation";
 import type { AutomaticReferenceReceipt } from "./reference-auto-controller";
 
 export const MAIN_WIRE = {
@@ -56,6 +57,11 @@ export const MAIN_CHANNELS = {
   REFERENCE_AUTO_STATUS: "reference-auto:status",
   REFERENCE_AUTO_CANCEL: "reference-auto:cancel",
   REFERENCE_AUTO_FINISH: "reference-auto:finish",
+  REFERENCE_RECREATE_CAPABILITIES: "reference-recreate:capabilities",
+  REFERENCE_RECREATE_START: "reference-recreate:start",
+  REFERENCE_RECREATE_STATUS: "reference-recreate:status",
+  REFERENCE_RECREATE_CANCEL: "reference-recreate:cancel",
+  REFERENCE_RECREATE_RENDERED: "reference-recreate:rendered",
 
   // Main→Renderer events
   AUTH_CALLBACK: "auth:callback",
@@ -73,6 +79,11 @@ export type DeepLinkChannel =
   | typeof MAIN_CHANNELS.CHECKOUT_CALLBACK;
 
 export type MainRequestMap = {
+  [MAIN_CHANNELS.REFERENCE_RECREATE_CAPABILITIES]: { request: void; response: Awaited<ReturnType<ReferenceRecreationService['capabilities']>> };
+  [MAIN_CHANNELS.REFERENCE_RECREATE_START]: { request: Parameters<ReferenceRecreationService['start']>[0]; response: Awaited<ReturnType<ReferenceRecreationService['start']>> };
+  [MAIN_CHANNELS.REFERENCE_RECREATE_STATUS]: { request: { id: string }; response: Awaited<ReturnType<ReferenceRecreationService['status']>> };
+  [MAIN_CHANNELS.REFERENCE_RECREATE_CANCEL]: { request: { id: string }; response: Awaited<ReturnType<ReferenceRecreationService['cancel']>> };
+  [MAIN_CHANNELS.REFERENCE_RECREATE_RENDERED]: { request: Parameters<ReferenceRecreationService['rendered']>[0]; response: Awaited<ReturnType<ReferenceRecreationService['rendered']>> };
   [MAIN_CHANNELS.REFERENCE_AUTO_CAPABILITIES]: { request: void; response: Awaited<ReturnType<ReferenceAutoService['capabilities']>> };
   [MAIN_CHANNELS.REFERENCE_AUTO_START]: { request: Parameters<ReferenceAutoService['start']>[0]; response: Awaited<ReturnType<ReferenceAutoService['start']>> };
   [MAIN_CHANNELS.REFERENCE_AUTO_STATUS]: { request: { id: string }; response: Awaited<ReturnType<ReferenceAutoService['status']>> };

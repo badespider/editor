@@ -146,6 +146,17 @@ export function motionSystem(world: EngineWorld): void {
 		if (!hasAnimations && !hasKeyframes) continue;
 
 		resetAnimatedValues(world, eid);
+		const hasUniform = hasComponent(world, eid, c.UniformScale);
+		const hasScale = hasComponent(world, eid, c.Scale);
+		// Keep native independent-axis tracks unchanged. For static axes,
+		// evaluate a fresh uniform factor, then apply the authored axes once.
+		const hasAxisTracks = c.Cache.keyframeTracks[eid].some(tid => c.KeyframeTrack.property[tid] === 'scale.x' || c.KeyframeTrack.property[tid] === 'scale.y');
+		const composeAxes = hasUniform || hasScale && !hasAxisTracks;
+		if (composeAxes) {
+			const factor = hasUniform ? c.UniformScale[eid] ?? 1 : 1;
+			c.Computed.scaleX[eid] = factor;
+			c.Computed.scaleY[eid] = factor;
+		}
 
 		let trimStart = 0
 		let trimEnd = c.Computed.duration[eid];
@@ -184,9 +195,11 @@ export function motionSystem(world: EngineWorld): void {
 			worldProps[property].computed[target] = result;
 		}
 
-		// Uniform scale is authored/animated as scaleX only; mirror it onto scaleY.
-		if (hasComponent(world, eid, c.UniformScale)) {
-			c.Computed.scaleY[eid] = c.Computed.scaleX[eid];
+		if (composeAxes) {
+			const factorX = c.Computed.scaleX[eid];
+			const factorY = hasUniform ? factorX : c.Computed.scaleY[eid];
+			c.Computed.scaleX[eid] = factorX * (hasScale ? c.Scale.x[eid] ?? 1 : 1);
+			c.Computed.scaleY[eid] = factorY * (hasScale ? c.Scale.y[eid] ?? 1 : 1);
 		}
 	}
 }

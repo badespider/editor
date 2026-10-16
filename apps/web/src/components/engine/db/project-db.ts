@@ -195,7 +195,8 @@ export async function deleteProjectDB(projectId: string): Promise<void> {
 export class WriteQueue {
 	private puts = new Map<string, DBEntity>();
 	private deletes = new Set<string>();
-	private isWriting = false;
+	private writing: Promise<void> | null = null;
+	private failure: { error: unknown } | null = null;
 	private db: Promise<idb.IDBPDatabase<EngineDBSchema>>;
 
 	public constructor(db: Promise<idb.IDBPDatabase<EngineDBSchema>>) {
@@ -224,18 +225,15 @@ export class WriteQueue {
 	public async flush(): Promise<void> {
 		const db = await this.db;
 
-		if (this.isWriting || (this.puts.size === 0 && this.deletes.size === 0)) {
+		if (this.writing || (this.puts.size === 0 && this.deletes.size === 0)) {
 			return;
 		}
 
-		try {
-			this.isWriting = true;
-
-			const putData = Array.from(this.puts.values());
-			const deleteKeys = Array.from(this.deletes);
-			this.puts.clear();
-			this.deletes.clear();
-
+		const putData = Array.from(this.puts.values());
+		const deleteKeys = Array.from(this.deletes);
+		this.puts.clear();
+		this.deletes.clear();
+		const writing = (async () => {
 			const tx = db.transaction('entities', 'readwrite');
 
 			await Promise.all([
@@ -243,14 +241,32 @@ export class WriteQueue {
 				...deleteKeys.map(key => tx.objectStore('entities').delete(key)),
 				tx.done,
 			]);
+		})();
+		this.writing = writing;
+		try {
+			await writing;
 
 			// Re-check in case new items were queued during the await
 			requestIdleCallback(this.flush.bind(this));
 		} catch (e) {
+			this.failure = { error: e };
 			console.error('[engine] WriteQueue flush failed:', e);
 		} finally {
-			this.isWriting = false;
+			this.writing = null;
 		}
+	}
+
+	/** Await the active transaction and every write queued while it settles. */
+	public async drain(): Promise<void> {
+		await this.db;
+		while (this.writing || this.puts.size || this.deletes.size) {
+			if (this.failure) throw this.failure.error;
+			if (this.writing) await this.writing;
+			else await this.flush();
+		}
+		// Idle flushes preserve their historical logging behavior. A save
+		// barrier must still report a failure rather than certify stale data.
+		if (this.failure) throw this.failure.error;
 	}
 }
 

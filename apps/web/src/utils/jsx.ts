@@ -47,6 +47,7 @@ import { resolveTranscript } from "@/components/engine/decoders/caption/utils";
 import { ChildOf } from "@/components/engine/components";
 import { ASPECT_RATIO_DIMENSIONS, findEmptyPlacement } from "@/utils/genai";
 import { resolveAsset, resolveGeneratedAsset } from "@/utils/jsx-generation";
+import { loadWebFont, WebFonts } from "@/components/engine/font";
 import { assert, assertAllSettled, parseColor } from "@/utils";
 
 import type { AssetInput, AssetRef, AssetSpecInput, ProjectDocument, ProjectTick } from "@diffusionstudio/jsx";
@@ -89,6 +90,22 @@ const DIRECT_SRC_RE = /^(?:data|blob):/i;
 
 // Multiple new scenes are laid side by side in render order.
 const PLACEMENT_GAP = 40;
+
+// A second mount must await the same in-flight face, rather than treating the
+// loader's early world.fonts registration as proof that the font is ready.
+const fontLoads = new WeakMap<EngineWorld, Map<string, Promise<void>>>();
+const knownFontFamilies = new Map(Object.keys(WebFonts).map(family => [family.toLowerCase(), family as keyof typeof WebFonts]));
+function knownFontLoad(world: EngineWorld, family: string): Promise<void> | undefined {
+  const canonical = knownFontFamilies.get(family.toLowerCase());
+  if (canonical === undefined) return;
+  let pending = fontLoads.get(world);
+  if (!pending) { pending = new Map(); fontLoads.set(world, pending); }
+  const existing = pending.get(canonical);
+  if (existing) return existing;
+  const request = loadWebFont(world, canonical).then(() => undefined).finally(() => pending.delete(canonical));
+  pending.set(canonical, request);
+  return request;
+}
 
 const SCALE_MODE_MAP = {
   cover: ScaleMode.COVER,
@@ -1056,6 +1073,20 @@ export class WorldDocument implements ProjectDocument<HostNode> {
         setKeyframeTrack(world, eid, "scale", []);
         setComponent(world, eid, c.UniformScale, scale);
         break;
+      } case "scaleX": case "scaleY": {
+        assert(typeof value === "number" && Number.isFinite(value) && value >= 0, `\`${name}\` must be a finite non-negative multiplier`);
+        const axis = name === "scaleX" ? "x" : "y";
+        setKeyframeTrack(world, eid, `scale.${axis}`, []);
+        // Removed components retain their backing arrays; a new axis starts
+        // with identity on its sibling, rather than an undone old value.
+        const axes = hasComponent(world, eid, c.Scale) ? {} : { x: 1, y: 1 };
+        setComponent(world, eid, c.Scale, { ...axes, [axis]: value });
+        break;
+      } case "clipToBox": {
+        assert(typeof value === "boolean", "`clipToBox` must be a boolean");
+        if (value) addComponent(world, eid, c.ClipToBox);
+        else removeComponent(world, eid, c.ClipToBox);
+        break;
       } case "rotation": {
         if (Array.isArray(value)) {
           const keyframes = parseKeyframes(name, value, (v) => {
@@ -1302,11 +1333,26 @@ export class WorldDocument implements ProjectDocument<HostNode> {
         assert(typeof value === "string", "`fontFamily` must be a string" + `, value: ${value}`);
         assert(value.trim().length > 0, "`fontFamily` must be a non-empty string");
         setComponent(world, eid, c.TextStyle, { fontFamily: value.trim() });
+        {
+          const pending = knownFontLoad(world, value.trim());
+          if (pending) {
+            if (!this.committed) this.promises.push(pending);
+            this.world.promises?.push(pending.catch(() => undefined));
+          }
+        }
         break;
       case "fontSize":
         assert(typeof value === "number", "`fontSize` must be a number" + `, value: ${value}`);
         assert(value > 0, "`fontSize` must be > 0");
         setComponent(world, eid, c.TextStyle, { fontSize: Math.round(value) });
+        break;
+      case "letterSpacing":
+        assert(typeof value === "number" && Number.isFinite(value), "`letterSpacing` must be a finite number of pixels");
+        setComponent(world, eid, c.TextStyle, { letterSpacing: value });
+        break;
+      case "leading":
+        assert(typeof value === "number" && Number.isFinite(value) && value >= 0, "`leading` must be a finite, non-negative line-height multiplier");
+        setComponent(world, eid, c.TextStyle, { leading: value });
         break;
       case "fontWeight":
         if (value === "normal") value = "400";
@@ -1834,7 +1880,15 @@ export class WorldDocument implements ProjectDocument<HostNode> {
       const world = this.world;
       const c = world.components;
 
-      if (asset.type === 'TRANSCRIPT') {
+      if (hasComponent(world, eid, c.Audio)) {
+        // An <Audio> keeps only the sound even when its container is a video.
+        // AudioDecoder and duration lookup accept video-backed AssetId values;
+        // attaching a VIDEO paint here would draw the original picture over
+        // the authored composition as well as bypassing the audio-only source.
+        assert(asset.type === 'AUDIO' || asset.type === 'VIDEO', "an <Audio> source must be an audio or video asset");
+        setComponent(world, eid, c.AssetId, asset.id);
+        resizeEntity(world, eid, { width: 500, height: 150 });
+      } else if (asset.type === 'TRANSCRIPT') {
         // AssetId set here makes commit's caption phase skip transcription.
         setComponent(world, eid, c.AssetId, asset.id);
         setComponent(world, eid, c.Trim, transcriptTrim(transcript!));
