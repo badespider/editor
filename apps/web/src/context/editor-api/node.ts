@@ -24,6 +24,7 @@ import {
   sheetTimecode,
 } from "@/components/engine";
 import { ChildOf } from "@/components/engine/components";
+import { sortByItemIndex } from "../../components/engine/utils/sort";
 import { ANIMATION_TYPE_MAP, CAPTION_ALIGN_MAP, WorldDocument } from "@/utils/jsx";
 import { entityType } from "./selection";
 
@@ -236,7 +237,7 @@ export function handleNodeTree(engine: Accessor<Engine>) {
         description: describeEntity(world, eid),
       };
       if (depth !== undefined && level + 1 > depth) return node;
-      for (const cid of query(world, [ChildOf(eid), Not(c.Deleted)])) {
+      for (const cid of [...query(world, [ChildOf(eid), Not(c.Deleted)])].sort(sortByItemIndex(world))) {
         const bucket = childBucket(world, cid);
         if (bucket === null) continue;
         (node[bucket] ??= []).push(build(cid, level + 1));

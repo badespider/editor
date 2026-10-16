@@ -33,8 +33,9 @@ export function computeLocalMatrix(world: EngineWorld, eid: number): void {
 
 	const positionX = Computed.positionX[eid] + Computed.offsetX[eid];
 	const positionY = Computed.positionY[eid] + Computed.offsetY[eid];
-	const pivotX = (Anchor.x[eid] ?? 0.5) * Computed.width[eid];
-	const pivotY = (Anchor.y[eid] ?? 0.5) * Computed.height[eid];
+	const hasAnchor = hasComponent(world, eid, Anchor);
+	const pivotX = (hasAnchor ? Anchor.x[eid] ?? 0.5 : .5) * Computed.width[eid];
+	const pivotY = (hasAnchor ? Anchor.y[eid] ?? 0.5 : .5) * Computed.height[eid];
 	const scaleX = (Flip.x[eid] ?? 1) * Computed.scaleX[eid];
 	const scaleY = (Flip.y[eid] ?? 1) * Computed.scaleY[eid];
 	const rotation = Computed.rotation[eid];
@@ -189,6 +190,11 @@ export function computeGroupBounds(world: EngineWorld, eid: number): void {
 	}
 
 	if (hasComponent(world, eid, c.Group)) {
+		if (hasComponent(world, eid, c.Size)) {
+			c.Computed.originX[eid] = 0;
+			c.Computed.originY[eid] = 0;
+			return;
+		}
 		let minX = Infinity;
 		let minY = Infinity;
 		let maxX = -Infinity;

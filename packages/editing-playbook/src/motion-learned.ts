@@ -10,11 +10,11 @@ const identifier = z.string().max(80).regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/);
 const prose = (max: number, min = 1) => z.string().min(min).max(max).regex(/^[^\u0000-\u0008\u000b-\u001f\u007f]*$/);
 const font = z.string().min(1).max(80).regex(/^[A-Za-z0-9][A-Za-z0-9 ._-]*$/);
 const color = z.string().regex(/^#[a-fA-F0-9]{6}$/);
-const bindingSchema = z.object({ layerId: identifier, field: z.enum(['text', 'fill', 'fontSize', 'fontFamily', 'letterSpacing']) }).strict();
+const bindingSchema = z.object({ layerId: identifier, field: z.enum(['text', 'fill', 'fontSize', 'fontFamily', 'letterSpacing', 'strokeColor', 'strokeWidth']) }).strict();
 const parameterSchema = z.object({ id: identifier, label: prose(120), type: z.enum(['text', 'color', 'number', 'font']),
   default: z.union([prose(2000), finite]), minimum: finite.nullable(), maximum: finite.nullable(), bindings: z.array(bindingSchema).min(1).max(64),
 }).strict();
-const nativeLayer = reconstructionPlanSchema.shape.layers.element.extend({ type: z.enum(['text', 'rect', 'ellipse', 'line']), assetId: z.null(), sourceIn: z.literal(0) });
+const nativeLayer = reconstructionPlanSchema.shape.layers.element.extend({ type: z.enum(['text', 'rect', 'ellipse', 'line', 'path', 'group']), assetId: z.null(), sourceIn: z.literal(0) });
 const nativePlan = reconstructionPlanSchema.safeExtend({ duration: finite.min(1).max(20), assetRequests: z.array(z.never()).max(0), layers: z.array(nativeLayer).min(1).max(64) });
 const structure = z.object({ schemaVersion: z.literal(1), id: identifier, name: prose(160), description: prose(2000), tags: z.array(prose(60)).max(16),
   plan: nativePlan, parameters: z.array(parameterSchema).min(1).max(24),
@@ -24,14 +24,14 @@ type Parameter = z.infer<typeof parameterSchema>;
 type Binding = z.infer<typeof bindingSchema>;
 const frame = (time: number) => Math.round(time * 30);
 const seconds = (time: number) => frame(time) / 30;
-const allowed: Record<Parameter['type'], readonly Binding['field'][]> = { text: ['text'], color: ['fill'], font: ['fontFamily'], number: ['fontSize', 'letterSpacing'] };
+const allowed: Record<Parameter['type'], readonly Binding['field'][]> = { text: ['text'], color: ['fill', 'strokeColor'], font: ['fontFamily'], number: ['fontSize', 'letterSpacing', 'strokeWidth'] };
 
 function checkValue(parameter: Parameter, value: string | number): void {
   if (parameter.type === 'number') {
     if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error(`${parameter.id} requires a finite number`);
     if (parameter.minimum !== null && value < parameter.minimum || parameter.maximum !== null && value > parameter.maximum) throw new Error(`${parameter.id} is outside its declared bounds`);
     for (const binding of parameter.bindings) {
-      const [minimum, maximum] = binding.field === 'fontSize' ? [4, 4096] : [-100, 200];
+      const [minimum, maximum] = binding.field === 'fontSize' ? [4, 4096] : binding.field === 'strokeWidth' ? [0, 128] : [-100, 200];
       if (value < minimum || value > maximum) throw new Error(`${parameter.id} exceeds the native ${binding.field} bounds`);
     }
   } else {
@@ -56,7 +56,9 @@ export const learnedMotionSchema = structure.superRefine((component, ctx) => {
       const path = ['parameters', index, 'bindings', bindingIndex], target = `${binding.layerId}:${binding.field}`, layer = layers.get(binding.layerId);
       if (!layer) issue(path, 'Binding must address an existing native layer');
       if (!allowed[parameter.type].includes(binding.field)) issue(path, 'Parameter type does not match its explicitly allowed binding field');
-      if (binding.field !== 'fill' && layer && layer.type !== 'text') issue(path, 'Typography bindings require a text layer');
+      if (['text', 'fontSize', 'fontFamily', 'letterSpacing'].includes(binding.field) && layer && layer.type !== 'text') issue(path, 'Typography bindings require a text layer');
+      if (['strokeColor', 'strokeWidth'].includes(binding.field) && layer && layer.type !== 'path') issue(path, 'Stroke bindings require a vector path');
+      if (binding.field === 'fill' && layer && (layer.type === 'group' || layer.type === 'path' && layer.fillEnabled === false)) issue(path, 'Fill binding must change visible native artwork');
       if (layer && layer[binding.field] !== parameter.default) issue(path, 'Parameter default must match every bound blueprint field');
       if (targets.has(target)) issue(path, 'A native field can be bound only once');
       targets.add(target);
@@ -76,7 +78,7 @@ providerPlanProperties.duration = { type: 'number', minimum: 1, maximum: 20 };
 providerPlanProperties.assetRequests.maxItems = 0;
 providerPlanProperties.layers.maxItems = 64;
 const providerLayer = (providerPlanProperties.layers.items as { properties: Record<string, Record<string, unknown>> }).properties;
-providerLayer.type = { type: 'string', enum: ['text', 'rect', 'ellipse', 'line'] };
+providerLayer.type = { type: 'string', enum: ['text', 'rect', 'ellipse', 'line', 'path', 'group'] };
 providerLayer.assetId = { type: 'null' };
 providerLayer.sourceIn = { type: 'number', const: 0 };
 (provider.properties as Record<string, unknown>).plan = providerPlan;
@@ -98,7 +100,7 @@ export function instantiateLearnedMotion(input: unknown, options: LearnedMotionO
     checkValue(parameter, value);
     for (const binding of parameter.bindings) {
       const layer = plan.layers.find(layer => layer.id === binding.layerId)!;
-      if (binding.field === 'fontSize' || binding.field === 'letterSpacing') layer[binding.field] = value as number;
+      if (binding.field === 'fontSize' || binding.field === 'letterSpacing' || binding.field === 'strokeWidth') layer[binding.field] = value as number;
       else layer[binding.field] = value as string;
     }
   }
@@ -106,10 +108,12 @@ export function instantiateLearnedMotion(input: unknown, options: LearnedMotionO
   const canvas = settings.format === 'landscape' ? { width: 1920, height: 1080 } : settings.format === 'portrait' ? { width: 1080, height: 1920 } : { width: plan.width, height: plan.height };
   const scale = Math.min(canvas.width / plan.width, canvas.height / plan.height), dx = (canvas.width - plan.width * scale) / 2, dy = (canvas.height - plan.height * scale) / 2;
   plan.layers = plan.layers.map(layer => ({ ...layer, start: seconds(layer.start * rate), end: seconds(layer.end * rate),
-    x: layer.x * scale + dx, y: layer.y * scale + dy, width: layer.width * scale, height: layer.height * scale,
+    x: layer.x * scale + (layer.parentId ? 0 : dx), y: layer.y * scale + (layer.parentId ? 0 : dy), width: layer.width * scale, height: layer.height * scale,
     radius: layer.radius * scale, fontSize: layer.type === 'text' ? layer.fontSize * scale : layer.fontSize,
     letterSpacing: layer.type === 'text' ? layer.letterSpacing * scale : layer.letterSpacing,
-    keyframes: layer.keyframes.map(point => ({ ...point, time: seconds(point.time * rate), x: point.x * scale + dx, y: point.y * scale + dy, width: point.width * scale, height: point.height * scale })),
+    ...(layer.pathCommands ? { pathCommands: layer.pathCommands.map(command => Object.fromEntries(Object.entries(command).map(([field, value]) => [field, typeof value === 'number' ? value * scale : value])) as typeof command) } : {}),
+    ...(layer.strokeWidth !== undefined ? { strokeWidth: layer.strokeWidth * scale } : {}),
+    keyframes: layer.keyframes.map(point => ({ ...point, time: seconds(point.time * rate), x: point.x * scale + (layer.parentId ? 0 : dx), y: point.y * scale + (layer.parentId ? 0 : dy), width: point.width * scale, height: point.height * scale })),
   }));
   Object.assign(plan, canvas, { duration });
   // Reject collisions from aggressive retiming rather than discarding keys or
@@ -141,10 +145,14 @@ export function buildLearnedMotionModule(input: unknown, options: LearnedMotionO
 export function learnedMotionFingerprint(input: unknown): string {
   const { plan, parameters } = learnedMotionSchema.parse(input), digits = (value: number) => Math.round(value * 1_000_000) / 1_000_000;
   const layerIndices = new Map(plan.layers.map((layer, index) => [layer.id, index]));
+  const hierarchical = plan.layers.some(layer => layer.type === 'path' || layer.type === 'group' || layer.parentId != null || (layer.anchorX ?? .5) !== .5 || (layer.anchorY ?? .5) !== .5);
   const geometry = (point: { x: number; y: number; width: number; height: number; rotation: number; opacity: number }) => ({ x: digits(point.x / plan.width), y: digits(point.y / plan.height), width: digits(point.width / plan.width), height: digits(point.height / plan.height), rotation: digits(point.rotation), opacity: digits(point.opacity) });
-  return JSON.stringify({ version: 1, layers: plan.layers.map(layer => ({ type: layer.type, start: digits(layer.start / plan.duration), end: digits(layer.end / plan.duration), ...geometry(layer),
+  return JSON.stringify({ version: hierarchical ? 2 : 1, layers: plan.layers.map(layer => ({ type: layer.type, start: digits(layer.start / plan.duration), end: digits(layer.end / plan.duration), ...geometry(layer),
     radius: digits(layer.radius / Math.min(plan.width, plan.height)), scaleX: layer.scaleX ?? 1, scaleY: layer.scaleY ?? 1, clipToBox: layer.clipToBox ?? false,
     ...(layer.type === 'text' ? { fontSize: digits(layer.fontSize / plan.height), fontWeight: layer.fontWeight, fontStyle: layer.fontStyle, textAlign: layer.textAlign, letterSpacing: digits(layer.letterSpacing / plan.width), leading: layer.leading } : {}),
+    ...(hierarchical ? { parent: layer.parentId ? layerIndices.get(layer.parentId) : null, anchorX: layer.anchorX ?? .5, anchorY: layer.anchorY ?? .5 } : {}),
+    ...(layer.type === 'path' ? { commands: layer.pathCommands?.map(command => Object.fromEntries(Object.entries(command).map(([field, value]) => [field, typeof value === 'number' ? digits(value / (field.endsWith('x') ? plan.width : plan.height)) : value]))),
+      fillEnabled: layer.fillEnabled ?? true, strokeWidth: digits((layer.strokeWidth ?? 0) / Math.min(plan.width, plan.height)), strokeCap: layer.strokeCap ?? 'butt', strokeJoin: layer.strokeJoin ?? 'miter' } : {}),
     keyframes: layer.keyframes.map(point => ({ time: digits(point.time / plan.duration), ...geometry(point), scale: point.scale, easing: point.easing })),
   })), parameters: parameters.map(parameter => ({ type: parameter.type, bindings: parameter.bindings.map(binding => ({ layer: layerIndices.get(binding.layerId), field: binding.field })).sort((a, b) => a.layer! - b.layer! || a.field.localeCompare(b.field)) })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b))) });
 }
@@ -180,6 +188,7 @@ export function buildLearnedMotionMixModule(input: LearnedMotionMix): string {
   if (settings.instances.reduce((sum, item) => sum + item.component.plan.layers.length, 0) > 240) throw new Error('Mix exceeds 240 native artwork layers');
   const data = { width: settings.width, height: settings.height, duration, sceneKey: settings.sceneKey ?? 'learned-motion-mix', instances: instances.map(({ factory: _factory, ...item }) => item) };
   return `import { Rect, Text } from "dapi-host:@diffusionstudio/jsx";
+import { Path, Group } from "dapi-host:@diffusionstudio/jsx";
 const data=${JSON.stringify(data)};
 const factories=[${instances.map(item => item.factory).join(',\n')}];
 export const learnedMotionMixManifest=data;

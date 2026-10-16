@@ -59,7 +59,7 @@ async function fixture(t: { after(fn: () => Promise<void>): void }, options: {
   run?: (request: ReferenceCodexRequest, index: number) => Promise<unknown>;
   reviewSequence?: unknown[];
   badMetadata?: { width?: number; height?: number; duration?: number; hasAudio?: boolean };
-  badComparisonHash?: boolean; unavailable?: boolean;
+  badComparisonHash?: boolean; unavailable?: boolean; sourceDuration?: number;
 } = {}) {
   const directory = await realpath(await mkdtemp(join(tmpdir(), 'motion-learning-test-'))), jobs = join(directory, 'jobs');
   const sourcePath = join(directory, 'reference.mp4'), image = join(directory, 'synthetic.png');
@@ -67,7 +67,7 @@ async function fixture(t: { after(fn: () => Promise<void>): void }, options: {
   await writeFile(sourcePath, bytes); await writeFile(image, 'Synthetic image bytes; the injected model never decodes them.');
   const sourceHash = await fingerprint(sourcePath), sourceInfo = await stat(sourcePath);
   const source = { path: sourcePath, sha256: sourceHash, bytes: sourceInfo.size, mtimeMs: sourceInfo.mtimeMs,
-    width: 640, height: 360, duration: 615, hasAudio: false, startTime: 0, containerStartTime: 0 };
+    width: 640, height: 360, duration: options.sourceDuration ?? 615, hasAudio: false, startTime: 0, containerStartTime: 0 };
   const overviewTimes = [0, 120, 300, 440, 441, 614.5];
   const overview: AgentSession = { kind: 'agent-video-evidence', schemaVersion: 1, id: 'e'.repeat(64), revision: 1,
     createdAt: new Date().toISOString(), goal: 'Synthetic whole-file overview', source,
@@ -76,7 +76,7 @@ async function fixture(t: { after(fn: () => Promise<void>): void }, options: {
       contactSheetOrder: overviewTimes.map((_, index) => `overview-${index}`),
       artifacts: overviewTimes.map((time, index) => ({ id: `overview-${index}`, kind: 'frame', path: image, start: time, end: time, requestedTime: time, native: false })) }],
     transcripts: [], observations: [], externalModelCalls: 0, safeToAutoEdit: false, limitations: ['Synthetic evidence, not decoded frames.'] };
-  const calls = { model: [] as ReferenceCodexRequest[], overview: [] as string[], inspect: [] as { start: number; end: number }[], decodes: 0, probes: 0, compare: 0 };
+  const calls = { model: [] as ReferenceCodexRequest[], overview: [] as string[], inspect: [] as { start: number; end: number }[], decodes: 0, probes: 0, compare: 0, comparisonBudgets: [] as (number | undefined)[] };
   let reviewIndex = 0;
   const runner: ReferenceCodexRunner = {
     capabilities: async () => ({ available: !options.unavailable, installed: true, authenticated: !options.unavailable,
@@ -112,7 +112,7 @@ async function fixture(t: { after(fn: () => Promise<void>): void }, options: {
     probe: async (path, signal) => { signal?.throwIfAborted(); calls.probes++; const value = JSON.parse(await readFile(path, 'utf8')); return {
       width: value.width, height: value.height, duration: value.duration, hasAudio: value.hasAudio, startTime: 0, containerStartTime: 0, ...options.badMetadata }; },
     compare: async input => {
-      input.signal?.throwIfAborted(); calls.compare++;
+      input.signal?.throwIfAborted(); calls.compare++; calls.comparisonBudgets.push(input.maxDuration);
       await mkdir(input.outputDirectory, { recursive: true });
       const reference = { requestedTime: 0, decodedTime: 0, absolutePts: 0, delta: 0, evidenceId: 'source-comparison-frame', frame: 'frame.png', sha256: 'f'.repeat(64) };
       const rendered = { ...reference, evidenceId: 'render-comparison-frame' };
@@ -170,6 +170,39 @@ test('whole-video discovery, dense authoring, two checked native exports and cri
   assert.match(entry.skill, /native motion/);
   const receipt = JSON.parse(await readFile(join(final.outputDirectory, 'delivery.json'), 'utf8'));
   assert.deepEqual(receipt.added, final.receipt!.added);
+});
+
+test('long-source learning comparisons retain the already authorized two-hour inspection ceiling', async t => {
+  const data = await fixture(t, { sourceDuration: 1859.96 }), service = data.make(), initial = await data.start(service), final = await data.finish(service, initial);
+  assert.equal(final.source?.duration, 1859.96);
+  assert.deepEqual(data.calls.comparisonBudgets, [7200, 7200]);
+  assert.equal(final.externalModelCalls, 3); assert.equal(final.receipt?.added.length, 1);
+});
+
+test('automatic learning retains bounded vector commands and group pivots through both variant tasks and library storage', async t => {
+  const component = nativeComponent(), base = component.plan.layers[0];
+  component.plan.layers.push({ ...structuredClone(base), id: 'arm', name: 'Arm pivot', type: 'group', text: '', anchorX: 0, anchorY: .5 });
+  component.plan.layers.push({ ...structuredClone(base), id: 'hand', name: 'Editable vector hand', type: 'path', parentId: 'arm', text: '',
+    x: 10, y: 20, width: 100, height: 100, keyframes: [], pathCommands: [{ op: 'M', x: 0, y: 20 }, { op: 'Q', cx: 20, cy: 0, x: 50, y: 20 }],
+    fillEnabled: false, strokeColor: '#123456', strokeWidth: 3, strokeCap: 'round', strokeJoin: 'round' });
+  component.parameters.push({ id: 'outline', label: 'Outline', type: 'color', default: '#123456', minimum: null, maximum: null, bindings: [{ layerId: 'hand', field: 'strokeColor' }] });
+  const data = await fixture(t, { component }), service = data.make(), initial = await data.start(service);
+  const first = await data.ready(service, initial.id);
+  assert.deepEqual(first.renderTask!.plan.layers[2].pathCommands, component.plan.layers[2].pathCommands);
+  assert.equal(first.renderTask!.plan.layers[1].anchorX, 0);
+  await data.render(first); await data.acknowledge(service, first);
+  const second = await data.ready(service, initial.id, first.renderTask!.token);
+  assert.equal(second.renderTask!.plan.layers[2].parentId, 'arm');
+  assert.notEqual(second.renderTask!.plan.layers[2].strokeColor, '#123456');
+  await data.render(second); await data.acknowledge(service, second);
+  const final = await waitFor(service, initial.id, value => value.state === 'complete'); await unlocked(data.jobs);
+  assert.equal(final.receipt?.added.length, 1);
+  const published = await data.library.read(final.receipt!.added[0]);
+  assert.deepEqual(published.component, component);
+  assert.match(data.calls.model[0].prompt, /vector paths, named nested groups/);
+  assert.doesNotMatch(data.calls.model[0].prompt, /do NOT provide.*SVG paths/);
+  assert.match(data.calls.model[1].prompt, /NATIVE VECTOR\/GROUP CONTRACT/);
+  assert.match(data.calls.model[1].prompt, /original hidden rig/);
 });
 
 test('rejected visual quality or a failed reusable-content check never installs a component', async t => {

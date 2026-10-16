@@ -38,6 +38,7 @@ The shared catalog currently exposes these bounded mix adapters:
 | `assemble-title` | Individually editable letters gather from native blur and offsets; separately timed subtitle |
 | `milestone-badge` | Supplied value in a growing circle with an outward context-label reveal |
 | `concept-link` | A term circle, anchored growing connector and horizontally revealed definition tag |
+| `exchange-diagram` | Articulated native vector people, opposite money/parcel arcs and separately timed labels |
 | `background-grid`, `background-dots`, `background-gradient` | Deterministic supporting backgrounds |
 | `chart-bars` | Supplied values, shared domain, baseline, units and disclosure |
 | `metric-card` | A stated value, units, comparison and disclosure |

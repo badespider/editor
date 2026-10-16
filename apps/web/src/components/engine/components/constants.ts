@@ -55,6 +55,7 @@ export enum ConstraintType {
 export enum GeometryType {
   RECT,
   TEXT,
+  PATH,
 }
 
 export enum PaintType {

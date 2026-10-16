@@ -4,6 +4,7 @@
 
 import type { JSX as SolidJSX } from "solid-js";
 import type { AssetRef } from "./generate";
+import type { VectorPathCommand } from "./vector-path";
 
 /**
  * Composition-relative time: seconds (number), frames ("30f"), or a
@@ -152,6 +153,18 @@ export type PatchProps = {
   /** Static horizontal/vertical multipliers around the same center as `scale`. Finite, non-negative; multiply uniform scale. */
   scaleX?: number;
   scaleY?: number;
+  /** Static normalized pivot within the logical box; defaults to .5 (center). */
+  anchorX?: number;
+  anchorY?: number;
+  /** Native Path commands in local pixels. Resizing the logical box does not rescale commands; use scale for that. */
+  commands?: VectorPathCommand[];
+  /** Native Path fill switch, preserving its editable paint when disabled. */
+  fillEnabled?: boolean;
+  /** Native Path outline paint and style. A zero width hides the outline. */
+  strokeColor?: string;
+  strokeWidth?: number;
+  strokeCap?: "butt" | "round" | "square";
+  strokeJoin?: "miter" | "round" | "bevel";
   /** Clips this node's own drawing and descendants to its current local box, including animated size. Static. */
   clipToBox?: boolean;
   /** Opacity, 0–1 (out-of-range values clamp, like CSS). Animatable. */
@@ -263,6 +276,14 @@ export const PATCH_PROP_KEYS = Object.keys({
   scale: true,
   scaleX: true,
   scaleY: true,
+  anchorX: true,
+  anchorY: true,
+  commands: true,
+  fillEnabled: true,
+  strokeColor: true,
+  strokeWidth: true,
+  strokeCap: true,
+  strokeJoin: true,
   clipToBox: true,
   opacity: true,
   cornerRadius: true,
@@ -302,12 +323,19 @@ type CommonProps = TimingProps &
   Pick<
     PatchProps,
     | "key" | "scene" | "name" | "x" | "y" | "offsetX" | "offsetY" | "width" | "height" | "rotation" | "scale" | "scaleX" | "scaleY" | "clipToBox"
-    | "opacity" | "cornerRadius" | "transition" | "animations"
+    | "opacity" | "cornerRadius" | "transition" | "animations" | "anchorX" | "anchorY"
   >;
 
 export type GroupProps = CommonProps & Pick<PatchProps, "fill"> & {
+  /** With explicit width/height, use a fixed logical box and pivot; omitted size retains legacy children bounds. */
   children?: SolidJSX.Element;
 };
+
+export type PathProps = Omit<CommonProps, "scene" | "cornerRadius"> &
+  Required<Pick<PatchProps, "commands">> &
+  Pick<PatchProps, "fill" | "fillEnabled" | "strokeColor" | "strokeWidth" | "strokeCap" | "strokeJoin"> & {
+    children?: SolidJSX.Element;
+  };
 
 export type RectProps = CommonProps & Pick<PatchProps, "fill"> & {
   /** Paint children (`<SolidPaint>`, `<LinearGradientPaint>`, `<RadialGradientPaint>`). */

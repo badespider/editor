@@ -329,6 +329,13 @@ path for each retained revision.
 dapi playbook reference compare ./reference.mp4 ./reference-work/draft.mp4 --times 0,0.5,1,2 --reference-start 0 --render-start 0 -o ./reference-work/comparison-v1
 ```
 
+Standalone comparisons retain the 1,200-second source inspection ceiling for
+each input. For a longer reference, explicitly add `--max-duration 7200` (or a
+smaller sufficient ceiling); cached evidence never raises that budget. The
+`compareReferenceVideos` API accepts the same optional `maxDuration`, bounded to
+7,200 seconds. Automatic recreation and motion-learning comparisons retain the
+two-hour source ceiling already used to inspect those jobs.
+
 For each comparison time `t`, the workbench requests
 `referenceStart + t` from the reference and `renderStart + t` from the render.
 Offsets are nonnegative seconds and apply exactly once. There is no automatic

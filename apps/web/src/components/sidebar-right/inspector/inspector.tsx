@@ -28,6 +28,9 @@ import { useEngine } from "@/context/engine";
 import { SceneTemplatePanel } from "./scene-template";
 import { TextPanel } from "./text";
 import { useECS } from "@/context/ecs";
+import { GeometryType } from "@/components/engine";
+import { VectorPathSettings } from "./vector-path";
+import { hasComponent } from "bitecs";
 
 export function Inspector() {
   const { world } = useEngine();
@@ -119,7 +122,7 @@ export function Inspector() {
             <TransformSettings selection={selectedNodes()} />
           </Show>
 
-          <Show when={includesTarget("shape", "text", "audio", "scene", "caption", "mask")}>
+          <Show when={includesTarget("shape", "text", "audio", "scene", "caption", "mask") || includesTarget("group") && hasComponent(world, firstEid()!, world.components.Size)}>
             <LayoutPanel selection={selectedNodes()} />
           </Show>
 
@@ -133,6 +136,10 @@ export function Inspector() {
 
           <Show when={includesTarget("text", "caption")}>
             <TextPanel selection={selectedNodes()} />
+          </Show>
+
+          <Show when={includesTarget("shape") && world.components.Geometry[firstEid()!] === GeometryType.PATH}>
+            <VectorPathSettings selection={selectedNodes()} />
           </Show>
 
           <Show when={includesTarget("shape", "text", "scene", "caption")}>

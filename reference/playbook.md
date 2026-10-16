@@ -51,6 +51,7 @@ with voice and natural sound.
 | `editor-title-assembly` | Short gathering-letter headlines with native blur, fixed final glyph layout and a staged subtitle | Motion recipes and exact-export review |
 | `editor-milestone-badge` | Supplied milestone value in a dot-to-circle badge with an outward context reveal | Motion recipes and source/unit context where needed |
 | `editor-concept-link` | Term circle, anchored connector growth and a revealed definition tag | Motion recipes and authored relationship/context |
+| `editor-illustrated-exchange` | Editable vector people, nested shoulder/elbow groups and opposite money/goods transfers | Native paths, motion recipes and exact-export review |
 
 `skills` and `recommend` include each skill's repository-relative `path` and a
 `readArgs` array such as `["playbook", "skill", "editor-vlog-story"]`. Pass these

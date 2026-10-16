@@ -13,6 +13,7 @@ import { DEFAULT_DURATION_FRAMES } from "../constants";
 import * as utils from "./utils";
 
 import type { EngineWorld } from "./world";
+import { parseVectorPathCommands } from "@diffusionstudio/jsx";
 
 export function observeWorld(world: EngineWorld) {
   const c = world.components;
@@ -21,6 +22,13 @@ export function observeWorld(world: EngineWorld) {
     c.Geometry[eid] = type ?? c.Geometry[eid] ?? GeometryType.RECT;
     utils.persistEntity(world, eid);
   });
+
+  observe(world, "set", c.VectorPath, (eid, data) => {
+    if (data.commands !== undefined) c.VectorPath.commands[eid] = parseVectorPathCommands(data.commands);
+    c.VectorPath.fillEnabled[eid] = data.fillEnabled ?? c.VectorPath.fillEnabled[eid] ?? true;
+    utils.persistEntity(world, eid);
+  });
+  observe(world, "remove", c.VectorPath, (eid) => utils.persistEntity(world, eid));
 
   observe(world, "set", c.Paint, (eid, type) => {
     c.Paint[eid] = type ?? c.Paint[eid] ?? PaintType.SOLID;

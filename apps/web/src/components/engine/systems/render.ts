@@ -20,6 +20,27 @@ type Ctx2D = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 
 const MISSING_ASSET_COLOR = '#5C2828';
 
+/** Build the native current path without retaining browser-only objects in document data. */
+export function drawVectorPath(world: EngineWorld, eid: number): void {
+	const ctx = world.ctx!;
+	ctx.beginPath();
+	if (!hasComponent(world, eid, world.components.VectorPath)) return;
+	for (const command of world.components.VectorPath.commands[eid] ?? []) {
+		switch (command.op) {
+			case 'M': ctx.moveTo(command.x, command.y); break;
+			case 'L': ctx.lineTo(command.x, command.y); break;
+			case 'Q': ctx.quadraticCurveTo(command.cx, command.cy, command.x, command.y); break;
+			case 'C': ctx.bezierCurveTo(command.c1x, command.c1y, command.c2x, command.c2y, command.x, command.y); break;
+			case 'Z': ctx.closePath(); break;
+		}
+	}
+}
+
+function drawGeometryPath(world: EngineWorld, eid: number): void {
+	if (world.components.Geometry[eid] === GeometryType.PATH) drawVectorPath(world, eid);
+	else drawRectPath(world, eid);
+}
+
 export function drawRectPath(world: EngineWorld, eid: number): void {
 	const ctx = world.ctx!;
 	const c = world.components;
@@ -522,6 +543,7 @@ function renderStrokes(world: EngineWorld, eid: number): void {
 
 	const Stroke = world.components.StrokeStyle;
 	const Computed = world.components.Computed;
+	if (Computed.strokeWidth[eid] <= 0) return;
 
 	ctx.lineWidth = Computed.strokeWidth[eid];
 	ctx.lineJoin = StrokeJoin[Stroke.join[eid] ?? 0].toLocaleLowerCase() as CanvasLineJoin;
@@ -684,9 +706,9 @@ function renderWaveform(world: EngineWorld, eid: number, fid: number): void {
 }
 
 function renderShapeNode(world: EngineWorld, eid: number): void {
-	drawRectPath(world, eid);
+	drawGeometryPath(world, eid);
 	renderShadows(world, eid);
-	renderFills(world, eid);
+	if (world.components.Geometry[eid] !== GeometryType.PATH || world.components.VectorPath.fillEnabled[eid] !== false) renderFills(world, eid);
 	renderGenerating(world, eid);
 	renderStrokes(world, eid);
 }
@@ -842,7 +864,7 @@ export function renderNode(world: EngineWorld, eid: number): void {
 			c.WorldTransform.e[maskEid],
 			c.WorldTransform.f[maskEid],
 		);
-		drawRectPath(world, maskEid);
+		drawGeometryPath(world, maskEid);
 		ctx.restore();
 		ctx.clip();
 	}
@@ -865,7 +887,7 @@ export function renderNode(world: EngineWorld, eid: number): void {
 		renderCaptionNode(world, eid);
 	} else if (c.Geometry[eid] === GeometryType.TEXT) {
 		renderTextNode(world, eid);
-	} else if (c.Geometry[eid] === GeometryType.RECT) {
+	} else if (c.Geometry[eid] === GeometryType.RECT || c.Geometry[eid] === GeometryType.PATH) {
 		renderShapeNode(world, eid);
 	}
 

@@ -2,7 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
-import { addComponent, removeComponent, query, Not, Or } from "bitecs";
+import { addComponent, removeComponent, hasComponent, query, Not, Or } from "bitecs";
 import { ChildOf } from "../components";
 import * as utils from "./utils";
 import { getParentEntity } from "./base";
@@ -21,10 +21,21 @@ export function appendChild(world: EngineWorld, eid: number, pid: number): void 
   assert(pid !== eid, "Cannot parent entity into itself");
   assert(!getEntityTree(world, eid).includes(pid), "Cannot parent entity into its own subtree");
 
-  world.history.push({
-    label: `appending child ${eid} to parent ${pid}`,
-    execute: () => appendChildComponent(world, eid, pid),
-    reverse: () => removeChildComponent(world, eid, pid),
+  world.history.transaction('Append child', () => {
+    // Query order is an ECS implementation detail and changes after restore.
+    // Give every fresh child (including paints/strokes) a persisted stacking
+    // position before attaching. Explicit positions, such as a media paint's
+    // negative background index, must survive deserialize and reparenting.
+    if (!hasComponent(world, eid, world.components.ItemIndex)) {
+      const siblings = query(world, [ChildOf(pid), Not(world.components.Deleted)]);
+      const next = siblings.length === 0 ? 0 : Math.max(...siblings.map(child => world.components.ItemIndex[child] ?? 0)) + 1;
+      setComponent(world, eid, world.components.ItemIndex, next);
+    }
+    world.history.push({
+      label: `appending child ${eid} to parent ${pid}`,
+      execute: () => appendChildComponent(world, eid, pid),
+      reverse: () => removeChildComponent(world, eid, pid),
+    });
   });
 }
 

@@ -3,7 +3,7 @@
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
 import { hasComponent, query, Not } from "bitecs";
-import { getAssetSpec, isAssetRef, parseTime } from "@diffusionstudio/jsx";
+import { getAssetSpec, isAssetRef, parseTime, parseVectorPathCommands } from "@diffusionstudio/jsx";
 import * as solid from "solid-js";
 import * as solidStore from "solid-js/store";
 import { SVGElements } from "solid-js/web";
@@ -45,6 +45,7 @@ import { HtmlHost, isHtmlInCanvasSupported } from "@/components/engine/decoders/
 import { SurfaceHost } from "@/components/engine/decoders/surface";
 import { resolveTranscript } from "@/components/engine/decoders/caption/utils";
 import { ChildOf } from "@/components/engine/components";
+import { sortByItemIndex } from "../components/engine/utils/sort";
 import { ASPECT_RATIO_DIMENSIONS, findEmptyPlacement } from "@/utils/genai";
 import { resolveAsset, resolveGeneratedAsset } from "@/utils/jsx-generation";
 import { loadWebFont, WebFonts } from "@/components/engine/font";
@@ -496,6 +497,13 @@ export class WorldDocument implements ProjectDocument<HostNode> {
     const world = this.world;
     const c = world.components;
 
+    for (const eid of this.entityNodes.keys()) {
+      if (c.Geometry[eid] === GeometryType.PATH && !hasComponent(world, eid, c.Deleted)) {
+        assert(hasComponent(world, eid, c.VectorPath), "<Path> requires native vector commands");
+        parseVectorPathCommands(c.VectorPath.commands[eid]);
+      }
+    }
+
     // Wait for assets to settle
     {
       const results = await Promise.allSettled(this.promises);
@@ -739,6 +747,10 @@ export class WorldDocument implements ProjectDocument<HostNode> {
       } case "Rect": {
         setComponent(world, eid, c.Geometry, GeometryType.RECT);
         setComponent(world, eid, c.Name, getNextName(world, "Rect"));
+        break;
+      } case "Path": {
+        setComponent(world, eid, c.Geometry, GeometryType.PATH);
+        setComponent(world, eid, c.Name, getNextName(world, "Path"));
         break;
       } case "Sequence": {
         addComponent(world, eid, c.Group);
@@ -1081,6 +1093,45 @@ export class WorldDocument implements ProjectDocument<HostNode> {
         // with identity on its sibling, rather than an undone old value.
         const axes = hasComponent(world, eid, c.Scale) ? {} : { x: 1, y: 1 };
         setComponent(world, eid, c.Scale, { ...axes, [axis]: value });
+        break;
+      } case "anchorX": case "anchorY": {
+        assert(typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 1, `\`${name}\` must be a finite normalized pivot from 0 to 1`);
+        const axis = name === "anchorX" ? "x" : "y";
+        setComponent(world, eid, c.Anchor, { ...(hasComponent(world, eid, c.Anchor) ? {} : { x: .5, y: .5 }), [axis]: value });
+        break;
+      } case "commands": {
+        assert(c.Geometry[eid] === GeometryType.PATH, "`commands` only applies to <Path>");
+        const commands = parseVectorPathCommands(value);
+        setComponent(world, eid, c.VectorPath, { commands });
+        break;
+      } case "fillEnabled": {
+        assert(c.Geometry[eid] === GeometryType.PATH, "`fillEnabled` only applies to <Path>");
+        assert(typeof value === "boolean", "`fillEnabled` must be a boolean");
+        setComponent(world, eid, c.VectorPath, { fillEnabled: value });
+        break;
+      } case "strokeWidth": {
+        assert(c.Geometry[eid] === GeometryType.PATH, "`strokeWidth` only applies to <Path>");
+        assert(typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 10000, "`strokeWidth` must be finite from 0 to 10000");
+        setComponent(world, eid, c.StrokeStyle, { width: value });
+        break;
+      } case "strokeCap": case "strokeJoin": {
+        assert(c.Geometry[eid] === GeometryType.PATH, `\`${name}\` only applies to <Path>`);
+        const choices = name === "strokeCap" ? ["butt", "round", "square"] : ["miter", "round", "bevel"];
+        assert(typeof value === "string" && choices.includes(value), `\`${name}\` must be one of ${choices.join(", ")}`);
+        setComponent(world, eid, c.StrokeStyle, { [name === "strokeCap" ? "cap" : "join"]: choices.indexOf(value) });
+        break;
+      } case "strokeColor": {
+        assert(c.Geometry[eid] === GeometryType.PATH, "`strokeColor` only applies to <Path>");
+        assert(typeof value === "string", "`strokeColor` must be a CSS color string");
+        const color = parseColor(value);
+        assert(color !== null, "`strokeColor` must be a valid CSS color");
+        let stroke = query(world, [c.Stroke, ChildOf(eid), Not(c.Deleted)])[0];
+        if (stroke === undefined) {
+          stroke = createEntity(world);
+          addComponent(world, stroke, c.Stroke);
+          appendChild(world, stroke, eid);
+        }
+        setComponent(world, stroke, c.Color, color);
         break;
       } case "clipToBox": {
         assert(typeof value === "boolean", "`clipToBox` must be a boolean");
@@ -1528,7 +1579,7 @@ export class WorldDocument implements ProjectDocument<HostNode> {
       // Adopted entities already sit under their persisted parent, so this
       // no-ops for them on the initial adopt render; afterwards it moves and
       // resurrects them like any other entity (e.g. a <For> shuffling rows).
-      this.attachEntity(node.eid, parent.eid);
+      this.attachEntity(node.eid, parent.eid, anchor instanceof EntityNode ? anchor.eid : undefined);
       return;
     }
 
@@ -1594,8 +1645,12 @@ export class WorldDocument implements ProjectDocument<HostNode> {
 
   // Fresh entities append; an entity that already has a parent is a Solid
   // reorder or reparent (e.g. a <For> moving rows in a live mount).
-  private attachEntity(eid: number, parentEid: number): void {
+  private attachEntity(eid: number, parentEid: number, anchorEid?: number): void {
     const c = this.world.components;
+    // Initial adoption preserves hand-edited stacking as well as properties.
+    if (this.adopted.has(eid) && !this.committed) return;
+    if (anchorEid === eid) return;
+    if (anchorEid !== undefined) assert(getParentEntity(this.world, anchorEid) === parentEid, "Insertion anchor must share the parent");
     if (hasComponent(this.world, eid, c.Deleted)) {
       // Like a DOM node, an entity this render just removed re-attaches
       // intact; anything something else deleted stays dead.
@@ -1608,12 +1663,19 @@ export class WorldDocument implements ProjectDocument<HostNode> {
     const currentParent = getParentEntity(this.world, eid);
     if (currentParent === null) {
       appendChild(this.world, eid, parentEid);
-      return;
-    }
-    if (currentParent !== parentEid) {
+    } else if (currentParent !== parentEid) {
       removeChild(this.world, eid, currentParent);
       appendChild(this.world, eid, parentEid);
     }
+    // Fresh append already has a stable final index. Live Solid inserts and
+    // moves must honor the anchor instead of silently retaining creation order.
+    if (currentParent === null && anchorEid === undefined) return;
+    const siblings = [...query(this.world, [ChildOf(parentEid), Not(c.Deleted)])].sort(sortByItemIndex(this.world));
+    const order = siblings.filter(child => child !== eid);
+    const index = anchorEid === undefined ? order.length : order.indexOf(anchorEid);
+    order.splice(index, 0, eid);
+    if (order.every((child, index) => siblings[index] === child)) return;
+    for (const [index, child] of order.entries()) setComponent(this.world, child, c.ItemIndex, index);
   }
 
   /**
@@ -1851,7 +1913,7 @@ export class WorldDocument implements ProjectDocument<HostNode> {
    */
   private entityChildren(eid: number): number[] {
     const c = this.world.components;
-    return [...query(this.world, [ChildOf(eid), Not(c.Deleted)])].filter((child) => this.managed.has(child));
+    return [...query(this.world, [ChildOf(eid), Not(c.Deleted)])].filter((child) => this.managed.has(child)).sort(sortByItemIndex(this.world));
   }
 
   private findPlacement(width: number, height: number): { x: number; y: number } {

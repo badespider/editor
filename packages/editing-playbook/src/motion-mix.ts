@@ -52,6 +52,7 @@ function normalize(input:unknown){
     validateMotionContentTiming(descriptor.id,content,(endFrames-startFrames)/30,parsed.motion!=="reduced");
     if(descriptor.id==="milestone-badge" && (item.box.width<128 || item.box.height<128))throw new RangeError(`${item.key} milestone badge requires dimensions at least 128`);
     if(descriptor.id==="assemble-title" && (item.box.width<160 || item.box.height<120))throw new RangeError(`${item.key} assembled title requires width at least 160 and height at least 120`);
+    if(descriptor.id==="exchange-diagram" && (item.box.width<360 || item.box.height<240))throw new RangeError(`${item.key} exchange diagram requires width at least 360 and height at least 240`);
     if(descriptor.id==="concept-link"){
       if(item.box.width<160 || item.box.height<160)throw new RangeError(`${item.key} concept link requires dimensions at least 160`);
       if(content.nodeSize!==undefined && (content.nodeSize as number)>Math.min(item.box.width,item.box.height)*.58)throw new RangeError(`${item.key} term circle exceeds its box budget`);
@@ -88,7 +89,7 @@ function normalize(input:unknown){
 /** Describes the exact bounded native composition. No app, model, source upload or code runs. */
 export function buildMotionMixBrief(input:unknown){
   const normalized=normalize(input);
-  const specializedSkills:Record<string,string>={"milestone-badge":"editor-milestone-badge","assemble-title":"editor-title-assembly","concept-link":"editor-concept-link"};
+  const specializedSkills:Record<string,string>={"milestone-badge":"editor-milestone-badge","assemble-title":"editor-title-assembly","concept-link":"editor-concept-link","exchange-diagram":"editor-illustrated-exchange"};
   const skillIds=[...new Set(["editor-motion-recipes","editor-motion-graphics","editor-review",...normalized.instances.flatMap(item=>specializedSkills[item.presetId]?[specializedSkills[item.presetId]]:[])])];
   return freeze({...normalized,kind:"editor-native-motion-mix" as const,mountable:true as const,externalCalls:0 as const,
     stackOrder:"instances are drawn bottom to top in array order" as const,
@@ -104,7 +105,7 @@ export type MotionMixBrief=ReturnType<typeof buildMotionMixBrief>;
 export function buildMotionMixModule(input:unknown):string {
   const brief=buildMotionMixBrief(input);
   const data=JSON.stringify(brief);
-  return `import { Rect, CounterReveal, MilestoneBadge, AssembleTitle, ConceptLink, Backdrop, SourceCard, DataBars, MetricCard, PRESENTATION_THEMES } from "dapi-host:@diffusionstudio/jsx";
+  return `import { Rect, CounterReveal, MilestoneBadge, AssembleTitle, ConceptLink, ExchangeDiagram, Backdrop, SourceCard, DataBars, MetricCard, PRESENTATION_THEMES } from "dapi-host:@diffusionstudio/jsx";
 const data = ${data};
 export const motionMixManifest = data;
 export default function Project() {
@@ -120,16 +121,17 @@ export default function Project() {
    if(item.fontSize!==undefined && c.fontSize===undefined)counter.fontSize=item.fontSize;
    if(c.fontSize===undefined && item.fontSize===undefined)delete counter.fontSize;
    child=CounterReveal(counter);
-  } else if(["milestone-badge","assemble-title","concept-link"].includes(item.presetId)){
+  } else if(["milestone-badge","assemble-title","concept-link","exchange-diagram"].includes(item.presetId)){
    const native={x:0,y:0,width:item.box.width,height:item.box.height,start:props.start,end:props.end,animate:props.animate,...c,key:item.key+"-component",name:item.key+" / "+item.presetId,fontFamily:c.fontFamily??data.fontFamily};
-   if(item.fontSize!==undefined && c.fontSize===undefined)native.fontSize=item.fontSize;
+   if(item.presetId!=="exchange-diagram" && item.fontSize!==undefined && c.fontSize===undefined)native.fontSize=item.fontSize;
    if(item.presetId==="assemble-title"){
     if(native.subtitle===null)delete native.subtitle;
     if(c.color===undefined)native.color=theme.text;
     if(c.subtitleColor===undefined)native.subtitleColor=theme.muted;
     child=AssembleTitle(native);
    } else if(item.presetId==="milestone-badge")child=MilestoneBadge(native);
-   else child=ConceptLink(native);
+   else if(item.presetId==="concept-link")child=ConceptLink(native);
+   else child=ExchangeDiagram(native);
   } else if(item.presetId.startsWith("background-"))child=Backdrop({...props,...c,kind:item.presetId.slice(11)});
   else if(item.presetId==="overlay-source")child=SourceCard({...props,...c,theme:docTheme});
   else if(item.presetId==="chart-bars")child=DataBars({...props,...c});

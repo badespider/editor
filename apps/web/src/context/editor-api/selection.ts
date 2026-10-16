@@ -14,6 +14,7 @@ import {
   isCaption,
   isAdjustmentLayer,
   PaintType,
+  GeometryType,
 } from "@/components/engine";
 import { Not, Or, query, hasComponent, entityExists } from "bitecs";
 
@@ -72,6 +73,7 @@ export function entityType(world: EngineWorld, eid: number): string {
   if (isGroup(world, eid)) return "group";
   if (isCaption(world, eid)) return "caption";
   if (isText(world, eid)) return "text";
+  if (c.Geometry[eid] === GeometryType.PATH) return "path";
   if (hasComponent(world, eid, c.Audio)) return "audio";
 
   const asset = findGeometryAsset(world, eid);

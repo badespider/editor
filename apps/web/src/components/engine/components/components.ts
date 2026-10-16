@@ -14,16 +14,23 @@ import type { VideoDecoderInstance } from "../decoders/video";
 import type { SequenceDecoder as SequenceDecoderInstance } from "../decoders/sequence";
 import type { AudioDecoder as AudioDecoderInstance } from "../decoders/audio";
 import type { CaptionDecoder as CaptionDecoderInstance } from "../decoders/caption";
+import type { VectorPathCommand } from "@diffusionstudio/jsx";
 // Geometric primitive — RECT or TEXT (see GeometryType). Other node-like
 // roles (group, audio, scene, caption) are layered on top via tag components.
 export const Geometry = [] as number[];
 
+// Persisted editable geometry. Commands are local pixels, never SVG markup or executable code.
+export const VectorPath = {
+  commands: [] as VectorPathCommand[][],
+  fillEnabled: [] as boolean[],
+};
+
 // Paint applied to a geometry (or stroke). The value is a PaintType enum index.
 export const Paint = [] as number[];
 
-// Tag marking a geometry as a group container. Groups have no Size of
-// their own — their Computed.width/height are derived from the local AABB
-// of their direct children (see transformSystem). They carry a transform
+// Tag marking a geometry as a group container. An explicit Size defines a
+// fixed logical box; otherwise Computed bounds derive from direct children.
+// They carry a transform
 // state (Position/Rotation/Scale/...) like any other entity.
 export const Group = {};
 

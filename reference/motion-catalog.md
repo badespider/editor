@@ -20,7 +20,7 @@ explain the linked post and what remains a candidate.
 | `overlays` | Name, source card, evidence focus | Essential action, target alignment and unobscured provenance |
 | `storytelling` | Question, quote, chapters, turn | One coherent setup and payoff; supplied chronology and attribution |
 | `text-effects` | Stable word reveal or keyword emphasis | The complete thought and its still reading interval |
-| `education` | Worked solution or code reveal | Given information, complete operation and explicitly authored result |
+| `education` | Worked solution, code reveal or `exchange-diagram` | Given information, complete operation and explicitly authored result or relationship |
 
 Start with the explanation, then choose a treatment. A richer category does not
 make an unclear beat clearer. Keep decorative backgrounds/effects quiet while

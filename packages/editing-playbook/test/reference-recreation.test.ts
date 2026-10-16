@@ -68,7 +68,7 @@ async function fixture(t: { after(fn: () => Promise<void>): void }, options: {
       allInventoriedPresentationTimestampsRequested: true, visionAttachmentLimit: 12, exceedsVisionAttachmentLimit: false },
     externalModelCalls: 0, continuousViewing: false, audioReviewed: false, semanticCutsVerified: false, limitations: ['Synthetic injected evidence; no decoder or model involved.'],
   };
-  const calls = { models: 0, assets: 0, comparisons: 0, decodes: 0, dossiers: 0, canvas: [] as { path: string; width: number; height: number }[], requests: [] as ReferenceCodexRequest[], renames: 0, saveDelays: [] as number[], caches: [] as string[] };
+  const calls = { models: 0, assets: 0, comparisons: 0, comparisonBudgets: [] as (number | undefined)[], decodes: 0, dossiers: 0, canvas: [] as { path: string; width: number; height: number }[], requests: [] as ReferenceCodexRequest[], renames: 0, saveDelays: [] as number[], caches: [] as string[] };
   const runner: ReferenceCodexRunner = {
     capabilities: async () => ({ available: options.available !== false, installed: true, authenticated: options.available !== false,
       auth: options.available === false ? 'unavailable' : 'chatgpt', runner: 'codex-cli', remoteProcessing: true, analysisWindowSeconds: 120,
@@ -123,7 +123,7 @@ async function fixture(t: { after(fn: () => Promise<void>): void }, options: {
     media: async (_args, input) => { input?.signal?.throwIfAborted(); calls.decodes++; return Buffer.alloc(0); },
     probe: async (path, signal) => { signal?.throwIfAborted(); return { ...JSON.parse(await readFile(path, 'utf8')), startTime: 0, containerStartTime: 0 }; },
     compare: async input => {
-      input.signal?.throwIfAborted(); calls.comparisons++; calls.caches.push(input.cacheDir!); await mkdir(input.outputDirectory);
+      input.signal?.throwIfAborted(); calls.comparisons++; calls.comparisonBudgets.push(input.maxDuration); calls.caches.push(input.cacheDir!); await mkdir(input.outputDirectory);
       const side = { requestedTime: 0, decodedTime: 0, absolutePts: 0, delta: 0, evidenceId: 'comparison-frame', frame: 'frame.png', sha256: 'f'.repeat(64) };
       const comparison = { reference: { sha256: sourceHash }, render: { sha256: await fingerprint(input.render) }, pairs: [{ time: 0, image: 'pair.png', reference: side, render: side }], contactSheet: { image: 'contact.png' } } as ReferenceComparison;
       return { directory: input.outputDirectory, comparison };
@@ -151,6 +151,16 @@ test('comparison requests retain source-decoded instants, selected offset and a 
   assert.ok(times.every((time, i) => time >= 0 && time < 1 && (i === 0 || time > times[i - 1])));
   assert.ok(times.every(time => time === 0 || frames.some(frame => Math.abs(frame.decodedTime - 10 - .000001 - time) < 1e-12)));
   assert.throws(() => recreationComparisonTimes(value, { start: 20, end: 21 }, frames), /No source frame/);
+});
+
+test('selected-window recreation comparisons retain the existing two-hour source inspection budget', async t => {
+  const data = await fixture(t, { sourceDuration: 1859.96 }), service = data.makeService(), initial = await data.start(service, { maxCorrections: 0 });
+  const job = await data.ready(service, initial.id); await data.render(job);
+  await service.rendered({ id: job.id, projectId: job.projectId, sceneId: 9, revision: 0 });
+  const final = await waitFor(service, initial.id, value => ['complete', 'failed'].includes(value.state));
+  assert.equal(final.state, 'complete', final.error ?? 'long source comparison failed');
+  assert.equal(final.result?.source.duration, 1859.96); assert.deepEqual(data.calls.comparisonBudgets, [7200]);
+  assert.equal(final.externalModelCalls, 2);
 });
 
 test('atomic job replacement retries only transient sharing errors with bounded waits and preserves the old target on failure', async t => {

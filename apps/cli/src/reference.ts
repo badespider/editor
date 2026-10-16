@@ -130,12 +130,13 @@ export function registerReferenceWorkbenchCommands(reference: Command) {
     .requiredOption("--times <seconds>", "1–24 increasing comparison times, comma-separated")
     .option("--reference-start <seconds>", "reference offset added once", "0")
     .option("--render-start <seconds>", "render offset added once", "0")
+    .option("--max-duration <seconds>", "explicit inspection budget for each source, at most7200", "1200")
     .option("--cache-dir <directory>", "local pipeline evidence cache")
     .requiredOption("-o, --output <new-directory>", "exclusive comparison bundle with frame pairs and HTML viewer")
     .description("Compare local videos through the existing evidence pipeline; no scoring or semantic verification")
-    .action(safe(async (reference: string, render: string, options: {times:string;referenceStart:string;renderStart:string;cacheDir?:string;output:string}) => {
+    .action(safe(async (reference: string, render: string, options: {times:string;referenceStart:string;renderStart:string;maxDuration:string;cacheDir?:string;output:string}) => {
       const times = parseReferenceTimes(options.times), referenceStart = numeric(options.referenceStart), renderStart = numeric(options.renderStart);
       print(await cancellable(signal => compareReferenceVideos({ reference, render, times, referenceStart, renderStart,
-        cacheDir: options.cacheDir, outputDirectory: options.output, signal })));
+        maxDuration: numeric(options.maxDuration), cacheDir: options.cacheDir, outputDirectory: options.output, signal })));
     }));
 }

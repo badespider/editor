@@ -36,6 +36,7 @@ export function StrokesSettings(props: StrokesSettingsProps) {
 
   const strokeEids = useEntityState(c.Cache.strokes, eid, []);
   const lineJoinId = useEntityState(c.StrokeStyle.join, eid, 0);
+  const lineCapId = useEntityState(c.StrokeStyle.cap, eid, 0);
   const strokeWidth = useEntityState(c.Computed.strokeWidth, eid, 1);
   const strokeMiterLimit = useEntityState(c.StrokeStyle.miterLimit, eid, 3);
   const [selectedStroke, setSelectedStroke] = createSignal<number>();
@@ -133,6 +134,13 @@ export function StrokesSettings(props: StrokesSettingsProps) {
               buttonClass="transition-colors"
               iconClass="size-3.5 text-muted-foreground"
             />
+          </ControlRow>
+
+          <ControlRow label="Cap">
+            <select aria-label="Stroke cap" value={lineCapId()} class="w-full text-xs bg-background rounded border p-1"
+              onChange={event => setComponent(world, eid(), c.StrokeStyle, { cap: Number(event.currentTarget.value) })}>
+              <option value="0">Butt</option><option value="1">Round</option><option value="2">Square</option>
+            </select>
           </ControlRow>
 
           <ControlRow label="Miter">

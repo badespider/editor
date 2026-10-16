@@ -10,11 +10,39 @@ the first critique proposes a correction. Sampled source images and
 actual rendered comparisons are sent for that analysis, using account allowance.
 
 For each candidate the trusted host validates a bounded JSON blueprint of native
-text, rectangles, circles, lines and keyframes. It exposes literal text, color
-and typography bindings, with duration retiming and explicit composition boxes.
+text, rectangles, circles, lines, vector paths, nested groups and keyframes. It
+exposes literal text, color, typography and vector stroke bindings, with duration
+retiming and explicit composition boxes.
 It never executes model-authored JavaScript or copies reference instructions
 into trusted repository skills. No source pixels, media or audio enter reusable
 components. Unsupported artwork stays a recorded limitation or causes rejection.
+
+Vector drawings use literal `M`/`L`/`Q`/`C`/`Z` command objects in local pixels,
+with native fills, stroke color, width, caps and joins. Every part remains a
+selectable native Path, including its editable command list. Named Groups share
+transforms with children and have fixed logical boxes and normalized pivots.
+For example, a shoulder group can rotate an arm and hand together while a
+banknote has its own motion. Blueprint `parentId` names a Group, `x`/`y` are local
+to that parent, and all blueprint times remain composition-global. The trusted
+compiler converts each child lifetime to its parent clock once. Groups do not
+paint a background over their parts. The layer order controls stacking among
+siblings.
+
+The same bounded library contract allows 64 layers, 512 commands per path,
+8,192 commands per composition and eight levels of group nesting. Cycles,
+missing parents, children outside a parent's lifetime, non-finite coordinates,
+SVG markup and executable expressions are rejected. Path dimensions remain fixed
+in keyframes; animate uniform scale or a parent Group. Portrait fitting scales
+commands, stroke widths and child coordinates once, centering only root layers.
+This provides reusable illustrated parts and pose motion; it does not recover
+the creator's hidden rig or supply path morphing, inverse kinematics, automatic
+lip sync, SVG import or a whole-film scene planner. Discovery and exact-export
+review still decide whether a particular illustrated motion is supported.
+
+Previously stored primitive components retain their original data, fingerprints
+and generated guides. A component using paths, hierarchy or a custom pivot has a
+separate structural fingerprint that includes those mechanics while continuing
+to ignore source wording and palette.
 
 The editor mounts, audits, saves and renders two real variants, including changed
 words and colors. The service checks decoding, exact geometry/duration, distinct

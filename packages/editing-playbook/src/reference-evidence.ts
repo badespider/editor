@@ -21,6 +21,7 @@ const timesSchema = z.array(seconds).min(1).max(24).superRefine((times, context)
 const comparisonSchema = z.object({
   reference: z.string().min(1).max(32768), render: z.string().min(1).max(32768), times: timesSchema,
   referenceStart: seconds.default(0), renderStart: seconds.default(0),
+  maxDuration: z.number().finite().positive().max(7200).default(1200),
   cacheDir: z.string().min(1).optional(), outputDirectory: z.string().min(1), signal: z.instanceof(AbortSignal).optional(),
 }).strict();
 
@@ -196,8 +197,8 @@ export async function compareReferenceVideos(input: ReferenceComparisonOptions):
   catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   const referencePath = await localVideo(options.reference), renderPath = await localVideo(options.render);
   const service = new AgentEvidenceService(options.cacheDir);
-  const a = await service.open({ path: referencePath, goal: 'Local reference/render frame comparison.', overviewCount: 1 }, signal);
-  const b = await service.open({ path: renderPath, goal: 'Local reference/render frame comparison.', overviewCount: 1 }, signal);
+  const a = await service.open({ path: referencePath, goal: 'Local reference/render frame comparison.', overviewCount: 1, maxDuration: options.maxDuration }, signal);
+  const b = await service.open({ path: renderPath, goal: 'Local reference/render frame comparison.', overviewCount: 1, maxDuration: options.maxDuration }, signal);
   const mapping = mapReferenceTimes(options.times, { duration: a.source.duration, start: options.referenceStart },
     { duration: b.source.duration, start: options.renderStart });
   const aInspection = await service.inspect(a.id, { times: mapping.map(item => item.referenceTime), native: true }, signal);

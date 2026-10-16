@@ -20,6 +20,9 @@ export function serializeEntity(world: EngineWorld, eid: number): DBEntity {
 	if (hasComponent(world, eid, c.Geometry)) {
 		record.Geometry = c.Geometry[eid];
 	}
+	if (hasComponent(world, eid, c.VectorPath)) {
+		record.VectorPath = { commands: c.VectorPath.commands[eid]?.map(command => ({ ...command })), fillEnabled: c.VectorPath.fillEnabled[eid] };
+	}
 	if (hasComponent(world, eid, c.Paint)) {
 		record.Paint = c.Paint[eid];
 	}
@@ -259,6 +262,9 @@ export function deserializeEntity(world: EngineWorld, eid: number, e: Partial<DB
 
 	if (e.Geometry !== undefined) {
 		setComponent(world, eid, c.Geometry, e.Geometry);
+	}
+	if (e.VectorPath !== undefined) {
+		setComponent(world, eid, c.VectorPath, e.VectorPath);
 	}
 	if (e.Paint !== undefined) {
 		setComponent(world, eid, c.Paint, e.Paint);

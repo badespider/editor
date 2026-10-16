@@ -51,6 +51,12 @@ const concept=z.object({
   fontFamily:fontFamily.optional(),fontSize:finite.min(8).max(256).optional(),
   accent:color.optional(),textColor:color.optional(),surfaceColor:color.optional(),lineColor:color.optional(),
 }).strict();
+const exchange=z.object({
+  spentLabel:singleLine.max(18),earnedLabel:singleLine.max(18),moneyLabel:singleLine.max(8),goodsLabel:singleLine.max(12).optional(),
+  presentation:z.enum(["cycle","handoff"]).optional(),
+  transferStart:time.optional(),transferDuration:canonicalPositive.refine(value=>Math.round(value*30)>=4,"Transfer needs at least four frames").optional(),labelDelay:time.optional(),minHold:canonicalPositive.optional(),
+  outlineColor:color.optional(),clothingColor:color.optional(),hairColor:color.optional(),skinColor:color.optional(),moneyColor:color.optional(),goodsColor:color.optional(),textColor:color.optional(),fontFamily:fontFamily.optional(),
+}).strict();
 const counter = z.object({
   values:z.array(z.union([z.number().int().safe(),z.string().trim().min(1).max(16).regex(/^[A-Za-z0-9$€£¥ .,:%+\-/−]+$/).regex(/[0-9]/)])).min(1).max(48),
   stepDuration:time.positive().optional(),stepDurations:z.array(time.positive()).max(47).optional(),
@@ -69,7 +75,7 @@ const counter = z.object({
   if((value.minHold!==undefined && Math.round(value.minHold*30)<1) || intervals.some(interval=>Math.round(interval*30)<1))issue("Counter timing must occupy at least one canonical frame");
 });
 const schemas: Record<string, z.ZodType> = {
-  "milestone-badge":milestone,"assemble-title":assembly,"concept-link":concept,
+  "milestone-badge":milestone,"assemble-title":assembly,"concept-link":concept,"exchange-diagram":exchange,
   "counter-reveal":counter,
   "background-grid":background,"background-dots":background,"background-gradient":background,
   "caption-clean":caption,"caption-highlight":caption,
@@ -97,6 +103,7 @@ const examples: Record<string,Record<string,unknown>> = {
   "milestone-badge":{value:"8",label:"Practice rounds",labelSide:"right",popDuration:.4,labelDelay:4/30,minHold:2,labelFontSize:32,color:"#57D6C7",textColor:"#101C2B"},
   "assemble-title":{text:"MAKE IT CLEAR",subtitle:"One idea, built together.",revealDuration:1.2,glyphDuration:.4,subtitleDelay:.1,minHold:2,scatter:.5,blur:true},
   "concept-link":{term:"CACHE",definition:"Reuse work you already computed.",direction:"down",nodeDuration:10/30,linkDelay:.4,cardDelay:.8,revealDuration:10/30,minHold:1,accent:"#F08A18",textColor:"#161B22",lineColor:"#58616B"},
+  "exchange-diagram":{spentLabel:"SPENT",earnedLabel:"EARNED",moneyLabel:"$",presentation:"cycle",transferStart:.5,transferDuration:3.5,labelDelay:4.1,minHold:1,outlineColor:"#363B32",clothingColor:"#C6C9B5",moneyColor:"#89D761",goodsColor:"#DEB887"},
   "counter-reveal":{values:[100,200,400,800],stepDuration:.2,revealDuration:4/30,minHold:1,direction:"up",color:"#E8682C",echo:{opacity:.12,scale:2.6}},
   "background-grid":backgroundSample,"background-dots":backgroundSample,"background-gradient":backgroundSample,
   "caption-clean":captions,"caption-highlight":captions,
@@ -134,6 +141,11 @@ export function validateMotionContentTiming(id:string,content:Readonly<Record<st
     if(animate && node<3)throw new RangeError("concept-link nodeDuration needs at least three frames for its pop");
     if(link<(animate?node:0) || card<link+(animate?reveal:0))throw new RangeError("concept-link must settle its node, reveal its connector, then open its definition");
     settled=card+(animate?reveal:0);hold=f("minHold",1);
+  }else if(id==="exchange-diagram"){
+    const start=f("transferStart",.5),travel=f("transferDuration",3.5),label=f("labelDelay",4.1);
+    if(travel<4)throw new RangeError("exchange-diagram transferDuration needs at least four frames");
+    if(label<start+travel)throw new RangeError("exchange-diagram labels follow the completed transfer");
+    settled=Math.max(start+travel,label+6);hold=f("minHold",1);
   }else return;
   if(settled+hold>frames)throw new RangeError(`${id} stages and final reading hold do not fit its lifetime`);
 }

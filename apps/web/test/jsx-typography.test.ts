@@ -49,10 +49,10 @@ import {observe,setComponent} from ${JSON.stringify(events)};
 globalThis.__TypographyElement=class TypographyElement{};
 globalThis.__TypographyText=class TypographyText{};
 export function fixture(){
- const components={Data:[],TextStyle:{leading:[],letterSpacing:[],fontFamily:[]}};
+ const components={Data:[],Geometry:[],Deleted:{},TextStyle:{leading:[],letterSpacing:[],fontFamily:[]}};
  const world=createWorld({components,fontRequests:[],fontBarrier:Promise.resolve(),failFont:false,promises:[],history:{push(entry){entry.execute();},untrack(fn){return fn();}}});
  observe(world,"set",components.TextStyle,(eid,data)=>{for(const [key,value] of Object.entries(data))components.TextStyle[key][eid]=value;});
- const eid=addEntity(world),document=new WorldDocument(world),node=document.element(eid);
+ const eid=addEntity(world);components.Geometry[eid]=1;const document=new WorldDocument(world),node=document.element(eid);
  return{set(name,value){document.setProperty(node,name,value);},manual(leading,letterSpacing){setComponent(world,eid,components.TextStyle,{leading,letterSpacing});},values(){return{leading:components.TextStyle.leading[eid],letterSpacing:components.TextStyle.letterSpacing[eid]};},commit:()=>document.commit(),fontRequests:()=>world.fontRequests,blockFont(){let release;world.fontBarrier=new Promise(resolve=>{release=resolve;});return release;},failFont(){world.failFont=true;},adopt(){const restored=new WorldDocument(world,{mode:"adopt",adoptIndex:new Map([["0",eid]])});const adopted=restored.createElement("Text");return{set(name,value){restored.setProperty(adopted,name,value);},commit:()=>restored.commit()};}};
 }`, loader: "js", resolveDir: repository },
       bundle: true, write: false, platform: "node", format: "esm", conditions: ["browser"], logLevel: "silent",

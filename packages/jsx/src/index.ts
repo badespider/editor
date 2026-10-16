@@ -14,6 +14,7 @@ export type {
   GenerateVoiceOptions,
 } from "./generate";
 export { PATCH_PROP_KEYS } from "./types";
+export * from "./vector-path";
 export { parseTime, TIME_FPS } from "./time";
 // Native visual treatments and frame-based motion presets share the host runtime.
 export * from "./effects";
@@ -33,6 +34,7 @@ export * from "./counter-reveal";
 export * from "./assemble-title";
 export * from "./milestone-badge";
 export * from "./concept-link";
+export * from "./illustrated-exchange";
 export {
   Audio,
   Captions,
@@ -41,6 +43,7 @@ export {
   Html,
   HtmlPaint,
   Image,
+  Path,
   LinearGradientPaint,
   RadialGradientPaint,
   Rect,
@@ -71,6 +74,7 @@ export type {
   ImageProps,
   Keyframe,
   PatchProps,
+  PathProps,
   RectProps,
   SequenceProps,
   ShaderPaintProps,

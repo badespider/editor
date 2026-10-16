@@ -41,6 +41,7 @@ export const motionMoments: readonly MotionMoment[] = Object.freeze([
   moment("milestone-badge", "A milestone, then its context", "Pop an authored value into a native circle before revealing its short explanation.", "emphasis", ["milestone", "badge", "pop", "label", "mix"], 6, "reference/jsx/milestone-badge.md", "examples/21-reference-motion-mix.tsx", "data", "1.0.0", true),
   moment("assemble-title", "Gather a title into focus", "Assemble separate editable glyphs, resolve their blur, then reveal an authored subtitle.", "orientation", ["title", "glyph", "assembly", "blur", "mix"], 6, "reference/jsx/assemble-title.md", "examples/21-reference-motion-mix.tsx", "text-effects", "1.0.0", true),
   moment("concept-link", "Connect a term to its meaning", "Reveal a term circle, grow its connector, then open its supplied definition card.", "explanation", ["concept", "definition", "connector", "circle", "mix"], 6, "reference/jsx/concept-link.md", "examples/21-reference-motion-mix.tsx", "education", "1.0.0", true),
+  moment("exchange-diagram", "Money for goods", "Explain an authored exchange with articulated vector people and opposite money and parcel arcs.", "explanation", ["vector", "people", "groups", "exchange", "arcs", "mix"], 7, "reference/jsx/illustrated-exchange.md", "examples/22-illustrated-exchange.tsx", "education", "1.0.0", true),
   moment("route-reveal", "Orient with a route", "Reveal an illustrative regional route, then hold the geography.", "orientation", ["route", "draw", "reading-hold"], 7, "reference/jsx/documentary.md", "examples/11-documentary-story.tsx", "maps"),
   moment("background-grid","Quiet grid","A deterministic low-contrast grid behind your content.","setting",["grid","pattern","static"],6,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","backgrounds","1.0.0",true),
   moment("background-dots","Quiet dots","Seeded dots give a scene structure without competing with text.","setting",["dots","pattern","static"],6,"reference/jsx/creative-primitives.md","examples/17-creative-primitives.tsx","backgrounds","1.0.0",true),
@@ -131,6 +132,7 @@ const defaults: Record<string, {title: string; body: string}> = {
   "milestone-badge": {title: "Give the number its context.", body: "An authored illustrative value and its explanation."},
   "assemble-title": {title: "Let the idea come together.", body: "Separate native glyphs form one readable thought."},
   "concept-link": {title: "Show the connection.", body: "One supplied term and its authored meaning."},
+  "exchange-diagram": {title: "One exchange, two directions.", body: "Editable line art explains money moving one way and goods the other."},
   "route-reveal": {title: "Orient the viewer.", body: "An illustrative route, not a recorded journey."},
   "background-grid":{title:"A quiet foundation.",body:"Keep the pattern behind the idea."},
   "background-dots":{title:"Structure without clutter.",body:"Seeded native shapes, with room for your words."},
@@ -185,7 +187,7 @@ export function buildMotionModule(options: MotionBuildOptions): string {
   });
   // JSON is the only interpolation boundary: caller wording can never become module syntax.
   const data = JSON.stringify({width, height, portrait, margin, inner, sceneKey: brief.sceneKey, duration: brief.duration, beats,theme:brief.theme,motion:brief.motion});
-  return `import { Rect, Text, Image, Effects, WorkedExample, CodeWalkthrough, EvidenceCallout, MapRoute, motion, useTicker, PRESENTATION_THEMES, Backdrop, PanelLayout, StoryBeatCard, KineticText, CounterReveal, MilestoneBadge, AssembleTitle, ConceptLink, CaptionTrack, DataBars, TrendLine, MetricCard, LowerThird, SourceCard, QuoteCard, Timeline, createLook, duotone, grain } from "dapi-host:@diffusionstudio/jsx";
+  return `import { Rect, Text, Image, Effects, WorkedExample, CodeWalkthrough, EvidenceCallout, MapRoute, motion, useTicker, PRESENTATION_THEMES, Backdrop, PanelLayout, StoryBeatCard, KineticText, CounterReveal, MilestoneBadge, AssembleTitle, ConceptLink, ExchangeDiagram, CaptionTrack, DataBars, TrendLine, MetricCard, LowerThird, SourceCard, QuoteCard, Timeline, createLook, duotone, grain } from "dapi-host:@diffusionstudio/jsx";
 import { createMemo } from "dapi-host:solid-js";
 const data = ${data};
 export const motionMomentManifest = data;

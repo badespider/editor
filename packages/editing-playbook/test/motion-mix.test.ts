@@ -11,7 +11,7 @@ function literal(node:NativeNode):string{return node.tag==="#text"?String(node.p
 
 test("mix discovery reuses curated catalog metadata and preserves independent editable examples",()=>{
   assert.deepEqual(mixableMotionMoments().map(item=>item.id),motionMoments.filter(item=>item.mixable).map(item=>item.id));
-  assert.equal(mixableMotionMoments().length,10);
+  assert.equal(mixableMotionMoments().length,11);
   assert.ok(mixableMotionMoments().some(item=>item.id==="counter-reveal"));
   const first=getMotionMixExample(),second=getMotionMixExample();
   first.instances[0].box.width=100;

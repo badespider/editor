@@ -15,13 +15,13 @@ type ResizeParams = { width?: number; height?: number };
 /**
  * Resize an entity. Enforces aspect ratio, writes the final Size, propagates
  * Computed size down the subtree, reapplies sibling constraints, and syncs
- * the width/height keyframe tracks. Group/Sequential entities don't own a Size
- * — calling this on one strips the component instead.
+ * the width/height keyframe tracks. Explicitly sizing a spatial Group fixes its
+ * logical box; a Sequence still mirrors its parent and never owns a Size.
  */
 export function resizeEntity(world: EngineWorld, eid: number, params: ResizeParams): void {
   const c = world.components;
 
-  if (hasComponent(world, eid, c.Group)) {
+  if (hasComponent(world, eid, c.Sequential)) {
     removeComponent(world, eid, c.Size);
     return;
   }

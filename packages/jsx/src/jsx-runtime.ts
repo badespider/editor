@@ -29,6 +29,7 @@ import type {
   HtmlPaintProps,
   HtmlProps,
   ImageProps,
+  PathProps,
   RectProps,
   SequenceProps,
   ShaderPaintProps,
@@ -52,7 +53,7 @@ type HtmlElementTags = Omit<SolidJSX.HTMLElementTags, "canvas" | "audio" | "vide
 type ImgTag = Omit<SolidJSX.HTMLElementTags["img"], "src"> & { src?: AssetInput };
 
 // The shared names are re-declared below as unions with the composition props.
-type SvgElementTags = Omit<SolidJSX.SVGElementTags, "rect" | "text" | "image">;
+type SvgElementTags = Omit<SolidJSX.SVGElementTags, "rect" | "text" | "image" | "path">;
 
 export declare namespace JSX {
   // Solid's Element type keeps Solid's control flow (<For>, <Show>, …) and
@@ -67,6 +68,7 @@ export declare namespace JSX {
     img: ImgTag;
     group: GroupProps;
     rect: RectProps | SolidJSX.SVGElementTags["rect"];
+    path: PathProps | SolidJSX.SVGElementTags["path"];
     video: VideoProps;
     image: ImageProps | SolidJSX.SVGElementTags["image"];
     audio: AudioProps;

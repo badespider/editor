@@ -14,6 +14,8 @@ export const libraryRecipeCode = `
       nodes.push(AssembleTitle({...box,y:p?650:430,height:p?650:420,color:theme.text,subtitleColor:theme.muted,...assembly,key:b.id+"/assembly",name:"Editable assembled title",fontFamily:c.fontFamily??theme.fontFamily,animate:animated}));
     } else if(b.id==="concept-link") {
       nodes.push(ConceptLink({...box,...c,key:b.id+"/concept",name:"Editable concept link",fontFamily:c.fontFamily??theme.fontFamily,animate:animated}));
+    } else if(b.id==="exchange-diagram") {
+      nodes.push(ExchangeDiagram({...box,...c,key:b.id+"/exchange",name:"Editable vector exchange",fontFamily:c.fontFamily??theme.fontFamily,animate:animated}));
     } else if(b.id.startsWith("background-")) {
       nodes.push(label(b.id+"/context",b.body,{x:m,y:p?1050:600,width:inner,height:p?300:190},p?44:38,b.start,b.end));
     } else if(b.id.startsWith("caption-")) {

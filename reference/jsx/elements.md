@@ -4,8 +4,9 @@ camelCase composition elements map 1:1 onto internal node types. Lowercase DOM v
 
 | Element | Internal node | Notes |
 | ------- | ------------- | ----- |
-| [`<group>`](./group.md) | **Container with Group tag** | Container with a transform; auto-fits its size from its children. Takes no `fill` or explicit size. |
+| [`<group>`](./group.md) | **Container with Group tag** | Nested transform container; explicit size fixes its logical box, otherwise child bounds determine it. |
 | [`<rect>`](./rect.md) | **Geometry with Solid paint** | A filled rectangle; takes only paint children. |
+| [`<path>`](./vectors.md) | **Native vector geometry** | Editable M/L/Q/C/Z command data, native fill and outline; supports nested joint groups. |
 | [`<video>`](./video.md) | **Geometry with Video paint** | `src` resolves to a video asset. |
 | [`<image>`](./image.md) | **Geometry with Image paint** | `src` resolves to an image asset. |
 | [`<audio>`](./audio.md) | **Geometry with Audio component and a hidden Waveform paint** | No visual output; carries volume. |
@@ -43,6 +44,7 @@ All visual elements accept:
 | `rotation` | `Animatable<number>` | `0` | Rotation in degrees. |
 | `scale` | `Animatable<number>` | `1` | Uniform scale around the element's center; finite and non-negative. |
 | `scaleX`, `scaleY` | `number` | `1` | Static horizontal/vertical multipliers around the same center. Finite and non-negative; multiply the current uniform `scale` factor. |
+| `anchorX`, `anchorY` | `number` | `.5` | Static normalized 0..1 pivot within the local box. Use 0/0 for a joint at the upper-left corner. |
 | `clipToBox` | `boolean` | `false` | Clip the node's own drawing and its descendants to its current local box and corner radius. Animated `width`/`height` update the clip; rotation and scaling transform it with the node. |
 | `opacity` | `Animatable<number>` | `1` | `0`-`1`. |
 | `cornerRadius` | `Animatable<number>` | `0` | Uniform corner radius, px. |

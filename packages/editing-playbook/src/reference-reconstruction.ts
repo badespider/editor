@@ -9,6 +9,19 @@ const id = z.string().max(80).regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/);
 const assetId = z.string().max(64).regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/);
 const coord = finite.min(-8192).max(8192), dimension = finite.positive().max(8192);
 const axisScale = finite.min(0).max(4);
+const anchor = finite.min(0).max(1);
+// Only literal local-pixel geometry is accepted. No SVG markup, scripts, URLs,
+// procedural callbacks or implicit parsers cross the model/renderer boundary.
+const pathCommand = z.discriminatedUnion('op', [
+  z.object({ op: z.literal('M'), x: coord, y: coord }).strict(),
+  z.object({ op: z.literal('L'), x: coord, y: coord }).strict(),
+  z.object({ op: z.literal('Q'), cx: coord, cy: coord, x: coord, y: coord }).strict(),
+  z.object({ op: z.literal('C'), c1x: coord, c1y: coord, c2x: coord, c2y: coord, x: coord, y: coord }).strict(),
+  z.object({ op: z.literal('Z') }).strict(),
+]);
+const pathCommands = z.array(pathCommand).max(512);
+const strokeWidth = finite.nonnegative().max(128);
+const strokeCap = z.enum(['butt', 'round', 'square']), strokeJoin = z.enum(['miter', 'round', 'bevel']);
 const easing = z.string().max(100).refine(value => {
   if (/^(linear|easeIn|easeOut|easeInOut|gentle|snappy|bouncy|strong)$/.test(value)) return true;
   const match = /^cubicBezier\(\s*(\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*,\s*(\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\)$/.exec(value);
@@ -18,10 +31,13 @@ const easing = z.string().max(100).refine(value => {
 }, 'Use a native named easing or cubicBezier with x controls in 0..1 and y controls in -4..4');
 const key = z.object({ time: finite.min(0).max(120), x: coord, y: coord, width: finite.nonnegative().max(8192), height: finite.nonnegative().max(8192),
   scale: finite.min(0).max(4), rotation: finite.min(-3600).max(3600), opacity: finite.min(0).max(1), easing }).strict();
-const layer = z.object({ id, name: prose(120, 1), type: z.enum(['text', 'rect', 'ellipse', 'line', 'image', 'video']),
+const layer = z.object({ id, name: prose(120, 1), type: z.enum(['text', 'rect', 'ellipse', 'line', 'path', 'group', 'image', 'video']),
   start: finite.min(0).max(120), end: finite.positive().max(120), x: coord, y: coord, width: dimension, height: dimension,
   rotation: finite.min(-3600).max(3600), opacity: finite.min(0).max(1), fill: hex, radius: finite.nonnegative().max(4096),
   scaleX: axisScale.optional(), scaleY: axisScale.optional(), clipToBox: z.boolean().optional(),
+  parentId: id.nullable().optional(), anchorX: anchor.optional(), anchorY: anchor.optional(),
+  pathCommands: pathCommands.optional(), fillEnabled: z.boolean().optional(),
+  strokeColor: hex.optional(), strokeWidth: strokeWidth.optional(), strokeCap: strokeCap.optional(), strokeJoin: strokeJoin.optional(),
   text: prose(2000), fontFamily: z.string().min(1).max(80).regex(/^[A-Za-z0-9][A-Za-z0-9 ._-]*$/),
   fontSize: finite.min(4).max(4096), fontWeight: finite.int().min(100).max(900), fontStyle: z.enum(['normal', 'italic']),
   textAlign: z.enum(['left', 'center', 'right']), letterSpacing: finite.min(-100).max(200), leading: finite.min(.5).max(4),
@@ -37,7 +53,10 @@ const structure = z.object({ schemaVersion: z.literal(2), title: prose(160, 1), 
 }).strict();
 // Saved v2 plans may omit the new static controls; account structured output
 // still has one strict, complete shape, without provider-side defaults.
-const providerStructure = structure.extend({ layers: z.array(layer.extend({ scaleX: axisScale, scaleY: axisScale, clipToBox: z.boolean() })).min(1).max(240) });
+const providerStructure = structure.extend({ layers: z.array(layer.extend({ scaleX: axisScale, scaleY: axisScale, clipToBox: z.boolean(),
+  parentId: id.nullable(), anchorX: anchor, anchorY: anchor, pathCommands, fillEnabled: z.boolean(),
+  strokeColor: hex, strokeWidth, strokeCap, strokeJoin,
+})).min(1).max(240) });
 const frame = (time: number) => Math.round(time * 30);
 export const reconstructionPlanSchema = structure.superRefine((plan, ctx) => {
   const problem = (path: (string | number)[], message: string) => ctx.addIssue({ code: 'custom', path, message });
@@ -49,7 +68,7 @@ export const reconstructionPlanSchema = structure.superRefine((plan, ctx) => {
     if (asset.rect.x + asset.rect.width > 1 + 1e-9 || asset.rect.y + asset.rect.height > 1 + 1e-9) problem(['assetRequests', i, 'rect'], 'Crop must stay inside the source frame');
     if (asset.rect.width * asset.rect.height > (asset.kind === 'texture-tile' ? .2 : .5) + 1e-9) problem(['assetRequests', i, 'rect'], 'Whole graphic frames cannot be disguised as editable artwork');
   }
-  const ids = new Set<string>(); let characters = 0;
+  const ids = new Set<string>(), byId = new Map(plan.layers.map(item => [item.id, item])); let characters = 0, commands = 0;
   for (const [i, item] of plan.layers.entries()) {
     const path = ['layers', i];
     if (ids.has(item.id)) problem([...path, 'id'], 'Layer IDs must be unique'); ids.add(item.id);
@@ -58,6 +77,36 @@ export const reconstructionPlanSchema = structure.superRefine((plan, ctx) => {
     if (item.x < -plan.width || item.x > plan.width * 2 || item.y < -plan.height || item.y > plan.height * 2) problem([...path, 'x'], 'Layer exceeds the bounded offscreen area');
     if (item.radius > Math.min(item.width, item.height) / 2) problem([...path, 'radius'], 'Radius exceeds the shortest side');
     if (item.type === 'ellipse' && item.width !== item.height) problem([...path, 'height'], 'Native ellipse primitive currently represents circles');
+    if (item.parentId != null) {
+      const parent = byId.get(item.parentId);
+      if (!parent || parent.type !== 'group') problem([...path, 'parentId'], 'Parent must address an existing native group');
+      else if (frame(item.start) < frame(parent.start) || frame(item.end) > frame(parent.end)) problem([...path, 'start'], 'Child lifetime must fit its parent group');
+      const seen = new Set([item.id]); let cursor: typeof item | undefined = item, depth = 0;
+      while (cursor?.parentId != null) {
+        if (seen.has(cursor.parentId)) { problem([...path, 'parentId'], 'Native groups cannot contain cycles'); break; }
+        seen.add(cursor.parentId); cursor = byId.get(cursor.parentId);
+        if (++depth > 8) { problem([...path, 'parentId'], 'Nested native groups exceed depth 8'); break; }
+      }
+    }
+    if (item.type === 'path') {
+      const parts = item.pathCommands ?? []; commands += parts.length;
+      if (parts.length < 2 || parts[0]?.op !== 'M') problem([...path, 'pathCommands'], 'A vector path needs a move followed by drawing commands');
+      let open = false, drawn = false;
+      for (const [index, part] of parts.entries()) {
+        if (part.op === 'M') open = true;
+        else if (part.op === 'Z') { if (!open) problem([...path, 'pathCommands', index], 'Close requires an open subpath'); open = false; }
+        else { if (!open) problem([...path, 'pathCommands', index], 'Drawing requires an open subpath'); drawn = true; }
+        for (const [axis, value] of Object.entries(part)) if (axis !== 'op' && typeof value === 'number') {
+          const limit = axis.endsWith('x') ? item.width : item.height;
+          if (value < -limit || value > limit * 2) problem([...path, 'pathCommands', index, axis], 'Vector control point exceeds its bounded local box');
+        }
+      }
+      if (!drawn) problem([...path, 'pathCommands'], 'Vector path needs at least one line or curve');
+      if (item.fillEnabled === false && !(item.strokeWidth && item.strokeColor)) problem([...path, 'fillEnabled'], 'An unfilled path needs a visible native stroke');
+    } else {
+      if (item.pathCommands?.length) problem([...path, 'pathCommands'], 'Only vector paths carry commands');
+      if (item.fillEnabled === false || item.strokeWidth && item.strokeWidth > 0) problem([...path, 'strokeWidth'], 'Fill and stroke controls are supported on vector paths only');
+    }
     if (item.type === 'text') { if (!item.text.trim()) problem([...path, 'text'], 'Text must contain literal characters'); characters += Array.from(item.text).length; }
     else if (item.text !== '') problem([...path, 'text'], 'Non-text layers use an empty text field');
     if (item.type === 'image' || item.type === 'video') {
@@ -71,10 +120,12 @@ export const reconstructionPlanSchema = structure.superRefine((plan, ctx) => {
       if (point.width > plan.width * 2 || point.height > plan.height * 2) problem([...path, 'keyframes', k, 'width'], 'Animated size exceeds the canvas budget');
       if (point.x < -plan.width || point.x > plan.width * 2 || point.y < -plan.height || point.y > plan.height * 2) problem([...path, 'keyframes', k, 'x'], 'Animated position exceeds the canvas budget');
       if (item.type === 'ellipse' && point.width !== point.height) problem([...path, 'keyframes', k, 'height'], 'Circle animation must retain equal axes');
+      if (item.type === 'path' && (point.width !== item.width || point.height !== item.height)) problem([...path, 'keyframes', k, 'width'], 'Vector dimensions stay fixed; animate scale or a parent group');
       last = frame(point.time);
     }
   }
   if (characters > 24000) problem(['layers'], 'Total native text exceeds the glyph budget');
+  if (commands > 8192) problem(['layers'], 'Composition exceeds 8192 vector commands');
 });
 export type ReconstructionPlan = z.infer<typeof reconstructionPlanSchema>;
 export const reconstructionJsonSchema = z.toJSONSchema(providerStructure, { target: 'draft-7' });
@@ -99,12 +150,14 @@ function compileReconstructionData(input: unknown, options: ReconstructionCompil
   if (settings.audio && (!source?.duration || settings.audio.sourceOut <= settings.audio.sourceIn || frame(settings.audio.sourceOut) - frame(settings.audio.sourceIn) !== frame(plan.duration) || settings.audio.sourceOut > source.duration || frame(settings.audio.sourceOut) / 30 > source.duration + 1e-7)) throw new Error('Audio must map the exact selected source interval once within a duration-bound source video');
   const layers = plan.layers.map(item => {
     const start = frame(item.start), sourceStart = item.type === 'video' ? frame(item.sourceIn) : 0;
+    const parentStart = item.parentId ? frame(plan.layers.find(parent => parent.id === item.parentId)!.start) : 0;
     const base = { ...item, time: item.start, scale: 1, easing: 'linear' };
     const keys = item.keyframes.length && frame(item.keyframes[0].time) === start ? item.keyframes : [base, ...item.keyframes];
     // A native trimmed video's local playback clock starts at its sourceIn,
     // while a sourceless shape starts at zero. Offset that source clock once.
     const track = (property: 'x' | 'y' | 'width' | 'height' | 'scale' | 'rotation' | 'opacity') => keys.every(point => point[property] === keys[0][property]) ? keys[0][property] : keys.map(point => ({ time: `${frame(point.time) - start + sourceStart}f`, value: point[property], easing: point.easing }));
-    const props: Record<string, unknown> = { key: item.id, name: item.name, start: `${start}f`, end: `${frame(item.end)}f`, x: track('x'), y: track('y'), width: track('width'), height: track('height'), scale: track('scale'), scaleX: item.scaleX ?? 1, scaleY: item.scaleY ?? 1, clipToBox: item.clipToBox ?? false, rotation: track('rotation'), opacity: track('opacity') };
+    const props: Record<string, unknown> = { key: item.id, name: item.name, start: `${start - parentStart}f`, end: `${frame(item.end) - parentStart}f`, x: track('x'), y: track('y'), width: track('width'), height: track('height'), scale: track('scale'), scaleX: item.scaleX ?? 1, scaleY: item.scaleY ?? 1, clipToBox: item.clipToBox ?? false, rotation: track('rotation'), opacity: track('opacity'),
+      ...(item.anchorX !== undefined ? { anchorX: item.anchorX } : {}), ...(item.anchorY !== undefined ? { anchorY: item.anchorY } : {}) };
     if (item.type === 'text') Object.assign(props, { fill: item.fill, children: item.text, fontFamily: item.fontFamily, fontSize: item.fontSize, fontWeight: item.fontWeight, fontStyle: item.fontStyle, letterSpacing: item.letterSpacing, leading: item.leading, textAlign: item.textAlign, textBaseline: 'top' });
     else if (item.type === 'image' || item.type === 'video') {
       const binding = bindings.get(item.assetId!); if (!binding) throw new Error(`Unprepared source asset: ${item.assetId}`);
@@ -115,11 +168,14 @@ function compileReconstructionData(input: unknown, options: ReconstructionCompil
         if (!binding.duration || sourceEnd > frame(binding.duration) || sourceEnd / 30 > binding.duration + 1e-7) throw new Error('Video layer exceeds its duration-bound source video');
         delete props.end; Object.assign(props, { sourceIn: `${sourceStart}f`, sourceOut: `${sourceEnd}f`, muted: true });
       }
-    } else {
+    } else if (item.type === 'path') {
+      Object.assign(props, { commands: item.pathCommands, fill: item.fill, fillEnabled: item.fillEnabled ?? true,
+        strokeColor: item.strokeColor ?? '#000000', strokeWidth: item.strokeWidth ?? 0, strokeCap: item.strokeCap ?? 'butt', strokeJoin: item.strokeJoin ?? 'miter' });
+    } else if (item.type !== 'group') {
       const width = track('width');
       Object.assign(props, { fill: item.fill, cornerRadius: item.type === 'ellipse' ? (typeof width === 'number' ? width / 2 : width.map(point => ({ ...point, value: point.value / 2 }))) : item.radius });
     }
-    return { type: item.type, props };
+    return { type: item.type, parentId: item.parentId ?? null, props };
   });
   const data = { ...settings, title: plan.title, width: plan.width, height: plan.height, duration: frame(plan.duration) / 30, background: plan.background, sourcePath: bindings.get('reference-source')?.path ?? null, layers };
   return data;
@@ -127,8 +183,17 @@ function compileReconstructionData(input: unknown, options: ReconstructionCompil
 
 const reconstructionLiteral = (data: unknown) => JSON.stringify(data).replace(/</g, '\\u003c').replace(/\u2028/g, '\\u2028').replace(/\u2029/g, '\\u2029');
 
+// One trusted tree builder is shared by selected-window reconstruction and
+// reusable instances. Names/commands remain data; only groups may own artwork.
+const reconstructionTree = `const createLayers=(parentId=null)=>data.layers.filter(layer=>layer.parentId===parentId).map(layer=>{
+ const props={...layer.props,key:keyPrefix+layer.props.key};
+ if(layer.type==="group")return Group({...props,children:createLayers(layer.props.key)});
+ return layer.type==="text"?Text(props):layer.type==="path"?Path(props):layer.type==="image"?Image(props):layer.type==="video"?Video(props):Rect(props);
+});
+ const layers=createLayers();`;
+
 /** Compile native primitive data as a clipped, sourceless component factory.
- * The caller supplies the trusted Rect/Text imports and a parent clock.
+ * The caller supplies the trusted native imports and a parent clock.
  * No model-authored expression or executable source is accepted. */
 export function buildReconstructionComponentFactory(input: unknown, key: string): string {
   const plan = reconstructionPlanSchema.parse(input);
@@ -137,7 +202,8 @@ export function buildReconstructionComponentFactory(input: unknown, key: string)
   return `function(){
  const data=${reconstructionLiteral(data)};
  const background=Rect({key:data.sceneKey+"-background",name:"Component background",start:"0f",end:String(Math.round(data.duration*30))+"f",x:0,y:0,width:data.width,height:data.height,fill:data.background});
- const layers=data.layers.map(layer=>{const props={...layer.props,key:data.sceneKey+"-"+layer.props.key};return layer.type==="text"?Text(props):Rect(props);});
+ const keyPrefix=data.sceneKey+"-";
+ ${reconstructionTree}
  return Rect({key:data.sceneKey,name:data.title,start:"0f",end:String(Math.round(data.duration*30))+"f",x:0,y:0,width:data.width,height:data.height,clipToBox:true,children:[background,...layers]});
 }`;
 }
@@ -146,12 +212,13 @@ export function buildReconstructionComponentFactory(input: unknown, key: string)
 export function buildReconstructionModule(input: unknown, options: ReconstructionCompilerOptions): string {
   const data = compileReconstructionData(input, options);
   const literal = reconstructionLiteral(data);
-  return `import { Rect, Text, Image, Video, Audio } from "dapi-host:@diffusionstudio/jsx";
+  return `import { Rect, Text, Image, Video, Audio, Path, Group } from "dapi-host:@diffusionstudio/jsx";
 const data = ${literal};
 export const reconstructionManifest = data;
 export default function Project(){
  const background=Rect({key:"_reconstruction-background",name:"Reference background",start:"0f",end:String(Math.round(data.duration*30))+"f",x:0,y:0,width:data.width,height:data.height,fill:data.background});
- const layers=data.layers.map(layer=>layer.type==="text"?Text(layer.props):layer.type==="image"?Image(layer.props):layer.type==="video"?Video(layer.props):Rect(layer.props));
+ const keyPrefix="";
+ ${reconstructionTree}
  const audio=data.audio?Audio({key:"_reconstruction-audio",name:"Original reference audio",src:data.sourcePath,start:"0f",sourceIn:data.audio.sourceIn,sourceOut:data.audio.sourceOut}):null;
  return Rect({scene:data.sceneKey,name:data.title,width:data.width,height:data.height,fill:data.background,children:[background,...layers,audio]});
 }

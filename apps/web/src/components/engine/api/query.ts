@@ -64,7 +64,7 @@ export function isRect(world: EngineWorld, eid: number): boolean {
 export function isShape(world: EngineWorld, eid: number): boolean {
 	const c = world.components;
 	return hasComponent(world, eid, c.Geometry)
-		&& c.Geometry[eid] === GeometryType.RECT
+		&& (c.Geometry[eid] === GeometryType.RECT || c.Geometry[eid] === GeometryType.PATH)
 		&& !hasComponent(world, eid, c.Group)
 		&& !hasComponent(world, eid, c.Scene)
 		&& !hasComponent(world, eid, c.Audio);

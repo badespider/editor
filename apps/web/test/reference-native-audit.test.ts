@@ -14,6 +14,7 @@ type Fixture = {
   changeToRect(key: string): void; addPaint(key: string, type: "video" | "image", nested?: boolean): void;
   addExtraAudio(): void; removeAudioSource(): void; extraGeometry(): void;
   changeAxes(key: string, x: number, y: number): void; changeClipping(key: string, clip: boolean): void;
+  changeCommands(key: string): void; changePivot(key: string): void; changeStroke(key: string): void; changeParent(key: string): void; loseGroupBox(key: string): void;
 };
 type Runtime = { fixture(plan: ReconstructionPlan, hasAudio: boolean): Fixture };
 const layer = (id: string, type: ReconstructionPlan["layers"][number]["type"], text = "") => ({ id, name: id, type,
@@ -48,9 +49,17 @@ for(const component of Object.values(c))observe(world,"set",component,(eid,value
 const byKey=new Map();function node(key,parent,kind="rect",text=""){const eid=addEntity(world);c.Cache.fills[eid]=[];setComponent(world,eid,c.Geometry,kind==="text"?GeometryType.TEXT:GeometryType.RECT);if(key){setComponent(world,eid,c.Key,key);byKey.set(key,eid);}if(kind==="text")setComponent(world,eid,c.Chars,text);if(parent){addComponent(world,eid,ChildOf(parent));}return eid;}
 const scene=node("scene",null);addComponent(world,scene,c.Scene);node("_reconstruction-background",scene);
 function paint(parent,type){const eid=addEntity(world);addComponent(world,eid,ChildOf(parent));setComponent(world,eid,c.Paint,type==="video"?PaintType.VIDEO:PaintType.IMAGE);setComponent(world,eid,c.AssetId,type+"-source");c.Cache.fills[parent].push(eid);return eid;}
-for(const layer of plan.layers){const eid=node(layer.id,scene,layer.type,layer.text);setComponent(world,eid,c.Scale,{x:layer.scaleX??1,y:layer.scaleY??1});if(layer.clipToBox)addComponent(world,eid,c.ClipToBox);if(layer.type==="image"||layer.type==="video")paint(eid,layer.type);}
+for(const layer of plan.layers){const eid=node(layer.id,null,layer.type,layer.text);setComponent(world,eid,c.Scale,{x:layer.scaleX??1,y:layer.scaleY??1});if(layer.clipToBox)addComponent(world,eid,c.ClipToBox);if(layer.type==="image"||layer.type==="video")paint(eid,layer.type);
+if(layer.anchorX!==undefined||layer.anchorY!==undefined)setComponent(world,eid,c.Anchor,{x:layer.anchorX??.5,y:layer.anchorY??.5});
+if(layer.type==="group"){addComponent(world,eid,c.Group);setComponent(world,eid,c.Size,{width:layer.width,height:layer.height});}
+if(layer.type==="path"){setComponent(world,eid,c.Geometry,GeometryType.PATH);setComponent(world,eid,c.VectorPath,{commands:structuredClone(layer.pathCommands),fillEnabled:layer.fillEnabled??true});setComponent(world,eid,c.StrokeStyle,{width:layer.strokeWidth??0,cap:["butt","round","square"].indexOf(layer.strokeCap??"butt"),join:["miter","round","bevel"].indexOf(layer.strokeJoin??"miter")});if((layer.strokeWidth??0)>0){const sid=addEntity(world);addComponent(world,sid,ChildOf(eid));addComponent(world,sid,c.Stroke);setComponent(world,sid,c.Color,parseInt((layer.strokeColor??"#000000").slice(1),16));}}}
+for(const layer of plan.layers)addComponent(world,byKey.get(layer.id),ChildOf(layer.parentId?byKey.get(layer.parentId):scene));
 function audio(key="_reconstruction-audio"){const eid=node(key,scene);addComponent(world,eid,c.Audio);setComponent(world,eid,c.AssetId,"video-source");return eid;}if(hasAudio)audio();
-return{audit:()=>auditReconstructionWorld(world,scene,plan,hasAudio),walks:()=>world.auditWalks,nativeKind:key=>entityType(world,byKey.get(key)),duplicate(key){node(key,scene);},drop(key){addComponent(world,byKey.get(key),c.Deleted);},changeText(key,text){setComponent(world,byKey.get(key),c.Chars,text);},changeToRect(key){setComponent(world,byKey.get(key),c.Geometry,GeometryType.RECT);},addPaint(key,type,nested=false){let parent=byKey.get(key);if(nested){const eid=addEntity(world);c.Cache.fills[eid]=[];addComponent(world,eid,ChildOf(parent));parent=eid;}paint(parent,type);},addExtraAudio(){audio("unplanned-audio");},removeAudioSource(){removeComponent(world,byKey.get("_reconstruction-audio"),c.AssetId);},extraGeometry(){node(null,scene);},changeAxes(key,x,y){setComponent(world,byKey.get(key),c.Scale,{x,y});},changeClipping(key,clip){(clip?addComponent:removeComponent)(world,byKey.get(key),c.ClipToBox);}};}`, loader: "js", resolveDir: repository },
+return{audit:()=>auditReconstructionWorld(world,scene,plan,hasAudio),walks:()=>world.auditWalks,nativeKind:key=>entityType(world,byKey.get(key)),duplicate(key){node(key,scene);},drop(key){addComponent(world,byKey.get(key),c.Deleted);},changeText(key,text){setComponent(world,byKey.get(key),c.Chars,text);},changeToRect(key){setComponent(world,byKey.get(key),c.Geometry,GeometryType.RECT);},addPaint(key,type,nested=false){let parent=byKey.get(key);if(nested){const eid=addEntity(world);c.Cache.fills[eid]=[];addComponent(world,eid,ChildOf(parent));parent=eid;}paint(parent,type);},addExtraAudio(){audio("unplanned-audio");},removeAudioSource(){removeComponent(world,byKey.get("_reconstruction-audio"),c.AssetId);},extraGeometry(){node(null,scene);},changeAxes(key,x,y){setComponent(world,byKey.get(key),c.Scale,{x,y});},changeClipping(key,clip){(clip?addComponent:removeComponent)(world,byKey.get(key),c.ClipToBox);},
+changeCommands(key){setComponent(world,byKey.get(key),c.VectorPath,{commands:[{op:"M",x:0,y:0},{op:"L",x:1,y:1}]});},
+changePivot(key){setComponent(world,byKey.get(key),c.Anchor,{x:.5,y:.5});},changeStroke(key){setComponent(world,byKey.get(key),c.StrokeStyle,{width:9});},
+changeParent(key){const eid=byKey.get(key);for(const layer of plan.layers)if(layer.id===key&&layer.parentId)removeComponent(world,eid,ChildOf(byKey.get(layer.parentId)));addComponent(world,eid,ChildOf(scene));},
+loseGroupBox(key){removeComponent(world,byKey.get(key),c.Size);}};}`, loader: "js", resolveDir: repository },
       bundle: true, write: false, platform: "node", format: "esm", conditions: ["browser"], logLevel: "silent",
       plugins: [{ name: "native-audit-world", setup(builder) {
         builder.onResolve({ filter: /^@\// }, args => stubs[args.path] ? ({ path: args.path, namespace: "native-audit-stub" }) : undefined);
@@ -115,4 +124,22 @@ test("native audit rejects lost glyph proportions or clipping even when layer ki
   assert.throws(() => clipping.audit(), /box clipping/);
   const extra = fixture(plan(), false); extra.changeClipping("year", true);
   assert.throws(() => extra.audit(), /box clipping/);
+});
+
+test("native vector audit verifies editable command data, nested parents, group boxes, pivots and real stroke paints", async () => {
+  const { fixture } = await runtime(), authored = plan();
+  authored.layers.push({ ...layer('figure', 'group'), width: 200, height: 500, anchorX: 0, anchorY: 1 });
+  authored.layers.push({ ...layer('hand', 'path'), parentId: 'figure', width: 80, height: 60,
+    pathCommands: [{ op: 'M', x: 0, y: 20 }, { op: 'Q', cx: 20, cy: 0, x: 50, y: 20 }, { op: 'L', x: 80, y: 60 }],
+    fillEnabled: false, strokeWidth: 4, strokeColor: '#123456', strokeCap: 'round', strokeJoin: 'round' });
+  assert.equal(fixture(authored, false).audit().geometryNodes, 6);
+  for (const [corrupt, message] of [
+    [(value: Fixture) => value.changeCommands('hand'), /editable commands/],
+    [(value: Fixture) => value.changePivot('figure'), /transform pivot/],
+    [(value: Fixture) => value.changeStroke('hand'), /stroke width/],
+    [(value: Fixture) => value.changeParent('hand'), /declared native parent/],
+    [(value: Fixture) => value.loseGroupBox('figure'), /logical box/],
+    [(value: Fixture) => value.changeToRect('hand'), /wrong native kind/],
+    [(value: Fixture) => value.addPaint('hand', 'video', true), /media instead of editable geometry/],
+  ] as const) { const value = fixture(authored, false); corrupt(value); assert.throws(() => value.audit(), message); }
 });

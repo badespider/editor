@@ -2,10 +2,13 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import type { VectorPathCommand } from "@diffusionstudio/jsx";
+
 export interface DBEntity {
 	id: string;
 	eid: number;
 	Geometry?: number;
+	VectorPath?: { commands?: VectorPathCommand[]; fillEnabled?: boolean };
 	Paint?: number;
 	Group?: {};
 	Scene?: {};

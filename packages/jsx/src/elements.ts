@@ -26,6 +26,7 @@ import type {
   HtmlPaintProps,
   HtmlProps,
   ImageProps,
+  PathProps,
   RectProps,
   SequenceProps,
   ShaderPaintProps,
@@ -54,6 +55,7 @@ function hostElement<P extends object>(tag: string): (props: P) => SolidJSX.Elem
 
 export const Group = hostElement<GroupProps>("Group");
 export const Rect = hostElement<RectProps>("Rect");
+export const Path = hostElement<PathProps>("Path");
 export const Video = hostElement<VideoProps>("Video");
 export const Image = hostElement<ImageProps>("Image");
 export const Audio = hostElement<AudioProps>("Audio");

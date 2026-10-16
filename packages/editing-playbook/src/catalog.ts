@@ -7,7 +7,7 @@ export const skillIds = ["editor-story-plan", "editor-pacing", "editor-visual-fo
   "editor-audio-continuity", "editor-reference-learning", "editor-review", "editor-video-evidence",
   "editor-vlog-story", "editor-scene-building", "editor-short-form", "editor-youtube-packaging", "editor-sound-polish",
   "editor-motion-graphics", "editor-motion-integration", "editor-motion-recipes",
-  "editor-title-assembly", "editor-milestone-badge", "editor-concept-link"] as const;
+  "editor-title-assembly", "editor-milestone-badge", "editor-concept-link", "editor-illustrated-exchange"] as const;
 export type SkillId = typeof skillIds[number];
 export const recommendationTasks = ["edit", "package", "evaluate", "compose"] as const;
 export type RecommendationTask = typeof recommendationTasks[number];
@@ -31,6 +31,7 @@ export const skills = [
   { id: skillIds[15], category: "motion-pattern", purpose: "Gather editable letters into a held headline, then introduce its separately timed subtitle." },
   { id: skillIds[16], category: "motion-pattern", purpose: "Grow a supplied milestone badge from a dot and reveal its context outside the circle." },
   { id: skillIds[17], category: "motion-pattern", purpose: "Explain a supplied term through a circle, growing connector and revealed definition card." },
+  { id: skillIds[18], category: "motion-pattern", purpose: "Compose editable vector people, articulated groups and opposite money/goods transfers with reusable native parts." },
 ].map(skill => ({ ...skill, path: `.agents/skills/${skill.id}/SKILL.md`,
   readArgs: ["playbook", "skill", skill.id], maturity: "starter" as const }));
 
@@ -59,7 +60,7 @@ export const relationships: Array<{ from: SkillId; to: SkillId; type: "requires"
   { from: "editor-motion-integration", to: "editor-review", type: "verify_with", when: "Candidate source, seek, cleanup and exact-export evidence need review; mechanical checks cannot activate a tool." },
   { from: "editor-motion-recipes", to: "editor-motion-graphics", type: "requires", when: "Reuse native component, content, layout and timing contracts when combining or generalizing patterns." },
   { from: "editor-motion-recipes", to: "editor-review", type: "verify_with", when: "Inspect the exact reusable pattern and its remix, including literal content, native layers and forward/reverse seeks." },
-  ...(["editor-title-assembly", "editor-milestone-badge", "editor-concept-link"] as const).map(from => ({from, to: "editor-motion-recipes" as const, type: "requires" as const, when: "Use the native pattern contract and bounded mixing workflow, preserving content, geometry and local clocks."})),
+  ...(["editor-title-assembly", "editor-milestone-badge", "editor-concept-link", "editor-illustrated-exchange"] as const).map(from => ({from, to: "editor-motion-recipes" as const, type: "requires" as const, when: "Use the native pattern contract and bounded mixing workflow, preserving content, geometry and local clocks."})),
   { from: "editor-motion-graphics", to: "editor-pacing", type: "tension", when: "Entrance and exit motion consume time the audience needs to read; use footage pacing only when footage is being edited." },
   { from: "editor-motion-graphics", to: "editor-visual-focus", type: "tension", when: "Emphasis must preserve essential characters, context and source labels; a graphic-only task needs no fabricated footage plan." },
   ...(["editor-story-plan", "editor-pacing", "editor-visual-focus", "editor-audio-continuity",
@@ -132,6 +133,7 @@ export function recommend(format: Format, goal: string, hasReference = false, ta
       ["editor-title-assembly", /\b(?:assemble[ -]?title|title[ -]assembly|letter[ -]assembly|gather(?:ing)?[ -]letters?)\b|\b(?:gather|assemble|assembling)\b[^.!?\n]{0,40}\b(?:letters?|glyphs?)\b|\b(?:letters?|glyphs?)\b[^.!?\n]{0,40}\b(?:gather|assemble)\b/i],
       ["editor-milestone-badge", /\b(?:milestone[ -]?badge|(?:milestone|value|date)[ -]+badges?|dot[ -]to[ -]circle)\b/i],
       ["editor-concept-link", /\b(?:concept[ -]?link|(?:term|circle)[ -]to[ -]definition|definition[ -]callout)\b|\bterms?\b[^.!?\n]{0,50}\b(?:connector|definition[ -]cards?)\b/i],
+      ["editor-illustrated-exchange", /\b(?:exchange[ -]diagram|money[ -](?:for[ -])?goods|money[ -]exchange|vector[ -](?:drawings?|people)|articulated[ -](?:people|groups?|limbs?)|nested[ -]groups?)\b/i],
     ];
     for (const [id, pattern] of patterns) if (pattern.test(goal)) {
       selected.set(id, "Use the selected native pattern's specific content, timing and geometry guidance.");
